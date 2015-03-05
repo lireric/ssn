@@ -1,0 +1,114 @@
+# include Makefile 
+
+#This file is included in the general Makefile, the libs Makefile and the src Makefile
+#Different optimize settings for library and source files can be realized by using arguments
+#Compiler optimize settings:
+# -O0 no optimize, reduce compilation time and make debugging produce the expected results.
+# -O1 optimize, reduce code size and execution time, without much increase of compilation time.
+# -O2 optimize, reduce code execution time compared to ‘O1’, increase of compilation time.
+# -O3 optimize, turns on all optimizations, further increase of compilation time.
+# -Os optimize for size, enables all ‘-O2’ optimizations that do not typically increase code size and other code size optimizations.
+#Recommended optimize settings for release version: -O3
+#Recommended optimize settings for debug version: -O0
+#Valid parameters :
+# OptLIB=0 --> optimize library files using the -O0 setting
+# OptLIB=1 --> optimize library files using the -O1 setting
+# OptLIB=2 --> optimize library files using the -O2 setting
+# OptLIB=3 --> optimize library files using the -O3 setting (default)
+# OptLIB=s --> optimize library files using the -Os setting
+# OptSRC=0 --> optimize source files using the -O0 setting
+# OptSRC=1 --> optimize source files using the -O1 setting
+# OptSRC=2 --> optimize source files using the -O2 setting
+# OptSRC=3 --> optimize source files using the -O3 setting
+# OptSRC=s --> optimize source files using the -Os setting
+# OptSRC=4 --> optimize source files using the -O3 setting, conditional compiling by use of define RELEASE_PUBLIC (default)
+# all --> build all
+# libs --> build libs only
+# src --> build src only
+# clean --> clean project
+# tshow --> show optimize settings
+#Example:
+# make OptLIB=3 OptSRC=0 all tshow 
+
+TOP=$(shell readlink -f "$(dir $(lastword $(MAKEFILE_LIST)))")
+PROGRAM=main
+LIBDIR=$(TOP)/libs
+
+#Adust the following line to the library in use
+OPENCM3_DIR=$(LIBDIR)/libopencm3
+OPENCM3LIB=$(OPENCM3_DIR)/lib/libopencm3_stm32f1.a
+DESTDIR=$(OPENCM3_DIR)
+
+FREERTOSDIR=$(LIBDIR)/FreeRTOS
+
+#Adjust TypeOfMCU in use, see CMSIS file "stm32f10x.h"
+#STM32F103RBT (128KB FLASH, 20KB RAM) --> STM32F10X_MD
+#TypeOfMCU=STM32F10X_MD
+#STM32F103RET (512KB FLASH, 64KB RAM) --> STM32F10X_HD
+TypeOfMCU=STM32F10X_HD 
+Chipset=STM32F1
+
+TC=arm-none-eabi
+CC=$(TC)-gcc
+LD=$(TC)-ld -v 
+OBJCOPY=$(TC)-objcopy
+AR=$(TC)-ar
+GDB=$(TC)-gdb
+
+INCLUDE=-I$(TOP)/inc
+INCLUDE+=-I$(OPENCM3_DIR)/include
+INCLUDE+=-I$(FREERTOSDIR)/Source/include
+INCLUDE+=-I$(FREERTOSDIR)/Source/portable/GCC/ARM_CM3
+
+COMMONFLAGS=-g -mcpu=cortex-m3 -mthumb -Wno-char-subscripts 
+COMMONFLAGSlib=$(COMMONFLAGS)
+
+#Commands for general Makefile and src Makefile
+ifeq ($(OptSRC),0)
+	COMMONFLAGS+=-O0
+	InfoTextSrc=src (no optimize, -O0)
+else ifeq ($(OptSRC),1)
+	COMMONFLAGS+=-O1
+	InfoTextSrc=src (optimize time+ size+, -O1)
+else ifeq ($(OptSRC),2)
+	COMMONFLAGS+=-O2
+	InfoTextSrc=src (optimize time++ size+, -O2)
+else ifeq ($(OptSRC),s)
+	COMMONFLAGS+=-Os
+	InfoTextSrc=src (optimize size++, -Os) 
+else ifeq ($(OptSRC),3)
+	COMMONFLAGS+=-O3
+	InfoTextSrc=src (full optimize, -O3)
+else
+	COMMONFLAGS+=-O3
+	CFLAGS += -D RELEASE_PUBLIC
+	InfoTextSrc=src (full optimize and readout protected, -O4)
+endif
+
+CFLAGS+=$(COMMONFLAGS) -Wall -Werror $(INCLUDE)
+CFLAGS+=-D $(TypeOfMCU)
+CFLAGS+=-D $(Chipset)
+CFLAGS+=-D VECT_TAB_FLASH
+
+#Commands for libs Makefile
+ifeq ($(OptLIB),0)
+	COMMONFLAGSlib+=-O0
+	InfoTextLib=libs (no optimize, -O0)
+else ifeq ($(OptLIB),1)
+	COMMONFLAGSlib+=-O1
+	InfoTextLib=libs (optimize time+ size+, -O1)
+else ifeq ($(OptLIB),2)
+	COMMONFLAGSlib+=-O2
+	InfoTextLib=libs (optimize time++ size+, -O2)
+else ifeq ($(OptLIB),s)
+	COMMONFLAGSlib+=-Os
+	InfoTextLib=libs (optimize size++, -Os)
+else
+	COMMONFLAGSlib+=-O3
+	InfoTextLib=libs (full optimize, -O3)
+endif
+
+CFLAGSlib+=$(COMMONFLAGSlib) -Wall -Werror $(INCLUDE)
+CFLAGSlib+=-D $(TypeOfMCU)
+CFLAGS+=-D $(Chipset)
+CFLAGSlib+=-D VECT_TAB_FLASH
