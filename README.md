@@ -25,11 +25,11 @@ Cheap hardware are permit to split smart-home automation tasks between numerous 
 
 By default in project use STM32F103xx MC
 
-*SSN use next internal subprojects:
+###SSN use next internal subprojects:
 [crc16](https://github.com/lireric/crc16) - command line crc16 calculator.
 [ssn-web](https://github.com/lireric/ssn-web) - web applications for SSN project
 
-*and external projects:
+###and external projects:
 [FreeRTOS](http://freertos.org)
 [libopencm3](https://github.com/libopencm3/libopencm3)
 
