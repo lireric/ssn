@@ -17,16 +17,26 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* Linker script for Olimex STM32-H103 (STM32F103RBT6, 128K flash, 20K RAM). */
 
-/* Define memory regions. */
+/* Define memory regions. Uncomment one: */
+/* STM32F10X_HD */
+
+  MEMORY
+  {
+ 	 rom (rx)  : ORIGIN = 0x08000000, LENGTH = 512K-0x8000   	
+ 	 ram (rwx) : ORIGIN = 0x20000000, LENGTH = 64K   		
+ 	 EEMUL (rwx) : ORIGIN = 0x08000000+126K, LENGTH = 2K
+ 	 }
+ 
+
+/* STM32F10X_MD */
+/*
 MEMORY
 {
-  rom (rx)  : ORIGIN = 0x08000000, LENGTH = 512K-0x2000   /* 512k */
-  ram (rwx) : ORIGIN = 0x20000000, LENGTH = 64K   /*  64k */
-  EEMUL (rwx) : ORIGIN = 0x08000000+126K, LENGTH = 2K
+	rom (rx)  : ORIGIN = 0x08000000, LENGTH = 128K-0x4000   	
+	ram (rwx) : ORIGIN = 0x20000000, LENGTH = 20K   			
 }
-
+*/
 /* Include the common ld script. */
 INCLUDE libs/libopencm3/lib/libopencm3_stm32f1.ld
 

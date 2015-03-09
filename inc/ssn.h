@@ -172,10 +172,18 @@ typedef struct
 #define main_IF_ETH					( 9 )	// ethernet
 #define main_IF_RF					( 10 )	// wireless
 
+#ifndef  mainMAX_MSG_LEN
 #define mainMAX_MSG_LEN			127
+#endif
+#ifndef  mainINPUT_QUEUE_SIZE
 #define mainINPUT_QUEUE_SIZE	15
+#endif
+#ifndef  mainSENSORS_QUEUE_SIZE
 #define mainSENSORS_QUEUE_SIZE	25
+#endif
+#ifndef  mainDEBUG_QUEUE_SIZE
 #define mainDEBUG_QUEUE_SIZE	50
+#endif
 
 /* Type of the message sent to the input queue. */
 typedef struct

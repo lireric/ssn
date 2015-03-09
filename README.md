@@ -13,19 +13,24 @@ Copyright (C) 2014-2015 Ernold Vasiliev <ericv@mail.ru>
     You should have received a copy of the GNU General Public License
     along with SSN project.  If not, see <http://www.gnu.org/licenses/>.
 
-# SSN project [ SmartHouse Sensor Network ]
+# SSN project - Smart-house Sensor Network
 
 Main goal of this project - make tool that permits to automate smart house using customisable framework. Most preferences like hardware sensors connections, actions logic and routing between modules make in runtime without compilation and MC (microcontroller) flashing.
-Typical modules (in/out lines, temperature sensors, humidity sensors, gsm modem etc) included out of the box and new custom modules can easy add to application.
+Typical modules (in/out lines, temperature sensors, humidity sensors, gsm modem etc) included out of the box. New custom modules can easy add to application.
 Main architecture concept - using distributed MC network without centralised processing unit. Every MC serve local tasks (eg boiler control, floor or room temperature control, communication with internet web service for telemetry uploading and getting remote control etc).
-Each module "knows" what tasks must it process and what tasks it must send to other modules (in SSN terminology such modules named "objects". Objects can be MC module or external entity, web service or logging computer, etc).
-Cheap hardware is permit to split smart-home automation tasks between numerous modules, that provides reliability and keeps total solution cost on quite low level.
+Each module "knows" what tasks must it process and what tasks it must send to other modules (in SSN terminology such modules named "objects". Objects can be MC module or external entity, web service or logging computer, etc):
+[![Concept pic](https://github.com/lireric/ssn/blob/master/models/concept.png)](https://github.com/lireric/ssn/blob/master/models/concept.png)
+
+Cheap hardware are permit to split smart-home automation tasks between numerous modules, that provides reliability and keeps total solution cost on quite low level.
 
 By default in project use STM32F103xx MC
 
-SSN use next external projects:
-- FreeRTOS
-- libopencm3
+*SSN use next internal projects:*
+* (crc16)[https://github.com/lireric/crc16] - command line crc16 calculator.
+* (ssn-web)[https://github.com/lireric/ssn-web] - web applications for SSN project
+* and external projects:*
+* (FreeRTOS)[http://freertos.org]
+* (libopencm3)[https://github.com/libopencm3/libopencm3]
 
 #Configuration examples
 Preferenses stored in JSON format and can be uploaded to MC by serial or GPRS (from REST web service) interfaces. Script samples can be find in scripts folder.
@@ -46,7 +51,7 @@ Preferenses stored in JSON format and can be uploaded to MC by serial or GPRS (f
 	"grp": [
 	
 	// group must have unique number and can have different attributes according grouped devices. In this example grptimer - hardware processor timer for serving this device, grpport/grppin1 - GPIO porn and pin where device connected
- 	{"grpnum":1,"grpmaxdevs":15,"grptimer":"TIM3","grpport":"GPIOA","grppin1":1, "devsqty":5, "devs": [
+	{"grpnum":1,"grpmaxdevs":15,"grptimer":"TIM3","grpport":"GPIOA","grppin1":1, "devsqty":5, "devs": [
 	
 	// properties for connected devices - ds18b20 temperature sensors
 	  {"devid":2001, "devtype":1, "romid":"28fcc2da020000e5"},
@@ -111,3 +116,10 @@ Preferenses stored in JSON format and can be uploaded to MC by serial or GPRS (f
 	]
 	}}}
 
+#to do:
+- user web application
+- RF interfaces
+- smart card reader interface
+- stepping motor device
+- LCD interface (GUI part)
+- ethernet interface

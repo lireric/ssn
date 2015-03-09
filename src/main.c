@@ -268,12 +268,10 @@ int main(void)
 
 // ------------------------------------------------------------------------------
 	  	sGrpInfo * pGrp;
-		sGrpDev * pGrpDev;
 		sDevice* pVirtualDev;	// abstract device for timer actions cashing
 
 		grpArray[grp_counter] = (sGrpInfo*) pvPortMalloc(sizeof(sGrpInfo));
 		pGrp = grpArray[grp_counter];
-		pGrpDev = &pGrp->GrpDev;
 
 		pVirtualDev = (sDevice*) pvPortMalloc(sizeof(sDevice));
 		pVirtualDev->nId = 0;
@@ -283,6 +281,8 @@ int main(void)
 		devArray[all_devs_counter++] = pVirtualDev;
 
 #if defined (M_RTC_DS1307) || defined (PERSIST_EEPROM_I2C)
+		sGrpDev * pGrpDev;
+		pGrpDev = &pGrp->GrpDev;
 		// software i2c group index = 0 (grp_counter = 0)
 		// This group combine RTC_DS1307 and EEPROM
 		pGrp->uiGroup = SOFTI2C_1_GRP;

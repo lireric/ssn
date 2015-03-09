@@ -29,8 +29,8 @@
 #ifndef INC_SSN_PREFS_H_
 #define INC_SSN_PREFS_H_
 
-#define CONF_TEST
-//#define CONF_TEST2
+//#define CONF_TEST
+#define CONF_TEST2
 //#define CONF_PROD1
 
 

@@ -31,7 +31,7 @@
 
 //#define M_LCD
 #define M_USART
-#define M_DS18B20
+//#define M_DS18B20
 //#define M_DHT
 //#define M_GSM
 
@@ -46,13 +46,18 @@
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
 #define configTICK_RATE_HZ			( ( portTickType ) 100 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 10 * 1024 ) )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 12 * 1024 ) )
+
+/* Persistence settings *
+ * (select one) */
+//#define PERSIST_EEPROM_I2C
+#define PERSIST_STM32FLASH
 
 /*-----------------------------------------------------------*/
 /* Hardware application settings */
 #define mainMAX_DEV_GROUPS				(5) 	// max number sensor groups
 #define mainMAX_GRP_DEVICES				(7) 	// default max number devices on one group
-#define mainMAX_ALL_DEVICES				(10) 	// default max number of all devices
+#define mainMAX_ALL_DEVICES				(5) 	// default max number of all devices
 #define mainMAX_DHT_DEVICES				(1) 	// default max number of dht devices
 #define mainMAX_ROUTES					(2)		// max number routing interfaces
 
@@ -79,8 +84,8 @@
 #define EEPROM_PAGE_SIZE      	32
 
 /* Maximum elements number in parsed action formula string */
-#define MAX_ACTION_ARRAY_SIZE			(50)
-#define mainMAX_ACTIONS					(30) 	// max number of actions
+#define MAX_ACTION_ARRAY_SIZE			(10)
+#define mainMAX_ACTIONS					(10) 	// max number of actions
 
 #define mainLOG_ACTIONS_SIZE			(10) 	// size of log actions array
 
@@ -89,14 +94,18 @@
 #define configUSE_TRACE_FACILITY 1
 #define configUSE_STATS_FORMATTING_FUNCTIONS 1
 
-extern void log_event (void* poldt, void* pnewt, uint32_t xTickCount);
-extern void log_event2 (char c, void* pt);
+#define mainMAX_MSG_LEN			100
+#define mainINPUT_QUEUE_SIZE	5
+#define mainSENSORS_QUEUE_SIZE	5
+#define mainDEBUG_QUEUE_SIZE	10
+
+//extern void log_event (void* poldt, void* pnewt, uint32_t xTickCount);
+//extern void log_event2 (char c, void* pt);
 
 
 /* xTaskThatWasRunning is defined in main.c. */
-extern void* xTaskThatWasRunning;
-extern void* xBaseOutTaskHnd;
-//extern char cBuffer[];
+//extern void* xTaskThatWasRunning;
+//extern void* xBaseOutTaskHnd;
 
 /* traceTASK_SWITCHED_OUT() is always called before a reschedule, and
 traceTASK_SWITCHED_IN() is always called after a reschedule. This definition
@@ -105,7 +114,7 @@ was called. The recorded value is later compared to the task in the Running
 state when the traceTASK_SWITCHED_IN() macro is called to determine if the
 Running state task was changed. */
 
-#define traceTASK_SWITCHED_OUT() xTaskThatWasRunning = (void*) pxCurrentTCB
+//#define traceTASK_SWITCHED_OUT() xTaskThatWasRunning = (void*) pxCurrentTCB
 
 /* traceTASK_SWITCHED_OUT() is always called before a reschedule, and
 traceTASK_SWITCHED_IN() is always called after a reschedule. This definition
