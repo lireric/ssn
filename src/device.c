@@ -173,6 +173,23 @@ void setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t n
 				break;
 			}
 		}
+		// if local device array not contain this device, send to input queue for routing
+		if (i == all_devs_counter)
+		{
+			char msg[mainMAX_MSG_LEN];
+			if (nDataType == eElmString) {
+				xsprintf(msg, "{\"ssn\":{\"v\":1,\"obj\":0,\"cmd\":\"sdv\", \"data\": {\"adev\":%d,\"acmd\":%d,\"aval\":\"%s\"}}}", nDevID, nDevCmd, (char*)nValue);
+				vPortFree((void*)nValue);
+			} else {
+				xsprintf(msg, "{\"ssn\":{\"v\":1,\"obj\":0,\"cmd\":\"sdv\", \"data\": {\"adev\":%d,\"acmd\":%d,\"aval\":\"%d\"}}}", nDevID, nDevCmd, nValue);
+			}
+			char* buf = pvPortMalloc(strlen(msg));
+			if (buf)
+			{
+				memcpy(buf, &msg, strlen(msg) + 1);
+				vSendInputMessage(1, 0, mainJSON_MESSAGE, 0, nDevID, (void*) buf, strlen(buf), 0);
+			}
+		}
 	}
 }
 

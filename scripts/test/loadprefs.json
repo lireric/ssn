@@ -1,25 +1,25 @@
 {"ssn":{"v":1,"obj":1,"cmd":"loadprefs", "data": {
-"app":{"logobj":2},
+"app":{"logobj":3},
 "grp": [
  {"grpnum":10,"grpmaxdevs":1, "grptimer":"TIM3", "devsqty":1, "devs": [
   {"devid":10001,"devtype":10,"v":"SIM900","PortDTR":"GPIOB","PinDTR":14,"PortPwrKey":"GPIOB","PinPwrKey":12,"PortChgCtrl":"GPIOB","PinChgCtrl":15,"PortRTS":"GPIOB","PinRTS":8,"USART":2,"APN":"internet","SrvAddr":"lirclub.ru","SrvPort":80,"SMSNumber":"+79099920366","PriDNS":"8.8.8.8","SecDNS":"8.8.8.8","GUser":"","GUserPswd":"","AESKey":"winter","acc":1}
 ]},
  {"grpnum":1,"grpmaxdevs":15,"grptimer":"TIM3","grpport":"GPIOA","grppin1":1, "devsqty":5, "devs": [
-  {"devid":2001, "devtype":1, "romid":"28fcc2da020000e5"},
-  {"devid":2002, "devtype":1, "romid":"2898f0da020000fd"},
-  {"devid":2003, "devtype":1, "romid":"28cb98f804000003"}
+  {"devid":1001, "devtype":1, "romid":"28fcc2da020000e5"},
+  {"devid":1002, "devtype":1, "romid":"2898f0da020000fd"},
+  {"devid":1003, "devtype":1, "romid":"28cb98f804000003"}
 ]},
  {"grpnum":2,"grpmaxdevs":1,"grptimer":"TIM2","grpport":"GPIOE","grppin1":3, "grppin2":6, "devsqty":1, "devs": [
-  {"devid":1003, "devtype":1, "romid":"280d8af8040000d1"}
+  {"devid":1013, "devtype":1, "romid":"280d8af8040000d1"}
 ]},
  {"grpnum":7,"grpmaxdevs":1,"grptimer":"TIM5","grpport":"GPIOE","grppin1":1, "devsqty":1, "devs": [
-  {"devid":4004, "devtype":4}
+  {"devid":1014, "devtype":4}
 ]},
- {"grpnum":9,"grpmaxdevs":1,"grptimer":"TIM5","grpport":"GPIOC","grppin1":8, "devsqty":1, "devs": [
-  {"devid":4005, "devtype":5}
+ {"grpnum":9,"grpmaxdevs":1,"grptimer":"TIM5","grpport":"GPIOE","grppin1":0, "devsqty":1, "devs": [
+  {"devid":1015, "devtype":5}
 ]},
 {"grpnum":8,"grpmaxdevs":1,"grptimer":"TIM4","grpport":"GPIOC","grppin1":9, "devsqty":1, "devs": [
-{ "devid":3001, "devtype":2}
+{ "devid":1011, "devtype":2}
 ]}
 ],
 "routes":[
@@ -27,16 +27,7 @@
 {"obj":3,"if":6}
 ],
 "logic":[
-{"aid":1,"astr":"d(2002,0)>260=a(4004,0,0)"},
-{"aid":2,"astr":"d(2002,0)+10>=270=a(10001,2,'Alarm: t<2')","arep":20},
-{"aid":3,"astr":"d(2002,1)<250=a(4004,0,1),a(4005,0,0),a(10001,2,'Alarm!')"},
-{"aid":4,"astr":"(d(2002,1)<900)&&(d(3001,2)>50)=a(4004,0,1,0,0)","nolog":"1"},
-{"aid":5,"astr":"(tt>'7:00:00')&&(tt<'21:00:00')=a(4004,0,0,0,1)"},
-{"aid":6,"astr":"(ty>2015)&&(tm==3)&&(td==8)=a(10001,2,'Greetings!')"},
-{"aid":7,"astr":"(tw>=1)&&(tw<=5)=a(4005,0,1,0,0)"},
-{"aid":8,"astr":"i(3000,100)=a(4004,0,1,0,0)","nolog":"1","s":"1"},
-{"aid":9,"astr":"i(30000,0)=a(10001,5,1)"},
-{"aid":10,"astr":"i(50000,0)=a(10001,6,1)"},
-{"aid":11,"astr":"i(10000,1000)=a(4004,0,1,0,0)"}
+{"aid":1,"astr":"d(1002,0)>260=a(1015,0,0)"},
+{"aid":8,"astr":"i(3000,100)=a(1014,0,1,0,0)","nolog":"1"}
 ]
 }}}

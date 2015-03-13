@@ -31,7 +31,7 @@
 
 //#define M_LCD
 #define M_USART
-//#define M_DS18B20
+#define M_DS18B20
 //#define M_DHT
 //#define M_GSM
 
@@ -46,7 +46,7 @@
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
 #define configTICK_RATE_HZ			( ( portTickType ) 100 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 12 * 1024 ) )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 17 * 1024 ) )
 
 /* Persistence settings *
  * (select one) */
@@ -91,8 +91,8 @@
 
 //#define mainDEFAULT_LOG_INTERFACE		main_IF_GSM 	// interface to routing log info
 
-#define configUSE_TRACE_FACILITY 1
-#define configUSE_STATS_FORMATTING_FUNCTIONS 1
+//#define configUSE_TRACE_FACILITY 1
+//#define configUSE_STATS_FORMATTING_FUNCTIONS 1
 
 #define mainMAX_MSG_LEN			100
 #define mainINPUT_QUEUE_SIZE	5

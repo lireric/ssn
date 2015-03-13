@@ -60,8 +60,8 @@
 
 /* Persistence settings *
  * (select one) */
-//#define PERSIST_EEPROM_I2C
-#define PERSIST_STM32FLASH
+#define PERSIST_EEPROM_I2C
+//#define PERSIST_STM32FLASH
 
 
 /* EEPROM I2C ------------------------------------------------*/

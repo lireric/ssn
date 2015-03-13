@@ -189,7 +189,7 @@ void process_loadprefs(cJSON *json_data, char * jsonMsg, sGrpInfo*  grpArray[])
 		else {
 			flash_unlock();
 			// erase necessary flash pages
-			for (i = STM32FLASH_BEGIN_ADDR; i <= (STM32FLASH_BEGIN_ADDR + STM32FLASH_PREF_SIZE); i+=STM32FLASH_PAGE_SIZE )
+			for (i = STM32FLASH_BEGIN_ADDR; i < (STM32FLASH_BEGIN_ADDR + STM32FLASH_PREF_SIZE); i+=STM32FLASH_PAGE_SIZE )
 			{
 				flash_erase_page(i);
 			}

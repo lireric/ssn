@@ -2,7 +2,7 @@
 #. ./crc16awk
 
 jsonFile='test/loadprefs.json';
-mcPort='/dev/ttyUSB0';
+mcPort='/dev/ttyUSB1';
 #mcPort='qq';
 
 obj_dst=1;

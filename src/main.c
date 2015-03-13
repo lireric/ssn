@@ -451,7 +451,7 @@ static void prvInputTask( void *pvParameters )
 
 		/* Check the version of message */
 		if (xInputMessage.version == 1) {
-			uiDestInterface = getObjRoute(xInputMessage.xDestDevice);
+			uiDestInterface = getObjRoute(xInputMessage.uiDestObject);
 
 			/* route message if needed */
 			if (xInputMessage.uiDestObject != getMC_Object()) {
@@ -462,14 +462,17 @@ static void prvInputTask( void *pvParameters )
 						if (xInputMessage.xMessageType == mainTELEMETRY_MESSAGE) {
 							// for mainTELEMETRY_MESSAGE default interface main_IF_GSM
 							uiDestInterface = main_IF_GSM;
-						}
+						} else
 						if (xInputMessage.xMessageType == mainLOG_MESSAGE) {
 
 							uiDestInterface = getObjRoute(getLog_Object());
 							xInputMessage.xDestDevice = getLog_Object();
-						}
+						} else
+							if (getDeviceObjByID (xInputMessage.uiDestObject) == getMC_Object())
+								goto processLocalMessages;
+						// else goto UART..
 						// to do: process other message types
-						goto processLocalMessages;
+
 					}
 					case main_IF_UART1:
 					case main_IF_UART2:
@@ -801,14 +804,14 @@ static void prvCheckSensorHRTask( void *pvParameters )
 							ut = devArray[j]->ucType;
 							switch (ut) {
 							case device_TYPE_BB1BIT_IO_INPUT:
-								break;
-							case device_TYPE_BB1BIT_IO_PP:
-							case device_TYPE_BB1BIT_IO_OD:
 								res = (int8_t) bb_read_wire_data_bit(&devArray[j]->pGroup->GrpDev);
 								if (res != devArray[j]->nLastPinValue) {
 									devArray[j]->nLastPinValue = res;
 									xQueueSend(xSensorsQueue, &devArray[j], 0);
 								}
+								break;
+							case device_TYPE_BB1BIT_IO_PP:
+							case device_TYPE_BB1BIT_IO_OD:
 								break;
 							}
 //					}
@@ -1244,7 +1247,7 @@ static void vMainTimerFunctionInterval1(void* pParam)
 	sEvtElm* pEvtElm = (sEvtElm*) pvTimerGetTimerID( pParam );
 	sActElm* pActElm;
 	sAction* pAction;
-	char * cPassMessage[ mainMAX_MSG_LEN ];
+	char cPassMessage[ mainMAX_MSG_LEN ];
 	// search all Action elements:
 	while (pEvtElm)
 	{
@@ -1254,14 +1257,14 @@ static void vMainTimerFunctionInterval1(void* pParam)
 					pAction = pActElm->pAction;
 					if (!(pAction->nFlags & devACTION_FLAG_NOLOG)) {
 						if (pActElm->nElmDataType == eElmString)
-							xsprintf( (char *) cPassMessage, "\n\rTimer set dev[%d] = (%d, %s) ", pActElm->nDevId, pActElm->nActCmdIn, (char*)pActElm->nElmDataIn);
+							xsprintf( cPassMessage, "\n\rTimer set dev[%d] = (%d, %s) ", pActElm->nDevId, pActElm->nActCmdIn, (char*)pActElm->nElmDataIn);
 						else
-							xsprintf( (char *) cPassMessage, "\n\rTimer set dev[%d] = (%d, %d) ", pActElm->nDevId, pActElm->nActCmdIn, pActElm->nElmDataIn);
-						sendBaseOut((char *) &cPassMessage);
+							xsprintf( cPassMessage, "\n\rTimer set dev[%d] = (%d, %d) ", pActElm->nDevId, pActElm->nActCmdIn, pActElm->nElmDataIn);
+						sendBaseOut(cPassMessage);
 					}
 					setDevValueByID(pActElm->nElmDataIn, pActElm->nActCmdIn, pActElm->nDevId, pActElm->nElmDataType);
 
-					if (pActElm->nElmDataOut > 0) {
+					if (pAction->xActTimerOneShot) {
 						xTimerStart(pAction->xActTimerOneShot, 0);
 					}
 
@@ -1276,7 +1279,7 @@ static void vMainTimerFunctionInterval2(void* pParam)
 	sEvtElm* pEvtElm = (sEvtElm*) pvTimerGetTimerID( pParam );
 	sActElm* pActElm;
 	sAction* pAction;
-	char * cPassMessage[ mainMAX_MSG_LEN ];
+	char cPassMessage[ mainMAX_MSG_LEN ];
 	// search all Action elements:
 	while (pEvtElm)
 	{
@@ -1288,11 +1291,11 @@ static void vMainTimerFunctionInterval2(void* pParam)
 					if (!(pAction->nFlags && devACTION_FLAG_NOLOG)) {
 
 						if (pActElm->nElmDataType == eElmString)
-							xsprintf( (char *) cPassMessage, "\n\rOne shot timer set dev[%d] = (%d, %s) ", pActElm->nDevId, pActElm->nActCmdOut, (char*)pActElm->nElmDataOut);
+							xsprintf(cPassMessage, "\n\rOne shot timer set dev[%d] = (%d, %s) ", pActElm->nDevId, pActElm->nActCmdOut, (char*)pActElm->nElmDataOut);
 						else
-							xsprintf( (char *) cPassMessage, "\n\rOne shot timer set dev[%d] = (%d, %d) ", pActElm->nDevId, pActElm->nActCmdOut, pActElm->nElmDataOut);
+							xsprintf(cPassMessage, "\n\rOne shot timer set dev[%d] = (%d, %d) ", pActElm->nDevId, pActElm->nActCmdOut, pActElm->nElmDataOut);
 
-						sendBaseOut((char *) &cPassMessage);
+						sendBaseOut(cPassMessage);
 					}
 					setDevValueByID(pActElm->nElmDataOut, pActElm->nActCmdOut, pActElm->nDevId, pActElm->nElmDataType);
 				}

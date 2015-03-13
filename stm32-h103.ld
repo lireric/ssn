@@ -35,6 +35,7 @@ MEMORY
 {
 	rom (rx)  : ORIGIN = 0x08000000, LENGTH = 128K-0x4000   	
 	ram (rwx) : ORIGIN = 0x20000000, LENGTH = 20K   			
+	EEMUL (rwx) : ORIGIN = 0x08000000+126K, LENGTH = 2K
 }
 */
 /* Include the common ld script. */

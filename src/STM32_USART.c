@@ -98,12 +98,12 @@
 /* Queues are used to hold characters that are waiting to be transmitted.  This
 constant sets the maximum number of characters that can be contained in such a
 queue at any one time. */
-#define serTX_QUEUE_LEN					( 50 )
+#define serTX_QUEUE_LEN					( 30 )
 
 /* Queues are used to hold characters that have been received but not yet 
 processed.  This constant sets the maximum number of characters that can be 
 contained in such a queue. */
-#define serRX_QUEUE_LEN					( 50 )
+#define serRX_QUEUE_LEN					( 30 )
 
 /* The maximum amount of time that calls to lSerialPutString() should wait for
 there to be space to post each character to the queue of characters waiting
