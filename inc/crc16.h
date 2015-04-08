@@ -28,7 +28,7 @@
 
 #include "stdint.h"
 
-#define	CRC16X25
+#define	CRC16CCITT
 /* available algorithms (select one):
 #define	CRC16CCITT
 #define	CRC16CCITT_XMODEM

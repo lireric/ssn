@@ -439,7 +439,7 @@ static void prvInputTask( void *pvParameters )
 	/* Just to avoid compiler warnings. */
 	(void) pvParameters;
 	xInputMessage xInputMessage;
-	char cPassMessage[mainMAX_MSG_LEN];
+	char cPassMessage[mainMAX_MSG_LEN*3];
 	char * jsonMsg;
 	int32_t xReturn;
 	sSSNCommand xSSNCommand;
@@ -632,7 +632,7 @@ processLocalMessages:
  common part JSON structure:
  {	"ssn": {"v":"version_number", "cmd":"command", "data": { ... } } }
 */
-					xsprintf(cPassMessage, "\r\nFreeHeap=%d, StHWM=%d =PRCJSON===", xPortGetFreeHeapSize(), uxTaskGetStackHighWaterMark(0));
+					xsprintf(cPassMessage, "\r\nFreeHeap=%d, StHWM=%d =PRCJSON", xPortGetFreeHeapSize(), uxTaskGetStackHighWaterMark(0));
 					sendBaseOut(cPassMessage);
 
 								jsonMsg = (char*) xInputMessage.pcMessage;
@@ -654,7 +654,8 @@ processLocalMessages:
 										int version = cJSON_GetObjectItem(json_ssn,"v")->valueint;
 										if (version==1) {
 											char* cmd = (char*)cJSON_GetObjectItem(json_ssn,"cmd")->valuestring;
-											uint16_t nObjDest = cJSON_GetObjectItem(json_ssn,"obj")->valueint;
+											uint16_t nObjDest = (uint16_t) cJSON_GetObjectItem(json_ssn,"obj")->valueint;
+											uint16_t nObjSrc  = (uint16_t) cJSON_GetObjectItem(json_ssn,"obj_src")->valueint;
 
 											xsprintf(cPassMessage, "\n\rProcess JSON command: %s", cmd );
 											sendBaseOut(cPassMessage);
@@ -682,6 +683,13 @@ processLocalMessages:
 													sendBaseOut(cPassMessage);
 													setDevValueByID(dev_val, dev_cmd, dev_id, eElmInteger);
 													// to do: process string data type
+													// send notification about command executing:
+													xsprintf(cPassMessage, "{\"status\":\"0\", \"comment\":\"set dev[%d]=(%d)%d\"}", dev_id, dev_cmd, dev_val);
+													char* pResp = pvPortMalloc(strlen(cPassMessage));
+													memcpy(pResp,cPassMessage,strlen(cPassMessage));
+													pResp[strlen(cPassMessage)]=0;
+
+													vSendInputMessage (1, nObjSrc, mainJSON_MESSAGE, dev_id, main_IF_PROGRAM, pResp, strlen(cPassMessage), 0);
 												}
 											}
 #ifdef  M_GSM

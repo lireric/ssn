@@ -321,8 +321,8 @@ void vSendInputMessage (uint8_t version, uint16_t	uiDestObject, uint8_t xMessage
 void vSendSSNPacket (uint16_t nObjDst, uint16_t nObjSrc, uint8_t nMessType, char* cData)
 {
 	uint16_t nDataLength = strlen(cData);
-	char* tmpBuf = pvPortMalloc(nDataLength+26);
-	xsprintf(tmpBuf, "===ssn1%04x%04x%02x%04x%s%04x", nObjDst, nObjSrc, nMessType, nDataLength, cData, crc16((uint8_t*) cData, nDataLength));
+	char* tmpBuf = pvPortMalloc(nDataLength+30);
+	xsprintf(tmpBuf, "\n===ssn1%04x%04x%02x%04x%s%04x", nObjDst, nObjSrc, nMessType, nDataLength, cData, crc16((uint8_t*) cData, nDataLength));
 	sendBaseOut(tmpBuf);
 	vPortFree(tmpBuf);
 }

@@ -89,9 +89,6 @@
 uint8_t Rx1Buffer[BUFFER1_SIZE];
 
 
-#ifndef  mainMAX_MSG_LEN
-#define mainMAX_MSG_LEN			127
-#endif
 #ifndef  mainINPUT_QUEUE_SIZE
 #define mainINPUT_QUEUE_SIZE	15
 #endif

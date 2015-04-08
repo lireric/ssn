@@ -1,0 +1,6 @@
+# Linux cron can handle environment variables
+# set dataload.sh path
+SSN_HOME=/home/eric/ssn/scripts
+
+# m h  dom mon dow   command
+*/1 * * * *     $SSN_HOME/dataload.sh > /dev/null 2>&1

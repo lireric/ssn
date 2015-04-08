@@ -108,7 +108,7 @@
 #define configUSE_TIMERS				1
 
 #define configTIMER_TASK_PRIORITY		( tskIDLE_PRIORITY + 3 )
-#define configTIMER_TASK_STACK_DEPTH	( ( unsigned short ) 300 )
+#define configTIMER_TASK_STACK_DEPTH	( ( unsigned short ) 330 )
 #define configTIMER_QUEUE_LENGTH		4
 
 /* Set the following definitions to 1 to include the API function, or zero
@@ -129,7 +129,7 @@ to exclude the API function. */
 #define configKERNEL_INTERRUPT_PRIORITY 		0xff
 /* !!!! configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to zero !!!!
 See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
-#define configMAX_SYSCALL_INTERRUPT_PRIORITY 	191 /* equivalent to 0xb0, or priority 11. */
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY 	190 /* equivalent to 0xb0, or priority 11. */
 
 
 /* This is the value being used as per the ST library which permits 16

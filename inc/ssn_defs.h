@@ -25,6 +25,14 @@
 
 typedef enum {FAILED = 0, PASSED = !FAILED} TestStatus;
 
+#ifndef  mainMAX_MSG_LEN
+#define  mainMAX_MSG_LEN			127
+#endif
+
+#ifndef  mainMINMEMORYALLOCATE
+#define  mainMINMEMORYALLOCATE				( 8 ) // minimum memory size for allocate
+#endif
+
 /*---------------------------------------------------------------------------*/
 /* -- SSN serial protocol description -----------------------------------------
  *
