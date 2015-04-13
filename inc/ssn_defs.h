@@ -47,7 +47,7 @@ typedef enum {FAILED = 0, PASSED = !FAILED} TestStatus;
  * CCCC - CRC16 (2 byte: hex chars - 0-9, A-F)
  *
  * data sending in ascii format
- * timeout = 1 sec
+ * timeout = 2 sec
  *
  * */
 #define SSN_TIMEOUT 	( 2000 )	// timeout 2000 ms

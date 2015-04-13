@@ -85,7 +85,7 @@ else
 	InfoTextSrc=src (full optimize and readout protected, -O4)
 endif
 
-CFLAGS+=$(COMMONFLAGS) -Wall -Werror $(INCLUDE)
+CFLAGS+=$(COMMONFLAGS) -Wall -Werror $(INCLUDE) -Wno-maybe-uninitialized
 CFLAGS+=-D $(TypeOfMCU)
 CFLAGS+=-D $(Chipset)
 CFLAGS+=-D VECT_TAB_FLASH

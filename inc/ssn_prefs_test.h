@@ -3,18 +3,18 @@
  *
  * Copyright (C) 2014-2015 Ernold Vasiliev <ericv@mail.ru>
  *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this library.  If not, see <http://www.gnu.org/licenses/>.
+     SSN project is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    SSN project is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with SSN project.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -33,10 +33,10 @@
 //#define M_LCD
 #define M_USART
 #define M_DS18B20
-//#define M_DHT
-//#define M_GSM
+#define M_DHT
+#define M_GSM
 
-//#define WATCHDOG
+#define WATCHDOG
 
 #define WATCHDOG_PERIOD 10000	// period of watchdog timer (ms)
 
@@ -60,8 +60,8 @@
 
 /* Persistence settings *
  * (select one) */
-#define PERSIST_EEPROM_I2C
-//#define PERSIST_STM32FLASH
+//#define PERSIST_EEPROM_I2C
+#define PERSIST_STM32FLASH
 
 
 /* EEPROM I2C ------------------------------------------------*/
@@ -113,7 +113,7 @@ was called. The recorded value is later compared to the task in the Running
 state when the traceTASK_SWITCHED_IN() macro is called to determine if the
 Running state task was changed. */
 
-#define traceTASK_SWITCHED_OUT() xTaskThatWasRunning = (void*) pxCurrentTCB
+//#define traceTASK_SWITCHED_OUT() xTaskThatWasRunning = (void*) pxCurrentTCB
 
 /* traceTASK_SWITCHED_OUT() is always called before a reschedule, and
 traceTASK_SWITCHED_IN() is always called after a reschedule. This definition

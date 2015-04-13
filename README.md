@@ -13,7 +13,7 @@ Copyright (C) 2014-2015 Ernold Vasiliev <ericv@mail.ru>
     You should have received a copy of the GNU General Public License
     along with SSN project.  If not, see <http://www.gnu.org/licenses/>.
 
-# SSN project - Smart-house Sensor Network
+# SSN project - SMART-HOUSE SENSORS NETWORK
 
 Main goal of this project - make tool that permits to automate smart house using customisable framework. Most preferences like hardware sensors connections, actions logic and routing between modules make in runtime without compilation and MC (microcontroller) flashing.
 Typical modules (in/out lines, temperature sensors, humidity sensors, gsm modem etc) included out of the box. New custom modules can easy add to application.
@@ -118,7 +118,6 @@ Preferenses stored in JSON format and can be uploaded to MC by serial or GPRS (f
 	}}}
 
 ##to do:
-- user web application
 - RF interfaces
 - smart card reader interface
 - stepping motor device

@@ -86,7 +86,7 @@ int32_t getDevValueByID(uint8_t nValCode, uint16_t nDevID)
 
 int32_t getDevValue(uint8_t nValCode, sDevice* dev)
 {
-	int32_t nDevValue;
+	int32_t nDevValue = 0;
 	uint32_t nDevLastUpdate;
 
 	getDevData(dev, nValCode, &nDevValue, &nDevLastUpdate);
@@ -96,8 +96,8 @@ int32_t getDevValue(uint8_t nValCode, sDevice* dev)
 
 uint32_t getDevLastUpdate(uint8_t nValCode, sDevice* dev)
 {
-	int32_t nDevValue;
-	uint32_t nDevLastUpdate;
+	int32_t nDevValue = 0;
+	uint32_t nDevLastUpdate = 0;
 
 	getDevData(dev, nValCode, &nDevValue, &nDevLastUpdate);
 
@@ -107,7 +107,7 @@ uint32_t getDevLastUpdate(uint8_t nValCode, sDevice* dev)
 int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue, uint32_t* nDevLastUpdate)
 {
 	int32_t nValue;
-	uint32_t nLastUpdate;
+	uint32_t nLastUpdate = 0;
 
 	if (!dev) return pdFALSE;
 
