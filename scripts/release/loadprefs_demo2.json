@@ -1,0 +1,15 @@
+{"ssn":{"v":1,"obj":1,"cmd":"loadprefs","data":{
+"app":{"logobj":1},
+"grp":[
+{"grpnum":1,"grpmaxdevs":2,"grptimer":"TIM3","grpport":"GPIOC","grppin1":1,"devsqty":1,"devs": [
+{"devid":2001,"devtype":1,"romid":"288f98f904000025"}
+]},
+{"grpnum":2,"grpmaxdevs":1,"grpport":"GPIOB","grppin1":9,"devs": [
+{"devid":2100, "devtype":5}
+]}
+],
+"logic":[
+{"aid":8,"astr":"i(3000,100)=a(2100,0,0,0,1)","nolog":"1"},
+{"aid":1,"astr":"d(2001,0)>260=a(2100,0,0)","arep":2}
+]
+}}}

@@ -282,17 +282,21 @@ void rtc_settime (const RTC_t *rtc)
 	uint32_t cnt;
 //	volatile uint16_t i;
 	RTC_t ts;
+	if (rtc)
+	{
+		if (rtc->year == 2000) return; // minimal sanity check
 
-	cnt = struct_to_counter( rtc ); // non-DST counter-value
-	counter_to_struct( cnt, &ts );  // normalize struct (for weekday)
-	if ( isDST( &ts ) ) {
-		cnt -= 60*60; // Subtract one hour
+		cnt = struct_to_counter( rtc ); // non-DST counter-value
+		counter_to_struct( cnt, &ts );  // normalize struct (for weekday)
+		if ( isDST( &ts ) ) {
+			cnt -= 60*60; // Subtract one hour
+		}
+
+		rtc_set_counter_val(cnt);
+	//	PWR_BackupAccessCmd(ENABLE);
+	//	my_RTC_SetCounter( cnt );
+	//	PWR_BackupAccessCmd(DISABLE);
 	}
-
-	rtc_set_counter_val(cnt);
-//	PWR_BackupAccessCmd(ENABLE);
-//	my_RTC_SetCounter( cnt );
-//	PWR_BackupAccessCmd(DISABLE);
 }
 
 /*******************************************************************************

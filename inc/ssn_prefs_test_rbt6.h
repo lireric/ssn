@@ -46,7 +46,7 @@
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
 #define configTICK_RATE_HZ			( ( portTickType ) 100 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 17 * 1024 ) )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 15 * 1024 ) )
 
 /* Persistence settings *
  * (select one) */
@@ -56,7 +56,7 @@
 /*-----------------------------------------------------------*/
 /* Hardware application settings */
 #define mainMAX_DEV_GROUPS				(5) 	// max number sensor groups
-#define mainMAX_GRP_DEVICES				(7) 	// default max number devices on one group
+#define mainMAX_GRP_DEVICES				(5) 	// default max number devices on one group
 #define mainMAX_ALL_DEVICES				(5) 	// default max number of all devices
 #define mainMAX_DHT_DEVICES				(1) 	// default max number of dht devices
 #define mainMAX_ROUTES					(2)		// max number routing interfaces
@@ -94,7 +94,9 @@
 //#define configUSE_TRACE_FACILITY 1
 //#define configUSE_STATS_FORMATTING_FUNCTIONS 1
 
-#define mainMAX_MSG_LEN			100
+#ifndef  mainMAX_MSG_LEN
+#define  mainMAX_MSG_LEN			100
+#endif
 #define mainINPUT_QUEUE_SIZE	5
 #define mainSENSORS_QUEUE_SIZE	5
 #define mainDEBUG_QUEUE_SIZE	10

@@ -1,0 +1,11 @@
+{"ssn":{"v":1,"obj":1,"cmd":"loadprefs","data":{
+"app":{"logobj":1},
+"grp":[
+{"grpnum":2,"grpmaxdevs":1,"grpport":"GPIOB","grppin1":9,"devs": [
+{"devid":2100, "devtype":5}
+]}
+],
+"logic":[
+{"aid":8,"astr":"i(2000,100)=a(2100,0,0,0,1)","nolog":"1"}
+]
+}}}

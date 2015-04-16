@@ -1,6 +1,7 @@
 #!/bin/bash
 
-jsonFile='test2/getdevvals.json';
+jsonFile='release/getdevvals.json';
+#jsonFile='test2/getdevvals.json';
 mcPort='/dev/ttyUSB0';
 
 obj_dst=1;

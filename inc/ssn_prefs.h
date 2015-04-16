@@ -29,13 +29,18 @@
 #ifndef INC_SSN_PREFS_H_
 #define INC_SSN_PREFS_H_
 
-#define CONF_TEST
+//#define CONF_TEST
+#define CONF_RELEASE
 //#define CONF_TEST2
 //#define CONF_PROD1
 
 
 #ifdef CONF_TEST
 	#include "ssn_prefs_test.h"
+#endif
+
+#ifdef CONF_RELEASE
+	#include "ssn_prefs_release.h"
 #endif
 
 #ifdef CONF_TEST2

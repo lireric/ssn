@@ -1,9 +1,8 @@
 #!/bin/bash
-#. ./crc16awk
 
-jsonFile='test/loadprefs.json';
-mcPort='/dev/ttyUSB1';
-#mcPort='qq';
+jsonFile='release/loadprefs_demo2.json';
+#jsonFile='test/loadprefs.json';
+mcPort='/dev/ttyUSB0';
 
 obj_dst=1;
 obj_src=3;

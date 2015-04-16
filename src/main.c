@@ -400,6 +400,7 @@ int main(void)
 	xTimerHandle xTimer;
 (void) xTimer;
 	xTimer = xTimerCreate("Cron", mainCronRate, pdTRUE, NULL, prvCronFunc);
+	xTimerStart(xTimer, 0);
 
 #ifdef DEBUG_S
 	xReturn = xTaskCreate( prvDebugStatTask, ( char * ) "Debug_S", 210, NULL, tskIDLE_PRIORITY + 2, &pTmpTask );
