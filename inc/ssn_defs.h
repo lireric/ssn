@@ -23,6 +23,8 @@
 #ifndef INC_SSN_DEFS_H_
 #define INC_SSN_DEFS_H_
 
+#include "ini.h"
+
 typedef enum {FAILED = 0, PASSED = !FAILED} TestStatus;
 
 #ifndef  mainMAX_MSG_LEN
@@ -84,11 +86,11 @@ typedef struct
 /* JSON buffer */
 typedef struct
 {
-	uint8_t 	state;			// state of JSON buffer
+	uint8_t 	state;			// state of preferences buffer
 	uint16_t 	counter;		// pointer to current position in buffer
 	char 		*buffer;
 	uint16_t	nBufSize;
-} xJSON;
+} sPrefsBuffer;
 
 
 
@@ -104,6 +106,7 @@ typedef struct
 #define mainGSM_MESSAGE_OUT			( 4 )	// message to web service
 #define mainGSM_MESSAGE_IN			( 5 )	// message from web service
 #define mainLOG_MESSAGE				( 6 )
+#define mainINI_MESSAGE				( 7 )	// message in INI format (alternative JSON format)
 
 /*-----------------------------------------------------------*/
 /* The types of interfaces (to/from sources/destinations - xSourceType/xDestType) that can be routed by input queue. */
@@ -148,6 +151,10 @@ typedef struct
 #define mainCOMMAND_GETPREFERENCES	6	// get JSON preferences message
 #define mainCOMMAND_UPDATEACTION	7	// update action settings or create new action
 #define mainCOMMAND_COMMITED		8
+#define mainCOMMAND_GSMCMD			9
+#define mainCOMMAND_SETDATETIME		10
+#define mainCOMMAND_GETOWILIST		11
+#define mainCOMMAND_SETDEVVALUE		12
 
 
 typedef struct
@@ -167,5 +174,23 @@ typedef struct
 	uint32_t nTimestamp;
 } slogAction;
 
+
+// temporary structure for INI format action parsing
+typedef struct
+{
+	uint16_t aid;
+	char astr[INI_MAX_LINE];
+	uint16_t arep;
+	uint16_t nFlags;
+} sTempAction;
+
+typedef struct
+{
+	sSSNCommand* iniSSNCommand;
+    char sLastName[MAX_NAME];
+    char sLastSection[MAX_SECTION];
+    int pnPrevSectionNo;
+    sTempAction xTempAction;
+} sIniHandlerData;
 
 #endif /* INC_SSN_DEFS_H_ */

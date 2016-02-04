@@ -274,6 +274,20 @@ int32_t gsm_hw_init(int boud)
 	return result;
 }
 
+void gsm_preinit_ini (sGSMDevice* pGSMDev, xQueueHandle xDebugQueue)
+{
+	xGSMSendQueue = xQueueCreate( mainGSM_SEND_QUEUE_SIZE, gsmMAX_GSM_LEN);
+	xGSMRecvQueue = xQueueCreate( mainGSM_RECV_QUEUE_SIZE, gsmMAX_GSM_LEN);
+	xGSMUnsolicitedQueue = xQueueCreate( mainGSM_UNSOLICITED_QUEUE_SIZE, gsmMAX_GSM_LEN);
+	xGSMHTTPQueue = xQueueCreate( gsm_SEND_HTTP_REQUEST_SIZE, sizeof(sGSMRequest));
+
+	pGSMDev->pvQueueSend = xGSMSendQueue;
+	pGSMDev->pvQueueRecv = xGSMRecvQueue;
+	pGSMDev->pvQueueUnsolicited = xGSMUnsolicitedQueue;
+	pGSMDev->pvQueueDebug = xDebugQueue;
+
+}
+
 sGSMDevice* gsm_preinit (cJSON *devitem, xQueueHandle xDebugQueue)
 {
 	char* pc;

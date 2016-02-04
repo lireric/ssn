@@ -40,11 +40,16 @@ extern uint8_t 		route_counter;
 extern slogAction	logActionsArray[];
 extern uint16_t 	logActCounter;
 extern uint16_t		uiLog_Object;
+extern sDevice* 	devArray[];
+extern uint16_t 	all_devs_counter;
 
 //extern xTaskHandle pCheckSensorHRTaskHnd;
 //extern xTaskHandle pCheckSensorMRTaskHnd;
+//#ifdef  M_GSM
+//extern	 static void prvStartGSMTask( void *pvParameters );
+//#endif
 
-
+uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue, sIniHandlerData* pIniHandlerData, int* pnSectionNo);
 void 	process_setdatetime(cJSON *json_data);
 void 	process_getowilist(cJSON *json_data);
 void 	process_loadprefs(cJSON *json_data, char * jsonMsg, sGrpInfo* grpArray[]);
@@ -67,5 +72,7 @@ void	logAction(uint16_t nActId, uint16_t nDevId, uint32_t nValue);
 //void log_event (TaskHandle_t xTH);
 void 	log_event (void* poldt, void* pnewt, uint32_t xTickCount);
 void 	log_event2 (char c, void* pt);
+uint16_t getCommandsByName(const char* sCmd);
+uint32_t storePreferences(char* sBuf, uint16_t nBufSize);
 
 #endif /* COMMANDS_H_ */

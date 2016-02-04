@@ -28,6 +28,7 @@ OBJS+=base64.o
 OBJS+=lcd.o
 OBJS+=crc16.o
 OBJS+=stack.o
+OBJS+=ini.o
 
 all: src
 

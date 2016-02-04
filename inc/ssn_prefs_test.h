@@ -29,7 +29,7 @@
 
 /* Used modules */
 
-#define M_RTC_DS1307
+//#define M_RTC_DS1307
 //#define M_LCD
 #define M_USART
 #define M_DS18B20
@@ -46,8 +46,8 @@
 
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
-#define configTICK_RATE_HZ			( ( portTickType ) 300 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 55 * 1024 ) )
+#define configTICK_RATE_HZ			( ( portTickType ) 50 )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 50 * 1024 ) )
 
 /*-----------------------------------------------------------*/
 /* Hardware application settings */

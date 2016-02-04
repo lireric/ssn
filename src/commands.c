@@ -33,6 +33,35 @@
 #endif
 
 char * cPassMessage[ mainMAX_MSG_LEN ];
+//#ifdef  M_GSM
+extern	void prvStartGSMTask( void *pvParameters );
+//#endif
+
+uint16_t getCommandsByName(const char* sCmd)
+{
+	uint16_t nCmd = mainCOMMAND_NONE;
+	if (strcmp(sCmd, "reboot") == 0) {
+		nCmd = mainCOMMAND_REBOOT;
+	} else if (strcmp(sCmd, "getdevvals") == 0) {
+		nCmd = mainCOMMAND_GETDEVVALS;
+	} else if (strcmp(sCmd, "getextcmd") == 0) 	{
+		nCmd = mainCOMMAND_GETEXTCMD;
+	} else if (strcmp(sCmd, "loadprefs") == 0) 	{
+		nCmd = mainCOMMAND_GETPREFERENCES;
+	} else if (strcmp(sCmd, "updateaction") == 0) {
+		nCmd = mainCOMMAND_UPDATEACTION;
+	} else if (strcmp(sCmd, "gsmcmd") == 0) 	{
+		nCmd = mainCOMMAND_GSMCMD;
+	} else if (strcmp(sCmd, "getowilist") == 0) {
+		nCmd = mainCOMMAND_GETOWILIST;
+	} else if (strcmp(sCmd, "sdv") == 0) 		{
+		nCmd = mainCOMMAND_SETDEVVALUE;
+	} else if (strcmp(sCmd, "setdatetime") == 0) {
+		nCmd = mainCOMMAND_SETDATETIME;
+	}
+	return nCmd;
+}
+
 
 uint16_t 	getLog_Object(void)
 {
@@ -145,6 +174,281 @@ void process_getowilist(cJSON *json_data)
 	vPortFree(owi_tmp);
 }
 
+/* Load preferences from INI message to EEPROM or FLASH */
+// ... to do
+
+// Handler for processing INI preferences format
+uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue, sIniHandlerData* pIniHandlerData, int* pnSectionNo)
+{
+	int32_t nRes = pdPASS; //pdFAIL;
+#ifdef  M_GSM
+	sGSMDevice* ptGSMDev = NULL;
+#endif
+	#define MATCH(s, n) strcmp(sSection, s) == 0 && strcmp(sName, n) == 0
+
+	if (MATCH("app", "logobj")) {
+		setLog_Object(conv2d(sValue));		// store object-logger
+	} else if (strcmp(sSection, "grp") == 0) {
+		// check for new group
+		if (strcmp(pIniHandlerData->sLastSection, sSection) != 0) {
+			if (grp_counter++ > mainMAX_DEV_GROUPS) {
+							return pdFAIL;
+						}
+			grpArray[grp_counter] = (sGrpInfo*) pvPortMalloc(sizeof(sGrpInfo));
+			if (!grpArray[grp_counter]) {
+				return pdFAIL;
+			}
+			grpArray[grp_counter]->uiObj = getMC_Object();
+			grpArray[grp_counter]->iDevQty = 0;
+		}
+		if (strcmp(sName, "grpnum") == 0) {
+			grpArray[grp_counter]->uiGroup = conv2d(sValue);
+		} else if (strcmp(sName, "grpport") == 0) {
+			grpArray[grp_counter]->GrpDev.pPort = get_port_by_name(sValue);
+		} else if (strcmp(sName, "grptimer") == 0) {
+			grpArray[grp_counter]->GrpDev.pTimer = get_port_by_name(sValue);
+		} else if (strcmp(sName, "grppin1") == 0) {
+			grpArray[grp_counter]->GrpDev.ucPin = conv2d(sValue);
+		} else if (strcmp(sName, "grppin2") == 0) {
+			grpArray[grp_counter]->GrpDev.ucPin2 = conv2d(sValue);
+		}
+	} else if (strcmp(sSection, "dev") == 0) {
+		// check for new device
+		if (strcmp(pIniHandlerData->sLastSection, sSection) != 0) {
+			if (all_devs_counter++ > mainMAX_ALL_DEVICES) {
+				return pdFAIL;
+			}
+			devArray[all_devs_counter] = (sDevice*) pvPortMalloc(sizeof(sDevice));
+			if (!devArray[all_devs_counter]) {
+				return pdFAIL;
+			}
+			devArray[all_devs_counter]->nDevObj = getMC_Object();
+		}
+		if (strcmp(sName, "grp") == 0) {
+			devArray[all_devs_counter]->pGroup = getGroupByID(conv2d(sValue));
+			if (!devArray[all_devs_counter]->pGroup) {
+				return pdFAIL;
+			}
+			devArray[all_devs_counter]->pGroup->iDevQty++;
+		} else if (strcmp(sName, "devid") == 0) {
+			devArray[all_devs_counter]->nId = conv2d(sValue);
+		} else if (strcmp(sName, "devtype") == 0) {
+			devArray[all_devs_counter]->ucType = conv2d(sValue);
+			if (devArray[all_devs_counter]->ucType == device_TYPE_DS18B20) {
+				devArray[all_devs_counter]->pDevStruct = NULL;
+			} else if (devArray[all_devs_counter]->ucType == device_TYPE_DHT22) {
+#ifdef  M_DHT
+				devArray[all_devs_counter]->pDevStruct = (void*) dht_device_init(&devArray[all_devs_counter]->pGroup->GrpDev);
+#endif
+			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_OD) {
+				gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_OUTPUT_50_MHZ,
+						GPIO_CNF_OUTPUT_OPENDRAIN, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
+			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_PP) {
+				gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_OUTPUT_50_MHZ,
+						GPIO_CNF_OUTPUT_PUSHPULL, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
+			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_INPUT) {
+				gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_INPUT,
+						GPIO_CNF_INPUT_FLOAT, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
+			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_AI) {
+				gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_INPUT,
+						GPIO_CNF_INPUT_ANALOG, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
+				// to do:
+			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_AO) {
+				// to do:
+			} else if (devArray[all_devs_counter]->ucType == device_TYPE_GSM) {
+#ifdef  M_GSM
+				devArray[all_devs_counter]->pDevStruct = pvPortMalloc(sizeof(sGSMDevice));
+				if (!devArray[all_devs_counter]->pDevStruct) {
+					return pdFAIL;
+				}
+				//gsm_preinit_ini ((sGSMDevice*) devArray[all_devs_counter]->pDevStruct, xBaseOutQueue);
+				nRes = vMainStartGSMTask((void*)devArray[all_devs_counter]);
+				if (!nRes)
+					return pdFAIL;
+#endif
+					}
+
+		} else if (strcmp(sName, "romid") == 0) {
+#ifdef  M_DS18B20
+			devArray[all_devs_counter]->pDevStruct = (void*) ds18b20_init(devArray[all_devs_counter]->pGroup, sValue);
+#endif
+		} else if (strcmp(sName, "PortDTR") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev->uiPortDTR = get_port_by_name(sValue);
+		} else if (strcmp(sName, "PinDTR") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev->uiPinDTR = conv2d(sValue);
+		} else if (strcmp(sName, "PortPwrKey") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev->uiPortPwrKey = get_port_by_name(sValue);
+		} else if (strcmp(sName, "PinPwrKey") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev->uiPortPwrKey = conv2d(sValue);
+		} else if (strcmp(sName, "PortChgCtrl") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev->uiPortChgCtrl = get_port_by_name(sValue);
+		} else if (strcmp(sName, "PinChgCtrl") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev->uiPinChgCtrl = conv2d(sValue);
+		} else if (strcmp(sName, "PortRTS") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev->uiPortRTS = get_port_by_name(sValue);
+		} else if (strcmp(sName, "PinRTS") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev->uiPinRTS = conv2d(sValue);
+		} else if (strcmp(sName, "USART") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev->uiUSART = conv2d(sValue);
+		} else if (strcmp(sName, "acc") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev->uiSSNAcc = conv2d(sValue);
+		} else if (strcmp(sName, "v") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			strncpy0(ptGSMDev->chip, sValue, strlen(sValue)+1);
+		} else if (strcmp(sName, "APN") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			strncpy0(ptGSMDev->cAPN, sValue, strlen(sValue)+1);
+		} else if (strcmp(sName, "SrvAddr") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			strncpy0(ptGSMDev->cSrvAddr, sValue, strlen(sValue)+1);
+		} else if (strcmp(sName, "SrvPort") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev->uiSrvPort = conv2d(sValue);
+		} else if (strcmp(sName, "SMSNumber") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			strncpy0(ptGSMDev->cSMSNumber, sValue, strlen(sValue)+1);
+		} else if (strcmp(sName, "PriDNS") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			strncpy0(ptGSMDev->cPriDNS, sValue, strlen(sValue)+1);
+		} else if (strcmp(sName, "SecDNS") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			strncpy0(ptGSMDev->cSecDNS, sValue, strlen(sValue)+1);
+		} else if (strcmp(sName, "GUser") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			strncpy0(ptGSMDev->cGPRSUserID, sValue, strlen(sValue));
+		} else if (strcmp(sName, "GUserPswd") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			strncpy0(ptGSMDev->cGPRSUserPassw, sValue, strlen(sValue)+1);
+		} else if (strcmp(sName, "AESKey") == 0) {
+			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			strncpy0(ptGSMDev->cAESKey, sValue, strlen(sValue)+1);
+		}
+
+	} else if (strcmp(sSection, "route") == 0) {
+		if (pIniHandlerData->pnPrevSectionNo != *pnSectionNo) {
+			route_counter++;
+		}
+		if (strcmp(sName, "obj") == 0) {
+			routeArray[route_counter].nDestObj = conv2d(sValue);
+		} else if (strcmp(sName, "if") == 0) {
+			routeArray[route_counter].xDestType = conv2d(sValue);
+		}
+
+	} else if (strcmp(sSection, "logic") == 0) {
+		if ((pIniHandlerData->pnPrevSectionNo != *pnSectionNo) && pIniHandlerData->xTempAction.aid && (strlen(pIniHandlerData->xTempAction.astr) > 0)) {
+			nRes = setAction (pIniHandlerData->xTempAction.aid, pIniHandlerData->xTempAction.astr, pIniHandlerData->xTempAction.arep, pIniHandlerData->xTempAction.nFlags);
+			// reset tmp structure:
+			pIniHandlerData->xTempAction.aid = 0;
+			pIniHandlerData->xTempAction.astr[0] = 0;
+			pIniHandlerData->xTempAction.arep = 0;
+			pIniHandlerData->xTempAction.nFlags = 0;
+		}
+		if (strcmp(sName, "aid") == 0) {
+			pIniHandlerData->xTempAction.aid = conv2d(sValue);
+		} else if (strcmp(sName, "arep") == 0) {
+			pIniHandlerData->xTempAction.arep = conv2d(sValue);
+		} else if (strcmp(sName, "astr") == 0) {
+			strncpy0(pIniHandlerData->xTempAction.astr, sValue, strlen(sValue)+1);
+		} else if (strcmp(sName, "nolog") == 0) {
+			if (conv2d(sValue) == 1) {
+				pIniHandlerData->xTempAction.nFlags |= devACTION_FLAG_NOLOG;
+			} else {
+				pIniHandlerData->xTempAction.nFlags ^= devACTION_FLAG_NOLOG;
+			}
+		} else if (strcmp(sName, "s") == 0) {
+			// single timer flag
+			if (conv2d(sValue) == 1) {
+				pIniHandlerData->xTempAction.nFlags |= devACTION_FLAG_SINGLE_TIMER;
+			} else {
+				pIniHandlerData->xTempAction.nFlags ^= devACTION_FLAG_SINGLE_TIMER;
+			}
+		}
+
+	}
+	return nRes;
+}
+
+
+
+// write preferences string into EEPROM or Flash
+uint32_t storePreferences(char* sBuf, uint16_t nBufSize)
+{
+	int32_t nRes = pdPASS; //pdFAIL;
+
+#ifdef PERSIST_EEPROM_I2C
+// save into EEPROM
+	nRes = eeprom_write(&grpArray[0]->GrpDev, EEPROM_ADDRESS, 4, (uint8_t*)sBuf, nBufSize);	// res == 1 -> good!
+		if (nRes) {
+			uint8_t tmpBuf[2];
+			tmpBuf[0]=nBufSize & 0x000FF;
+			tmpBuf[1]=(nBufSize & 0x0FF00) >> 8;
+			delay_nus(&grpArray[0]->GrpDev, 1000);	// 10ms
+			nRes = eeprom_write(&grpArray[0]->GrpDev, EEPROM_ADDRESS, 0, (uint8_t*)tmpBuf, 2);
+			if (nRes) {
+				sendBaseOut("\n\rNew preferences saved into EEPROM. Reboot");
+				delay_nus(&grpArray[0]->GrpDev, 10000);	// 10ms
+//			    SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
+//			    while (1);
+			}
+
+		} else {
+			sendBaseOut("\n\rError saving preferences into EEPROM");
+		}
+#endif
+#ifdef PERSIST_STM32FLASH
+// save into STM32 flash
+		uint32_t i;
+		uint16_t j;
+		uint32_t data;
+		if (nBufSize > STM32FLASH_PREF_SIZE)
+			nRes = pdFALSE;
+		else {
+			flash_unlock();
+			// erase necessary flash pages
+			for (i = STM32FLASH_BEGIN_ADDR; i < (STM32FLASH_BEGIN_ADDR + STM32FLASH_PREF_SIZE); i+=STM32FLASH_PAGE_SIZE )
+			{
+				flash_erase_page(i);
+			}
+			// write data into flash
+
+			i = STM32FLASH_BEGIN_ADDR + 4;
+			for (j = 0; j < nBufSize; j+=4)
+			{
+				data = (uint32_t)sBuf[j+3]   << 24 |
+				       (uint32_t)sBuf[j+2] << 16 |
+				       (uint32_t)sBuf[j+1] << 8  |
+				       (uint32_t)sBuf[j];
+
+				flash_program_word(i, data);
+				i += 4;
+			}
+
+			data = (uint32_t)nBufSize;
+			flash_program_word(STM32FLASH_BEGIN_ADDR, data);
+
+			nRes = pdTRUE;
+			flash_lock();
+
+//			sendBaseOut("\n\rNew preferences saved into EEPROM. Reboot");
+			delay_nus(&grpArray[0]->GrpDev, 10000);	// 10ms
+//		    SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
+//		    while (1);
+
+		}
+#endif
+	return nRes;
+}
+
 /* Load preferences from JSON message to EEPROM */
 void process_loadprefs(cJSON *json_data, char * jsonMsg, sGrpInfo*  grpArray[])
 {
@@ -159,68 +463,9 @@ void process_loadprefs(cJSON *json_data, char * jsonMsg, sGrpInfo*  grpArray[])
 	res = apply_preferences(json_data);		// res == pdPASS -> good!
 	if (res) {
 		uint16_t jsonSize = strlen(jsonMsg);
-#ifdef PERSIST_EEPROM_I2C
-// save into EEPROM
-		res = eeprom_write(&grpArray[0]->GrpDev, EEPROM_ADDRESS, 4, (uint8_t*)jsonMsg, jsonSize);	// res == 1 -> good!
-		if (res) {
-			uint8_t tmpBuf[2];
-			tmpBuf[0]=jsonSize & 0x000FF;
-			tmpBuf[1]=(jsonSize & 0x0FF00) >> 8;
-			delay_nus(&grpArray[0]->GrpDev, 1000);	// 10ms
-			res = eeprom_write(&grpArray[0]->GrpDev, EEPROM_ADDRESS, 0, (uint8_t*)tmpBuf, 2);
-			if (res) {
-				sendBaseOut("\n\rNew preferences saved into EEPROM. Reboot");
-				delay_nus(&grpArray[0]->GrpDev, 10000);	// 10ms
-			    SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
-			    while (1);
-			}
+		res = storePreferences(jsonMsg, jsonSize);
+	    SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ; // reboot
 
-		} else {
-			sendBaseOut("\n\rError saving preferences into EEPROM");
-		}
-#endif
-#ifdef PERSIST_STM32FLASH
-// save into STM32 flash
-		uint32_t i;
-		uint16_t j;
-		uint32_t data;
-		if (jsonSize > STM32FLASH_PREF_SIZE)
-			res = pdFALSE;
-		else {
-			flash_unlock();
-			// erase necessary flash pages
-			for (i = STM32FLASH_BEGIN_ADDR; i < (STM32FLASH_BEGIN_ADDR + STM32FLASH_PREF_SIZE); i+=STM32FLASH_PAGE_SIZE )
-			{
-				flash_erase_page(i);
-			}
-			// write data into flash
-
-			i = STM32FLASH_BEGIN_ADDR + 4;
-			for (j = 0; j < jsonSize; j+=4)
-			{
-//				data = (((uint8_t**)jsonMsg)[i]) + (((uint8_t**)jsonMsg)[i+1] >> 8) + (((uint8_t**)jsonMsg)[i+2] >> 16) + (((uint8_t**)jsonMsg)[i+3] >> 24);
-				data = (uint32_t)jsonMsg[j+3]   << 24 |
-				       (uint32_t)jsonMsg[j+2] << 16 |
-				       (uint32_t)jsonMsg[j+1] << 8  |
-				       (uint32_t)jsonMsg[j];
-
-				flash_program_word(i, data);
-				i += 4;
-			}
-
-			data = (uint32_t)jsonSize;
-			flash_program_word(STM32FLASH_BEGIN_ADDR, data);
-
-			res = pdTRUE;
-			flash_lock();
-
-			sendBaseOut("\n\rNew preferences saved into EEPROM. Reboot");
-			delay_nus(&grpArray[0]->GrpDev, 10000);	// 10ms
-		    SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
-		    while (1);
-
-		}
-#endif
 
 	} else {
 		sendBaseOut("\n\rError loading preferences");

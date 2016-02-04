@@ -1,12 +1,12 @@
 #!/bin/bash
 
-jsonFile='release/loadprefs_demo2.json';
-#jsonFile='test/loadprefs.json';
-mcPort='/dev/ttyUSB0';
+#jsonFile='release/loadprefs_demo2.json';
+jsonFile='test/loadprefs2.ini';
+mcPort='/dev/ttyUSB1';
 
 obj_dst=1;
 obj_src=3;
-message_type=2;
+message_type=7;
 
 jsonValue=$(<$jsonFile)
 len=${#jsonValue};

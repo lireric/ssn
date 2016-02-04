@@ -28,6 +28,14 @@
 
 volatile int critical_section_counter;
 
+/* Version of strncpy that ensures dest (size bytes) is null-terminated. */
+char* strncpy0(char* dest, const char* src, size_t size)
+{
+    strncpy(dest, src, size);
+    dest[size - 1] = '\0';
+    return dest;
+}
+
 char *strnext(char **sp, const char *delim)
 {
 	char *tk = *sp;

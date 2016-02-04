@@ -198,5 +198,6 @@ char* 		make_token (uint16_t nCmd, uint32_t nData1, uint16_t nData2);
 int32_t 	gsm_send_ws_get_cmd (uint16_t nCmd, uint32_t nData1, uint16_t nData2);
 void 		gsm_free_recv_buf ();
 int32_t 	gsm_send_sms(const char *pStr);
+void gsm_preinit_ini (sGSMDevice* pGSMDev, xQueueHandle xDebugQueue);
 
 #endif /* GSM_H_ */

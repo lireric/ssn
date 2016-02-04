@@ -192,9 +192,12 @@ extern sDevice* 		devArray[];
 extern uint16_t 		all_devs_counter;
 extern sAction* 		actArray[];
 extern uint16_t 		act_counter;
+extern sGrpInfo* 		grpArray[];
+extern uint8_t 		grp_counter;
 
 extern void 		vMainStartTimer(sAction* pAct);
 
+sGrpInfo* 			getGroupByID (uint8_t nGrpID);
 sDevice*			getDeviceByID (uint16_t nDevID);
 uint8_t 			getNumDevValCodes(uint8_t ucType);
 int32_t 			getDevValueByID(uint8_t nValCode, uint16_t nDevID);

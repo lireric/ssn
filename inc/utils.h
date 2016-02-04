@@ -139,6 +139,8 @@ static inline uint32_t crc32_be(uint8_t *buf, unsigned int len, uint32_t crc)
 	return crc;
 }
 
+char* strncpy0(char* dest, const char* src, size_t size);
+
 /**
  * Return the next token, delimited by a character from @a delim.
  * The parameter @a sp is updated to point past the first found delimiter, if

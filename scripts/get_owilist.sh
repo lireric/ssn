@@ -1,7 +1,8 @@
 #!/bin/bash
 
 jsonFile='release/get_owilist.json';
-mcPort='/dev/ttyUSB0';
+mcPort='/dev/ttyUSB1';
+#mcPort='/home/eric/qqq.txt';
 
 obj_dst=1;
 obj_src=3;

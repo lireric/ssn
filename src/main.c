@@ -22,6 +22,7 @@
 #include "task.h"
 #include "commands.h"
 #include "../inc/ssn.h"
+#include "../inc/ini.h"
 
 #ifdef  M_LCD
 #include "lcd.h"
@@ -66,7 +67,7 @@ uint16_t	uiLog_Object;	// object - receiver log messages
 sRoute routeArray[mainMAX_ROUTES];
 uint8_t 	route_counter = 0;
 
-xJSON xJSONBuffer;
+sPrefsBuffer xPrefsBuffer;
 
 const char* cSSNSTART = "===ssn1";
 sSSNPDU xSSNPDU;
@@ -115,6 +116,10 @@ static void prvCronFunc( void *pvParameters );
 /* The basic output message processing task. */
 static void prvBaseOutTask( void *pvParameters );
 
+#ifdef  M_GSM
+//static void prvStartGSMTask( void *pvParameters );
+#endif
+
 void vApplicationIdleHook( void );
 
 // Define the vector table
@@ -126,6 +131,63 @@ unsigned int * myvectors[4]
    	(unsigned int *)	hardfault_handler	// hard fault handler (let's hope not)
 };
 
+
+
+
+static int handler(void* user, const char* section, const char* name,
+                   const char* value, int* pnSectionNo)
+{
+    sIniHandlerData* pIniHandlerData = (sIniHandlerData*)user;
+	char msg[mainMAX_MSG_LEN];
+	uint32_t nRes = pdPASS;
+
+    #define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
+	switch (pIniHandlerData->iniSSNCommand->nCmd) {
+		case 0:
+		{
+			if (MATCH("ssn", "v") && conv2d(value) != 1) {
+				xsprintf(msg, "\r\nWrong SSN protocol version: %s ", value);
+				sendBaseOut(msg);
+				nRes =  pdFAIL;
+			} else if (MATCH("ssn", "obj")) {
+				pIniHandlerData->iniSSNCommand->uiDevDest = conv2d(value);
+			} else if (MATCH("ssn", "cmd")) {
+				pIniHandlerData->iniSSNCommand->nCmd = getCommandsByName(value);
+				if (pIniHandlerData->iniSSNCommand->nCmd == mainCOMMAND_GETPREFERENCES) {
+//					vTaskSuspendAll();	// stop scheduler if load preferences command
+
+//					uint16_t i;
+//					for (i = 1; i < all_devs_counter; i++) {
+//						vPortFree(devArray[i]);
+//					}
+//					for (i = 1; i < grp_counter; i++) {
+//						vPortFree(grpArray[i]);
+//					}
+//					for (i = 0; i < act_counter; i++) {
+//						vPortFree(actArray[i]);
+//					}
+					grp_counter = 0;
+					all_devs_counter = 0;
+					act_counter = 0;
+					route_counter = 0;
+
+				}
+			} else {
+			//	nRes = pdFAIL;  /* unknown section/name, error */
+			}
+			break;
+		}
+		case mainCOMMAND_GETPREFERENCES:
+		{
+			nRes = process_loadprefs_ini_handler((char*)section, (char*)name, (char*)value, pIniHandlerData, pnSectionNo);
+			break;
+		}
+	}
+	strncpy0(pIniHandlerData->sLastSection, section, strlen(section)+1);
+	strncpy0(pIniHandlerData->sLastName, name, strlen(name)+1);
+	pIniHandlerData->pnPrevSectionNo = *pnSectionNo;
+    return nRes;
+}
 
 /*-----------------------------------------------------------*/
 
@@ -268,11 +330,13 @@ int main(void)
 
 // ------------------------------------------------------------------------------
 	  	sGrpInfo * pGrp;
-		sDevice* pVirtualDev;	// abstract device for timer actions cashing
+		sDevice* pVirtualDev;	// abstract group and device for timer actions cashing
+		sGrpDev * pGrpDev;
 
 		grpArray[grp_counter] = (sGrpInfo*) pvPortMalloc(sizeof(sGrpInfo));
 		pGrp = grpArray[grp_counter];
-
+		pGrpDev = &pGrp->GrpDev;
+		pGrpDev->pTimer = SOFTI2C_TIMER_1;
 		pVirtualDev = (sDevice*) pvPortMalloc(sizeof(sDevice));
 		pVirtualDev->nId = 0;
 		pVirtualDev->nDevObj = 0;
@@ -281,8 +345,6 @@ int main(void)
 		devArray[all_devs_counter++] = pVirtualDev;
 
 #if defined (M_RTC_DS1307) || defined (PERSIST_EEPROM_I2C)
-		sGrpDev * pGrpDev;
-		pGrpDev = &pGrp->GrpDev;
 		// software i2c group index = 0 (grp_counter = 0)
 		// This group combine RTC_DS1307 and EEPROM
 		pGrp->uiGroup = SOFTI2C_1_GRP;
@@ -291,7 +353,7 @@ int main(void)
 		pGrpDev->ucPin = SOFTI2C_1_PIN_SDA;
 		pGrpDev->ucPin2 = SOFTI2C_1_PIN_SCL;
 		pGrpDev->pTimer = SOFTI2C_TIMER_1;
-		grp_counter++;
+//		grp_counter++;
 		owi_device_init_i2c(pGrpDev);
 #endif
 
@@ -313,11 +375,12 @@ int main(void)
 				sendBaseOut("\n\rRTC DS1307 not responding");
 			};
 #endif
+		grp_counter++;
 
 
 // first 2 byte in EEPROM consist size of JSON structure with SSN hardware and logic preferences, started from 5 byte
 
-// Read size of recorded JSON:
+// Read size of recorded JSON or INI:
 #ifdef PERSIST_EEPROM_I2C
 	res = eeprom_read(pGrpDev, EEPROM_ADDRESS, 0, (uint8_t*)&Rx1Buffer, 2);
 #endif
@@ -327,64 +390,86 @@ int main(void)
 #endif
 
 	if (res) {
-		uint16_t jsonSize = Rx1Buffer[0] + (Rx1Buffer[1] << 8);
-		xJSONBuffer.nBufSize = jsonSize;
-		if (jsonSize < xPortGetFreeHeapSize())
-			xJSONBuffer.buffer = pvPortMalloc(jsonSize);
+		uint16_t nBufSize = Rx1Buffer[0] + (Rx1Buffer[1] << 8);
+		xPrefsBuffer.nBufSize = nBufSize;
+		if (nBufSize < xPortGetFreeHeapSize())
+			xPrefsBuffer.buffer = pvPortMalloc(nBufSize);
 
-		if (xJSONBuffer.buffer) {
+		if (xPrefsBuffer.buffer) {
 #ifdef PERSIST_EEPROM_I2C
-			res = eeprom_read(pGrpDev, EEPROM_ADDRESS, 4, (uint8_t*) xJSONBuffer.buffer, jsonSize);
+			res = eeprom_read(pGrpDev, EEPROM_ADDRESS, 4, (uint8_t*) xPrefsBuffer.buffer, nBufSize);
 #endif
 #ifdef PERSIST_STM32FLASH
 			// simply copy into buffer data from flash memory where stored preferences
-			memcpy((void*)xJSONBuffer.buffer, (void*)(STM32FLASH_BEGIN_ADDR+4), jsonSize);
-			res = pdTRUE;
+			memcpy((void*)xPrefsBuffer.buffer, (void*)(STM32FLASH_BEGIN_ADDR+4), nBufSize);
+			res = pdPASS;
 #endif
 			if (res) {
-				xJSONBuffer.state = JSON_STATE_READY;
-				xJSONBuffer.counter = jsonSize;
+				xPrefsBuffer.state = JSON_STATE_READY;
+				xPrefsBuffer.counter = nBufSize;
 #ifdef PERSIST_STM32FLASH
 				sendBaseOut("\n\rConfiguration loaded from FLASH");
 #else
 				sendBaseOut("\n\rConfiguration loaded from EEPROM");
 #endif
-
-				cJSON *json_root, *json_ssn;
-				json_root = cJSON_Parse(xJSONBuffer.buffer);
-				if (!json_root) {
-					res = 1;
+				// define format preferences: if first char = "{" than JSON, else INI
+				if (xPrefsBuffer.buffer[0] != '{') {
+// INI format
+				    sIniHandlerData xIniHandlerData;
+				    sSSNCommand xSSNCommand;
+				    xSSNCommand.nCmd = 0;
+				    xIniHandlerData.iniSSNCommand = &xSSNCommand;
+				    xIniHandlerData.sLastName[0] = 0;
+				    xIniHandlerData.sLastSection[0] = 0;
+				    buffer_ctx ctx;
+				    ctx.ptr = (char*) xPrefsBuffer.buffer;
+				    ctx.bytes_left = nBufSize;
+				    res = ini_parse_stream((ini_reader)ini_buffer_reader, &ctx, handler, &xIniHandlerData);
+				    if (res != 0) {
+				    	xsprintf(( portCHAR *) msg, "\r\nCan't parse INI format, line: %d, param: %s\n", res, xIniHandlerData.sLastName);
+				    	sendBaseOut((char *) &msg);
+				    } else {
+				    	xsprintf(( portCHAR *) msg, "\r\nParsed INI format\n");
+				    	sendBaseOut((char *) &msg);
+				    	res = pdPASS;
+				    }
 				} else {
-					json_ssn = cJSON_GetObjectItem(json_root, "ssn");
-					if (!json_ssn) {
-						xsprintf(( portCHAR *) msg, "\n\rJSON error before: [%s]\n\r", cJSON_GetErrorPtr());
-						sendBaseOut((char *) &msg);
+// JSON format
+					cJSON *json_root, *json_ssn;
+					json_root = cJSON_Parse(xPrefsBuffer.buffer);
+					if (!json_root) {
+						res = 1;
 					} else {
-						int version =
-								cJSON_GetObjectItem(json_ssn, "v")->valueint;
-						if (version == 1) {
-							cJSON *json_data = cJSON_GetObjectItem(json_ssn, "data");
-							if (!json_data) {
-								sendBaseOut("\n\rError JSON data");
-							} else {
-								res = apply_preferences(json_data);	// res == 0 -> good!
+						json_ssn = cJSON_GetObjectItem(json_root, "ssn");
+						if (!json_ssn) {
+							xsprintf(( portCHAR *) msg, "\n\rJSON error before: [%s]\n\r", cJSON_GetErrorPtr());
+							sendBaseOut((char *) &msg);
+						} else {
+							int version =
+									cJSON_GetObjectItem(json_ssn, "v")->valueint;
+							if (version == 1) {
+								cJSON *json_data = cJSON_GetObjectItem(json_ssn, "data");
+								if (!json_data) {
+									sendBaseOut("\n\rError JSON data");
+								} else {
+									res = apply_preferences(json_data);	// res == 0 -> good!
+								}
 							}
 						}
 					}
 				}
-
 				if (!res) {
 					sendBaseOut("\n\rError of apply the configuration");
 				}
 			}
 
-		vPortFree(xJSONBuffer.buffer);
+		vPortFree(xPrefsBuffer.buffer);
 		} else {
-			sendBaseOut("\n\rError JSON size info (EEPROM)");
+			sendBaseOut("\n\rError preferences size info (EEPROM or FLASH)");
 		}
 	} else {
 		//error
-		sendBaseOut("\n\rError reading configuration from EEPROM");
+		sendBaseOut("\n\rError reading configuration from EEPROM or FLASH");
 	}
 
 
@@ -406,7 +491,7 @@ int main(void)
 	xReturn = xTaskCreate( prvDebugStatTask, ( char * ) "Debug_S", 210, NULL, tskIDLE_PRIORITY + 2, &pTmpTask );
 #endif
 
-	xReturn = xTaskCreate( prvInputTask, ( char * ) "InputTask", 300, NULL, mainINPUT_TASK_PRIORITY, &pTmpTask );
+	xReturn = xTaskCreate( prvInputTask, ( char * ) "InputTask", 500, NULL, mainINPUT_TASK_PRIORITY, &pTmpTask );
 
 	xReturn = xTaskCreate( prvCheckSensorMRTask, ( char * ) "CheckSensorMRTask", 200, devArray, mainCHECK_SENSOR_MR_TASK_PRIORITY, &pTmpTask );
 	pCheckSensorMRTaskHnd = pTmpTask;
@@ -627,8 +712,55 @@ processLocalMessages:
 					vPortFree(xInputMessage.pcMessage);
 					break;
 				}
+// ============= INI format processing:
+// common part INI structure:
+//
+				case mainINI_MESSAGE: {
+					xsprintf(cPassMessage, "\r\nFreeHeap=%d, StHWM=%d =PRCINI", xPortGetFreeHeapSize(), uxTaskGetStackHighWaterMark(0));
+					sendBaseOut(cPassMessage);
+
+				    sIniHandlerData xIniHandlerData;
+				    sSSNCommand xSSNCommand;
+				    xSSNCommand.nCmd = 0;
+				    xIniHandlerData.iniSSNCommand = &xSSNCommand;
+				    xIniHandlerData.sLastName[0] = 0;
+				    xIniHandlerData.sLastSection[0] = 0;
+					xIniHandlerData.xTempAction.aid = 0;
+					xIniHandlerData.xTempAction.astr[0] = 0;
+					xIniHandlerData.xTempAction.arep = 0;
+					xIniHandlerData.xTempAction.nFlags = 0;
+
+				    buffer_ctx ctx;
+				    ctx.ptr = (char*) xInputMessage.pcMessage;
+				    ctx.bytes_left = strlen(ctx.ptr);
+
+				    xReturn = ini_parse_stream((ini_reader)ini_buffer_reader, &ctx, handler, &xIniHandlerData);
+				    if (xReturn != 0) {
+				    	xsprintf(( portCHAR *) cPassMessage, "\r\nCan't parse INI format, line: %d, param: %s\n", xReturn, xIniHandlerData.sLastName);
+				    	sendBaseOut(cPassMessage);
+						vTaskDelay( 500 / portTICK_PERIOD_MS );
+				    }
+					if (xIniHandlerData.iniSSNCommand->nCmd == mainCOMMAND_GETPREFERENCES) {
+						// check for loading last logic section:
+						if (xReturn == 0) {
+							if (xIniHandlerData.xTempAction.aid) {
+								xReturn = setAction (xIniHandlerData.xTempAction.aid, xIniHandlerData.xTempAction.astr, xIniHandlerData.xTempAction.arep, xIniHandlerData.xTempAction.nFlags);
+							}
+							xsprintf(cPassMessage, "\r\nConfig loaded from buffer (INI)");
+							vTaskSuspendAll();
+							xReturn = refreshActions2DeviceCash();
+							xReturn = storePreferences(xInputMessage.pcMessage, strlen(xInputMessage.pcMessage));
+//							xTaskResumeAll();	// start scheduler if load preferences command
+						}
+//				    	sendBaseOut(cPassMessage);
+					    SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;	// reboot
+					    while (1);
+					}
+					vPortFree(xInputMessage.pcMessage);
+					break;
+				}
+// ============= JSON format processing:
 				case mainJSON_MESSAGE: {
-// if JSON message ...
 /* processing JSON message
  common part JSON structure:
  {	"ssn": {"v":"version_number", "cmd":"command", "data": { ... } } }
@@ -1320,6 +1452,13 @@ void vMainStartTimer(sAction* pAct)
 			xTimerStart(pAct->xActTimer, 0);
 	}
 
+}
+
+uint32_t vMainStartGSMTask(void* pParam)
+{
+	uint32_t nRes;
+	nRes = xTaskCreate( prvStartGSMTask, ( char * ) "StartGSMTask", configMINIMAL_STACK_SIZE, pParam, gsmGSM_TASK_START_PRIORITY, NULL);
+	return nRes;
 }
 
 xTimerHandle mainTimerCreate(char* pcTimerName, uint32_t nPeriod, uint32_t isPeriodic, sEvtElm* pEvtElm)

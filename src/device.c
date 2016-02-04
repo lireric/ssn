@@ -50,6 +50,20 @@
 	#include "gsm.h"
 #endif
 
+sGrpInfo* getGroupByID (uint8_t nGrpID)
+{
+	uint8_t i;
+	sGrpInfo* pGrp = NULL;
+
+	for (i = 0; i <= grp_counter; i++) {
+			if (grpArray[i]->uiGroup == nGrpID) {
+				pGrp = grpArray[i];
+				break;
+			}
+	}
+	return pGrp;
+}
+
 sDevice* getDeviceByID (uint16_t nDevID)
 {
 	uint16_t i;

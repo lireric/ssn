@@ -2,7 +2,7 @@
 
 jsonFile='release/getdevvals.json';
 #jsonFile='test2/getdevvals.json';
-mcPort='/dev/ttyUSB0';
+mcPort='/dev/ttyUSB1';
 
 obj_dst=1;
 obj_src=3;

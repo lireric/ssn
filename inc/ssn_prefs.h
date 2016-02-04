@@ -29,8 +29,8 @@
 #ifndef INC_SSN_PREFS_H_
 #define INC_SSN_PREFS_H_
 
-//#define CONF_TEST
-#define CONF_RELEASE
+#define CONF_TEST
+//#define CONF_RELEASE
 //#define CONF_TEST2
 //#define CONF_PROD1
 
@@ -51,6 +51,9 @@
 	#include "ssn_prefs_prod1.h"
 #endif
 
+#ifdef CONF_PROD2
+	#include "ssn_prefs_prod2.h"
+#endif
 
 /* periodic task rates */
 #define mainSensorRateLR			( ( portTickType ) 40000 / portTICK_RATE_MS )
@@ -60,13 +63,13 @@
 #define mainDEBUG_STAT_RATE			( ( portTickType ) 10000 / portTICK_RATE_MS )
 
 /* Task priorities. */
-#define mainINPUT_TASK_PRIORITY				( tskIDLE_PRIORITY + 3 )
+#define mainINPUT_TASK_PRIORITY				( tskIDLE_PRIORITY + 1 )
 #define gsmGSM_TASK_START_PRIORITY			( tskIDLE_PRIORITY + 1 )
-#define mainCHECK_SENSOR_MR_TASK_PRIORITY	( tskIDLE_PRIORITY + 1 )
-#define mainCHECK_SENSOR_HR_TASK_PRIORITY	( tskIDLE_PRIORITY + 1 )
-#define mainPROC_SENSOR_TASK_PRIORITY		( tskIDLE_PRIORITY + 2 )
-#define mainECHO_TASK_PRIORITY				( tskIDLE_PRIORITY + 4 )
-#define mainBASEOUT_TASK_PRIORITY			( tskIDLE_PRIORITY + 4 )
+#define mainCHECK_SENSOR_MR_TASK_PRIORITY	( tskIDLE_PRIORITY + 2 )
+#define mainCHECK_SENSOR_HR_TASK_PRIORITY	( tskIDLE_PRIORITY + 2 )
+#define mainPROC_SENSOR_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
+#define mainECHO_TASK_PRIORITY				( tskIDLE_PRIORITY + 3 )
+#define mainBASEOUT_TASK_PRIORITY			( tskIDLE_PRIORITY + 2 )
 
 
 /* COM ports */
@@ -76,7 +79,7 @@
 #define mainCOM3							( 3 )
 #define mainCOM4							( 4 )
 
-#define mainBASECOM_Priority				(190)
+#define mainBASECOM_Priority				(193)
 
 #define mainMINMEMORYALLOCATE				( 8 ) // minimum memory size for allocate
 

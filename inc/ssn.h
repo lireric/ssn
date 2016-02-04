@@ -82,7 +82,9 @@
 #endif
 
 
-#define BUFFER1_SIZE             ( 64 ) // (countof(Tx1Buffer)-1)
+#define BUFFER1_SIZE             ( 80 ) // (countof(Tx1Buffer)-1)
+
+#define INI_USE_STACK 0
 
 #define countof(a) (sizeof(a) / sizeof(*(a)))
 
@@ -104,6 +106,7 @@ uint8_t Rx1Buffer[BUFFER1_SIZE];
 void 		print_debug_FROM_ISR (const char *str);
 sGrpInfo* 	getGrpInfo(unsigned char ucGrpNum);
 int32_t 	apply_preferences(cJSON *json_data);
+uint32_t vMainStartGSMTask(void* pParam);
 xTimerHandle mainTimerCreate(char* pcTimerName, uint32_t nPeriod, uint32_t isPeriodic, sEvtElm* pEvtElm);
 xTimerHandle mainTimerCreateOneShot(char* pcTimerName, uint32_t nPeriod, sEvtElm* pEvtElm);
 uint16_t 	getMC_Object(void);
