@@ -460,6 +460,8 @@ int main(void)
 				}
 				if (!res) {
 					sendBaseOut("\n\rError of apply the configuration");
+				} else {
+					res = refreshActions2DeviceCash();
 				}
 			}
 
@@ -491,7 +493,7 @@ int main(void)
 	xReturn = xTaskCreate( prvDebugStatTask, ( char * ) "Debug_S", 210, NULL, tskIDLE_PRIORITY + 2, &pTmpTask );
 #endif
 
-	xReturn = xTaskCreate( prvInputTask, ( char * ) "InputTask", 500, NULL, mainINPUT_TASK_PRIORITY, &pTmpTask );
+	xReturn = xTaskCreate( prvInputTask, ( char * ) "InputTask", 450, NULL, mainINPUT_TASK_PRIORITY, &pTmpTask );
 
 	xReturn = xTaskCreate( prvCheckSensorMRTask, ( char * ) "CheckSensorMRTask", 200, devArray, mainCHECK_SENSOR_MR_TASK_PRIORITY, &pTmpTask );
 	pCheckSensorMRTaskHnd = pTmpTask;
@@ -538,6 +540,9 @@ static void prvInputTask( void *pvParameters )
 		/* Check the version of message */
 		if (xInputMessage.version == 1) {
 			uiDestInterface = getObjRoute(xInputMessage.uiDestObject);
+
+			xsprintf(cPassMessage, "\r\nInputMessage:: dest=%d, msgtype=%d, cmd=%d", xInputMessage.uiDestObject, xInputMessage.xMessageType, xInputMessage.nCommand);
+			sendBaseOut(cPassMessage);
 
 			/* route message if needed */
 			if (xInputMessage.uiDestObject != getMC_Object()) {
@@ -729,6 +734,7 @@ processLocalMessages:
 					xIniHandlerData.xTempAction.astr[0] = 0;
 					xIniHandlerData.xTempAction.arep = 0;
 					xIniHandlerData.xTempAction.nFlags = 0;
+					xIniHandlerData.pnPrevSectionNo = -1;
 
 				    buffer_ctx ctx;
 				    ctx.ptr = (char*) xInputMessage.pcMessage;

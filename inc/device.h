@@ -66,6 +66,7 @@
 #define device_TYPE_GSM					( 10 )	// GSM Modem
 #define device_TYPE_RF					( 11 )	// wireless transceiver /* to do */
 #define device_TYPE_ETH					( 12 )	// ethernet	/* to do */
+#define device_TYPE_MEMORY				( 13 )	// pseudo device - memory store variable	/* to do */
 
 // actions flags
 #define devACTION_FLAG_NOLOG		0x01	//	No logging option for this action

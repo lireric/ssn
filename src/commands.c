@@ -79,7 +79,7 @@ uint8_t getObjRoute(uint16_t	nDestObj)
 {
 	uint8_t i;
 	uint8_t nRoute = 0;
-	for (i=0; i<route_counter; i++) {
+	for (i=0; i<=route_counter; i++) {
 		if (routeArray[i].nDestObj == nDestObj) {
 			nRoute = routeArray[i].xDestType;
 			break;
@@ -91,7 +91,7 @@ uint8_t getObjRoute(uint16_t	nDestObj)
 uint32_t setObjRoute(uint16_t	nDestObj, uint8_t nRoute)
 {
 	uint8_t i;
-	for (i=0; i<route_counter; i++) {
+	for (i=0; i<=route_counter; i++) {
 		if (routeArray[i].nDestObj == nDestObj) {
 			routeArray[i].xDestType  = nRoute;
 			return pdTRUE;
@@ -109,7 +109,7 @@ uint32_t setObjRoute(uint16_t	nDestObj, uint8_t nRoute)
 uint32_t delObjRoute(uint16_t	nDestObj)
 {
 	uint8_t i;
-	for (i=0; i<route_counter; i++) {
+	for (i=0; i<=route_counter; i++) {
 		if (routeArray[i].nDestObj == nDestObj) {
 			routeArray[i].nDestObj = routeArray[route_counter].nDestObj;
 			routeArray[i].xDestType = routeArray[route_counter].xDestType;
@@ -268,6 +268,17 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 #endif
 					}
 
+		} else if (devArray[all_devs_counter]->ucType == device_TYPE_MEMORY) {
+			// memory element pseudo device
+			if (strcmp(sName, "e") == 0) {
+				devArray[all_devs_counter]->pGroup->iDevQty = conv2d(sValue);
+				// allocate memory for memory elements array:
+				devArray[all_devs_counter]->pDevStruct = (void*)pvPortMalloc(sizeof(uint32_t)*devArray[all_devs_counter]->pGroup->iDevQty);
+				if (!devArray[all_devs_counter]->pDevStruct) {
+					return pdFAIL;
+				}
+
+			}
 		} else if (strcmp(sName, "romid") == 0) {
 #ifdef  M_DS18B20
 			devArray[all_devs_counter]->pDevStruct = (void*) ds18b20_init(devArray[all_devs_counter]->pGroup, sValue);
@@ -345,7 +356,9 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 		}
 
 	} else if (strcmp(sSection, "logic") == 0) {
-		if ((pIniHandlerData->pnPrevSectionNo != *pnSectionNo) && pIniHandlerData->xTempAction.aid && (strlen(pIniHandlerData->xTempAction.astr) > 0)) {
+		if ((pIniHandlerData->pnPrevSectionNo != *pnSectionNo) && pIniHandlerData->xTempAction.aid
+				&& (strlen(pIniHandlerData->xTempAction.astr) > 0))
+		{
 			nRes = setAction (pIniHandlerData->xTempAction.aid, pIniHandlerData->xTempAction.astr, pIniHandlerData->xTempAction.arep, pIniHandlerData->xTempAction.nFlags);
 			// reset tmp structure:
 			pIniHandlerData->xTempAction.aid = 0;
@@ -497,37 +510,33 @@ char* process_getdevvals(sDevice* devArray[], uint16_t all_devs_counter)
 		memcpy(tele_data, pcTeleHeader, uiBufLen);
 		nStrCounter+=uiBufLen;
 
-		for (j = 0; j < all_devs_counter; j++) {
+		for (j = 0; j <= all_devs_counter; j++) {
 // select hi rate group:
 				ut = devArray[j]->ucType;
 				buf[0]=0;
-				nNumValTypes = getNumDevValCodes(ut);
-				if (nNumValTypes == 1)
-				{
-					getDevData(devArray[j], 0, &nDevValue, &nDevLastUpdate);
-					xsprintf(buf, "{\"dev\":%d, \"n\":1, \"val\":%d, \"updtime\":%ld},",  devArray[j]->nId, nDevValue, nDevLastUpdate );
+				if (ut == device_TYPE_MEMORY) {
+					nNumValTypes = devArray[j]->pGroup->iDevQty;
+				} else {
+					nNumValTypes = getNumDevValCodes(ut);
 				}
-				if (nNumValTypes == 2)
-				{
-					int32_t nDevValue2;
-					getDevData(devArray[j], 0, &nDevValue, &nDevLastUpdate);
-					getDevData(devArray[j], 1, &nDevValue2, &nDevLastUpdate);
-					xsprintf(buf, "{\"dev\":%d, \"n\":2, \"i\":0, \"val\":%d, \"updtime\":%ld},{\"dev\":%d, \"n\":2, \"i\":1, \"val\":%d, \"updtime\":%ld},", devArray[j]->nId, nDevValue, nDevLastUpdate,  devArray[j]->nId, nDevValue2, nDevLastUpdate);
+				for (uint8_t k=0; k<nNumValTypes; k++) {
+					getDevData(devArray[j], k, &nDevValue, &nDevLastUpdate);
+					xsprintf(buf, "{\"dev\":%d, \"n\":%d, \"i\":%d, \"val\":%d, \"updtime\":%ld},",  devArray[j]->nId, nNumValTypes, k, nDevValue, nDevLastUpdate );
+					uiBufLen = strlen(buf);
+					if (uiBufLen > 0) {
+						if ((nStrCounter + uiBufLen) > nBufSize) {
+							nExtBufCounter++;
+							tele_data2 = pvPortMalloc(nExtBufCounter * nBufSize);
+							memcpy(tele_data2, tele_data, strlen(tele_data));
+							vPortFree(tele_data);
+							tele_data = tele_data2;
+						}
+							memcpy(&tele_data[nStrCounter], buf, uiBufLen);
+							nStrCounter += uiBufLen;
+							tele_data[nStrCounter] = 0;
+					}
 				}
 
-				uiBufLen = strlen(buf);
-			if (uiBufLen > 0) {
-				if ((nStrCounter + uiBufLen) > nBufSize) {
-					nExtBufCounter++;
-					tele_data2 = pvPortMalloc(nExtBufCounter * nBufSize);
-					memcpy(tele_data2, tele_data, strlen(tele_data));
-					vPortFree(tele_data);
-					tele_data = tele_data2;
-				}
-					memcpy(&tele_data[nStrCounter], buf, uiBufLen);
-					nStrCounter += uiBufLen;
-					tele_data[nStrCounter] = 0;
-			}
 		}
 		const char* pcTeleFooter = "{\"dev\":0, \"n\":0, \"val1\":0}]}}}";
 		uiBufLen = strlen(pcTeleFooter);

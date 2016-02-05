@@ -122,6 +122,7 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue, uint32_t*
 {
 	int32_t nValue;
 	uint32_t nLastUpdate = 0;
+	int32_t *e;
 
 	if (!dev) return pdFALSE;
 
@@ -140,6 +141,10 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue, uint32_t*
 	case device_TYPE_BB1BIT_IO_INPUT:
 		nValue = (int32_t) bb_read_wire_data_bit(&dev->pGroup->GrpDev);
 		nLastUpdate = rtc_get_counter_val();
+		break;
+	case device_TYPE_MEMORY:
+		e = (int32_t*)dev->pDevStruct;
+		nValue = e[nValCode];
 		break;
 	}
 
@@ -175,20 +180,20 @@ void setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t n
 // if DevID == 0 then search action with ActID == nValue, else search device:
 
 	if (nDevID == 0) {
-		for (i=0; i<act_counter;i++) {
+		for (i=0; i<=act_counter;i++) {
 			if (actArray[i]->nActId == nValue) {
 				vMainStartTimer(actArray[i]);
 			}
 		}
 	} else {
-		for (i = 0; i < all_devs_counter; i++) {
+		for (i = 0; i <= all_devs_counter; i++) {
 			if (devArray[i]->nId == nDevID) {
 				setDevValue(nValue, nDevCmd, devArray[i], nDataType);
 				break;
 			}
 		}
 		// if local device array not contain this device, send to input queue for routing
-		if (i == all_devs_counter)
+		if (i > all_devs_counter)
 		{
 			char msg[mainMAX_MSG_LEN];
 			if (nDataType == eElmString) {
@@ -209,6 +214,7 @@ void setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t n
 
 void setDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nDataType)
 {
+	int32_t *e;
 	switch (dev->ucType) {
 // ignore:
 	case device_TYPE_DS18B20:
@@ -221,6 +227,13 @@ void setDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nDataTyp
 			if (nValue > 0) { bb_set_wire(&dev->pGroup->GrpDev); } else { bb_clear_wire (&dev->pGroup->GrpDev);}
 		} else {
 			// to do: process error and free string resource
+		}
+		break;
+	case device_TYPE_MEMORY:
+		e = (int32_t*)dev->pDevStruct;
+		if (e) {
+			e[nDevCmd] = nValue;
+		//= nValue;
 		}
 		break;
 	case device_TYPE_GSM:
@@ -1139,7 +1152,7 @@ int32_t	setAction (uint16_t nActId, char* pAStr, uint32_t arep, uint16_t nFlags)
 			{
 				pAct = pvPortMalloc(sizeof(sAction));
 				if (pAct) {
-					actArray[++act_counter] = pAct;
+					actArray[act_counter++] = pAct;
 					pAct->nActId = nActId;
 				} else
 					return pdFALSE;

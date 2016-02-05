@@ -60,7 +60,7 @@ INCLUDE+=-I$(OPENCM3_DIR)/include
 INCLUDE+=-I$(FREERTOSDIR)/Source/include
 INCLUDE+=-I$(FREERTOSDIR)/Source/portable/GCC/ARM_CM3
 
-COMMONFLAGS=-g -mcpu=cortex-m3 -mthumb -Wno-char-subscripts 
+COMMONFLAGS=-g -mcpu=cortex-m3 -mthumb -Wno-char-subscripts -std=c99
 COMMONFLAGSlib=$(COMMONFLAGS)
 
 #Commands for general Makefile and src Makefile

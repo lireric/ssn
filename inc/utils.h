@@ -156,7 +156,7 @@ static inline void enter_critical_section(void)
 {
   if(critical_section_counter == 0)
   {
-    asm("CPSID i");
+	  __asm__("CPSID i");
   }
   // avoid lost of one count in case of simultaneously calling from both places
   ++critical_section_counter;
@@ -166,7 +166,7 @@ static inline void exit_critical_section(void)
 {
   if(--critical_section_counter == 0)
   {
-    asm("CPSIE i");
+	  __asm__("CPSIE i");
   }
 }
 
