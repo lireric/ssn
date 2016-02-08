@@ -188,7 +188,11 @@ void setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t n
 	} else {
 		for (i = 0; i <= all_devs_counter; i++) {
 			if (devArray[i]->nId == nDevID) {
-				setDevValue(nValue, nDevCmd, devArray[i], nDataType);
+				if (nDataType == eElmDevValue) {
+					nValue = getDevValueByID(nDevCmd, (uint16_t) nValue); // for eElmDevValue datatype nValue = devID
+				} else {
+					setDevValue(nValue, nDevCmd, devArray[i], nDataType);
+				}
 				break;
 			}
 		}
@@ -395,7 +399,8 @@ typedef enum
 	eCurState_A_Arg1_Process,	/* process argument 1 of 'a' operand */
 	eCurState_A_Arg2_Process,	/* process argument 2 of 'a' operand */
 	eCurState_A_Arg3_Process,	/* process argument 3 of 'a' operand */
-	eCurState_A_Arg3S_Process,	/* process argument 3 as string of 'a' operand */
+	eCurState_A_Arg3S_Process,	/* process argument 3 as string of 'a' operand "ex: ..=a(action_dev_ID,action_dev_channel,_d(x,y)_)" */
+	eCurState_A_Arg3D_Process,	/* process argument 3 as get device value of 'a' operand */
 	eCurState_A_Arg4x_Process,	/* preprocess argument 4 of 'a' operand: wait ',' or ')' if only 3 arguments */
 	eCurState_A_Arg4_Process,	/* process argument 4 of 'a' operand */
 	eCurState_A_Arg5_Process,	/* process argument 5 of 'a' operand */
@@ -413,7 +418,9 @@ typedef enum
 	eCurState_Const_Str_Process_m, /*  process string constant - convert it to seconds from 00:00:00 */
 	eCurState_Const_Str_Process_s, /*  process string constant - convert it to seconds from 00:00:00 */
 	eCurState_Const_Str_Process_Finish, /* store converted string constant */
-	eCurState_Const_Process		/* process constant */
+	eCurState_Const_Process,		/* process constant */
+	eCurState_A3D_Arg1_Process,	/* process argument 1 device in action operand */
+	eCurState_A3D_Arg2_Process	/* process argument 2 device in action operand */
 } eElmParseStatuses;
 
 sEvtElm* parseActionString(char* pAStr)
@@ -473,6 +480,59 @@ beginSwitch:
 					// to do: process error
 					break;
 				}
+
+
+
+	    	    case eCurState_A3D_Arg1_Process:
+	    	    {
+	    	    	if (c >= '0' && c <= '9') {
+	    	    		strBuf[d++] = c;
+	    	    	} else
+	    	    		if (c == ',')
+	    	    		{
+	    	    			if (d > 12) {
+	    	    				nCurrentState = eCurStateArgumentError;
+	    	    				break;
+	    	    			}
+	    	    			strBuf[d] = 0;
+	    	    			arg1 = (uint32_t )conv2d(strBuf);
+	    	    			xActElm.nElmDataIn = arg1; // in nElmDataIn store get device_ID
+		    	    		d = 0;
+	    	    			nCurrentState = eCurState_A3D_Arg2_Process;
+	    	    		}
+	    	    		else {
+	    	    			nCurrentState = eCurStateParseError;
+	    	    		}
+	    	    	break;
+	    	    }
+	    	    case eCurState_A3D_Arg2_Process:
+	    	    {
+	    	    	if (c >= '0' && c <= '9') {
+	    	    		strBuf[d++] = c;
+	    	    	} else
+	    	    		if (c == ')')
+	    	    		{
+	    	    			if (d > 6) {
+	    	    				nCurrentState = eCurStateArgumentError;
+	    	    				break;
+	    	    			}
+	    	    			strBuf[d] = 0;
+	    	    			arg2 = (uint32_t )conv2d(strBuf);
+
+	    	    			strBuf[d] = 0;
+	    	    			xActElm.ngetDevCmdIn = arg2; // store get dev value command
+	    	    			xActElm.nElmDataType = eElmGetDevValue;
+		    	    		d = 0;
+		    	    		xActElm.nActCmdOut = 0;
+	    	    			nCurrentState = eCurState_A_Arg4x_Process; // continue processing
+	    	    		}
+	    	    		else {
+	    	    			nCurrentState = eCurStateParseError;
+	    	    		}
+	    	    	break;
+	    	    }
+
+
 	    	    case eCurState_A_begin:
 	    	    {
 	    	    	if (c == '(')
@@ -552,6 +612,13 @@ beginSwitch:
 		    	    		xActElm.nActCmdOut = 0;
 	    	    			nCurrentState = eCurState_A_Arg3S_Process;
 	   	    			} else
+		   	    			if (c == 'd')
+		   	    			{
+		   	    				// process get device value in action:
+		   	    				nStrBuf = 0;
+			    	    		xActElm.nActCmdOut = 0;
+		    	    			nCurrentState = eCurState_A_Arg3D_Process;
+		   	    		} else
 	    	    		if (c == ')') {
 	    	    			// action has only 3 arguments - push it to elm stack
 	    	    			if (d > 12) {
@@ -571,6 +638,20 @@ beginSwitch:
 	    	    		}
 	    	    	break;
 	    	    }
+	    	    case eCurState_A_Arg3D_Process:
+	    	    {
+  	    	    	// process get device value in action:
+	    	    	if (c == '(')
+	    	    	{
+	    	    		d = 0;
+	    	    		nCurrentState = eCurState_A3D_Arg1_Process;
+	    	    	}
+	    	    	else
+	    	    		nCurrentState = eCurStateParseError;
+	    	    	break;
+	    	    }
+
+
 	    	    case eCurState_A_Arg3S_Process:
 	    	    {
 	    	    	if (c != '\'')
@@ -599,6 +680,7 @@ beginSwitch:
 	    	    	if (c == ',') {
 	    	    		d = 0;
     	    			nCurrentState = eCurState_A_Arg4_Process;
+    	    			xActElm.nActFlag ^= devEXEC_ACTION_FLAG_OUT_ARG;
 	    	    	} else
 		    	    	if (c == ')') {
 		    	    		// action has only 3 arguments - push it to elm stack
@@ -1444,24 +1526,27 @@ int32_t	calcAndDoAction (sAction* pAct)
 			   	  {
 						case eElmOperation:
 						{
+//							xsprintf(msg, "a_oper = %d ", pEvtElm->nElmData1);
+//							sendBaseOut(msg);
+
 			    		   	  switch(pEvtElm->nElmData1)
 			    		   	  {
 			    		   	    case eOpResume:
 			    		   	    	goto finishCalc;
 			    		   	    case eOpLE:
-			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) <= popRS(&xRPNStack)));
+			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) >= popRS(&xRPNStack)));
 			    		   	    	break;
 			    		   	    case eOpGE:
-			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) >= popRS(&xRPNStack)));
+			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) <= popRS(&xRPNStack)));
 			    		   	    	break;
 			    		   	    case eOpEq:
 			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) == popRS(&xRPNStack)));
 			    		   	    	break;
 			    		   	    case eOpL:
-			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) < popRS(&xRPNStack)));
+			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) > popRS(&xRPNStack)));
 			    		   	    	break;
 			    		   	    case eOpG:
-			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) > popRS(&xRPNStack)));
+			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) < popRS(&xRPNStack)));
 			    		   	    	break;
 			    		   	    case eOpAND:
 			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) && popRS(&xRPNStack)));
@@ -1476,13 +1561,13 @@ int32_t	calcAndDoAction (sAction* pAct)
 			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) + popRS(&xRPNStack)));
 			    		   	    	break;
 			    		   	    case eOpMinus:
-			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) - popRS(&xRPNStack)));
+			    	    			pushRS(&xRPNStack, (- popRS(&xRPNStack) + popRS(&xRPNStack)));
 			    		   	    	break;
 			    		   	    case eOpMul:
 			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) * popRS(&xRPNStack)));
 			    		   	    	break;
 			    		   	    case eOpDiv:
-			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) / popRS(&xRPNStack)));
+			    	    			pushRS(&xRPNStack, (1 / popRS(&xRPNStack) * popRS(&xRPNStack)));
 			    		   	    	break;
 			    		   	  }
 							break;
@@ -1561,30 +1646,38 @@ finishCalc:
 					pActionInfo = (sActElm*) pActElm->nElmData1;
 					if (pActionInfo) {
 						if (nCalcResult) {
+							uint8_t nSetDevCmd = pActionInfo->nActCmdIn;
+							uint32_t nSetDevValue =  pActionInfo->nElmDataIn;
+							uint8_t nSetDataType = pActionInfo->nElmDataType;
 
-							setDevValueByID(pActionInfo->nElmDataIn, pActionInfo->nActCmdIn, pActionInfo->nDevId, pActionInfo->nElmDataType);
-							if (pActionInfo->nElmDataType == eElmString) {
-								xsprintf(msg, "set dev[%d] = %s ", pActionInfo->nDevId, (char*)pActionInfo->nElmDataIn);
+							// if data type get dev value, than call function for it:
+							if (pActionInfo->nElmDataType == eElmGetDevValue) {
+								nSetDevValue = getDevValueByID(pActionInfo->ngetDevCmdIn, (uint16_t) nSetDevValue);
+								nSetDataType = eElmInteger; // get dev value in action works only for integer data type
+							}
+							setDevValueByID(nSetDevValue, nSetDevCmd, pActionInfo->nDevId, nSetDataType);
+							if (nSetDataType == eElmString) {
+								xsprintf(msg, "set dev[%d,%d] = %s ", pActionInfo->nDevId, pActionInfo->nActCmdOut, (char*)pActionInfo->nElmDataIn);
 							} else {
-								xsprintf(msg, "set dev[%d] = %d ", pActionInfo->nDevId, pActionInfo->nElmDataIn);
+								xsprintf(msg, "set dev[%d,%d] = %d ", pActionInfo->nDevId, nSetDevCmd, nSetDevValue);
 								if (!(pAct->nFlags & devACTION_FLAG_NOLOG))
 								{
-									logAction(pAct->nActId, pActionInfo->nDevId, pActionInfo->nElmDataIn);
+									logAction(pAct->nActId, pActionInfo->nDevId, nSetDevValue);
 								}
 							}
 
-						} else {
-
-							setDevValueByID(pActionInfo->nElmDataOut, pActionInfo->nActCmdOut, pActionInfo->nDevId, pActionInfo->nElmDataType);
-							if (pActionInfo->nElmDataType == eElmString) {
-								xsprintf(msg, "set dev[%d] = %s ", pActionInfo->nDevId, (char*)pActionInfo->nElmDataOut);
-							} else {
-								xsprintf(msg, "set dev[%d] = %d ", pActionInfo->nDevId, pActionInfo->nElmDataOut);
-								if (!(pAct->nFlags & devACTION_FLAG_NOLOG))
-								{
-									logAction(pAct->nActId, pActionInfo->nDevId, pActionInfo->nElmDataOut);
+						} else if (pActionInfo->nActFlag & devEXEC_ACTION_FLAG_OUT_ARG)
+							{
+								setDevValueByID(pActionInfo->nElmDataOut, pActionInfo->nActCmdOut, pActionInfo->nDevId, pActionInfo->nElmDataType);
+								if (pActionInfo->nElmDataType == eElmString) {
+									xsprintf(msg, "set dev[%d,%d] = %s ", pActionInfo->nDevId, pActionInfo->nActCmdOut, (char*)pActionInfo->nElmDataOut);
+								} else {
+									xsprintf(msg, "set dev[%d,%d] = %d ", pActionInfo->nDevId, pActionInfo->nActCmdOut, pActionInfo->nElmDataOut);
+									if (!(pAct->nFlags & devACTION_FLAG_NOLOG))
+									{
+										logAction(pAct->nActId, pActionInfo->nDevId, pActionInfo->nElmDataOut);
+									}
 								}
-							}
 						}
 					}
 

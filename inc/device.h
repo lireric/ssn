@@ -72,6 +72,8 @@
 #define devACTION_FLAG_NOLOG		0x01	//	No logging option for this action
 #define devACTION_FLAG_SINGLE_TIMER	0x02	//	single pulse timer
 
+// actions execution flags
+ #define devEXEC_ACTION_FLAG_OUT_ARG		0x01	//	action has Out arguments
 
 #ifndef NULL
 #define NULL ((void*)0)
@@ -138,7 +140,8 @@ typedef struct
 typedef enum
 {
 	eElmInteger = 0,	/* integer */
-	eElmString			/* string */
+	eElmString,			/* string */
+	eElmGetDevValue		// get device value
 } eElmDataTypes;
 
 // action elements
@@ -150,7 +153,9 @@ typedef struct
 	uint8_t		nElmDataType;	// data type (In and Out Data, ref. eElmDataTypes)
 	uint8_t		nActCmdIn;		// action set device command
 	uint8_t		nActCmdOut;		// action reset device command
+	uint8_t		ngetDevCmdIn;	// command for get device value data type
 	uint16_t 	nDevId;			// device ID
+	uint16_t 	nActFlag;		// action flag: 0x0001 - action has Out argument
 } sActElm;
 
 
