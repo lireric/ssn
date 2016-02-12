@@ -37,6 +37,9 @@ char * cPassMessage[ mainMAX_MSG_LEN ];
 extern	void prvStartGSMTask( void *pvParameters );
 //#endif
 
+//extern int16_t* 	pADCValueArray;
+//extern uint32_t* 	pADCLastUpdate;
+
 uint16_t getCommandsByName(const char* sCmd)
 {
 	uint16_t nCmd = mainCOMMAND_NONE;
@@ -203,22 +206,28 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 		}
 		if (strcmp(sName, "grpnum") == 0) {
 			grpArray[grp_counter]->uiGroup = conv2d(sValue);
+
 		} else if (strcmp(sName, "grpport") == 0) {
 			grpArray[grp_counter]->GrpDev.pPort = get_port_by_name(sValue);
+
 		} else if (strcmp(sName, "grptimer") == 0) {
 			grpArray[grp_counter]->GrpDev.pTimer = get_port_by_name(sValue);
+
 		} else if (strcmp(sName, "grppin1") == 0) {
 			grpArray[grp_counter]->GrpDev.ucPin = conv2d(sValue);
+
 		} else if (strcmp(sName, "grppin2") == 0) {
 			grpArray[grp_counter]->GrpDev.ucPin2 = conv2d(sValue);
 		}
 	} else if (strcmp(sSection, "dev") == 0) {
 		// check for new device
 		if (strcmp(pIniHandlerData->sLastSection, sSection) != 0) {
+
 			if (all_devs_counter++ > mainMAX_ALL_DEVICES) {
 				return pdFAIL;
 			}
 			devArray[all_devs_counter] = (sDevice*) pvPortMalloc(sizeof(sDevice));
+
 			if (!devArray[all_devs_counter]) {
 				return pdFAIL;
 			}
@@ -226,16 +235,21 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 		}
 		if (strcmp(sName, "grp") == 0) {
 			devArray[all_devs_counter]->pGroup = getGroupByID(conv2d(sValue));
+
 			if (!devArray[all_devs_counter]->pGroup) {
 				return pdFAIL;
 			}
 			devArray[all_devs_counter]->pGroup->iDevQty++;
+
 		} else if (strcmp(sName, "devid") == 0) {
 			devArray[all_devs_counter]->nId = conv2d(sValue);
+
 		} else if (strcmp(sName, "devtype") == 0) {
 			devArray[all_devs_counter]->ucType = conv2d(sValue);
+
 			if (devArray[all_devs_counter]->ucType == device_TYPE_DS18B20) {
 				devArray[all_devs_counter]->pDevStruct = NULL;
+
 			} else if (devArray[all_devs_counter]->ucType == device_TYPE_DHT22) {
 #ifdef  M_DHT
 				devArray[all_devs_counter]->pDevStruct = (void*) dht_device_init(&devArray[all_devs_counter]->pGroup->GrpDev);
@@ -243,18 +257,26 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_OD) {
 				gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_OUTPUT_50_MHZ,
 						GPIO_CNF_OUTPUT_OPENDRAIN, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
+
 			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_PP) {
 				gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_OUTPUT_50_MHZ,
 						GPIO_CNF_OUTPUT_PUSHPULL, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
+
 			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_INPUT) {
 				gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_INPUT,
 						GPIO_CNF_INPUT_FLOAT, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
-			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_AI) {
-				gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_INPUT,
-						GPIO_CNF_INPUT_ANALOG, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
-				// to do:
+
 			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_AO) {
 				// to do:
+
+			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_AI) {
+				devArray[all_devs_counter]->pDevStruct = pvPortMalloc(sizeof(sADC_data_t));
+					if (!devArray[all_devs_counter]->pDevStruct) {
+						return pdFAIL;
+					}
+//					pADCValueArray = ((sADC_data_t*)devArray[all_devs_counter]->pDevStruct)->nADCValueArray;
+//					pADCLastUpdate = &((sADC_data_t*)devArray[all_devs_counter]->pDevStruct)->uiLastUpdate;
+
 			} else if (devArray[all_devs_counter]->ucType == device_TYPE_GSM) {
 #ifdef  M_GSM
 				devArray[all_devs_counter]->pDevStruct = pvPortMalloc(sizeof(sGSMDevice));
@@ -266,24 +288,30 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 				if (!nRes)
 					return pdFAIL;
 #endif
-					}
 
-		} else if (devArray[all_devs_counter]->ucType == device_TYPE_MEMORY) {
-			// memory element pseudo device
-			if (strcmp(sName, "e") == 0) {
-				devArray[all_devs_counter]->pGroup->iDevQty = conv2d(sValue);
-				// allocate memory for memory elements array:
-				devArray[all_devs_counter]->pDevStruct = (void*)pvPortMalloc(sizeof(uint32_t)*devArray[all_devs_counter]->pGroup->iDevQty);
-				if (!devArray[all_devs_counter]->pDevStruct) {
+			} else if (devArray[all_devs_counter]->ucType == device_TYPE_MEMORY) {
+				// memory element pseudo device
+				if (strcmp(sName, "e") == 0) {
+					devArray[all_devs_counter]->pGroup->iDevQty = conv2d(sValue);
+					// allocate memory for memory elements array:
+					devArray[all_devs_counter]->pDevStruct = (void*)pvPortMalloc(sizeof(uint32_t)*devArray[all_devs_counter]->pGroup->iDevQty);
+					if (!devArray[all_devs_counter]->pDevStruct) {
+						return pdFAIL;
+					}
+				}
+			}
+		} else	if (strcmp(sName, "ch") == 0) {
+			// devArray[all_devs_counter]->pGroup->iDevQty = 1; // to do ...
+				if (!adc_setup(devArray[all_devs_counter], sValue)) {
 					return pdFAIL;
 				}
-
-			}
 		} else if (strcmp(sName, "romid") == 0) {
 #ifdef  M_DS18B20
 			devArray[all_devs_counter]->pDevStruct = (void*) ds18b20_init(devArray[all_devs_counter]->pGroup, sValue);
 #endif
-		} else if (strcmp(sName, "PortDTR") == 0) {
+		}
+#ifdef  M_GSM
+		else if (strcmp(sName, "PortDTR") == 0) {
 			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
 			ptGSMDev->uiPortDTR = get_port_by_name(sValue);
 		} else if (strcmp(sName, "PinDTR") == 0) {
@@ -344,6 +372,7 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
 			strncpy0(ptGSMDev->cAESKey, sValue, strlen(sValue)+1);
 		}
+#endif
 
 	} else if (strcmp(sSection, "route") == 0) {
 		if (pIniHandlerData->pnPrevSectionNo != *pnSectionNo) {
@@ -514,7 +543,7 @@ char* process_getdevvals(sDevice* devArray[], uint16_t all_devs_counter)
 // select hi rate group:
 				ut = devArray[j]->ucType;
 				buf[0]=0;
-				if (ut == device_TYPE_MEMORY) {
+				if ((ut == device_TYPE_MEMORY) || (ut == device_TYPE_BB1BIT_IO_AI)) {
 					nNumValTypes = devArray[j]->pGroup->iDevQty;
 				} else {
 					nNumValTypes = getNumDevValCodes(ut);

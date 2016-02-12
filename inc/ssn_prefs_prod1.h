@@ -35,6 +35,11 @@
 #define M_DHT
 #define M_GSM
 
+/* Persistence settings *
+ * (select one) */
+//#define PERSIST_EEPROM_I2C
+#define PERSIST_STM32FLASH
+
 #define WATCHDOG
 #define WATCHDOG_PERIOD 10000	// period of watchdog timer (ms)
 
@@ -70,5 +75,10 @@
 #define mainBAUD_RATE						( 57600 )
 #define mainBASECOM							( mainCOM0 )
 
+/* Maximum elements number in parsed action formula string */
+#define MAX_ACTION_ARRAY_SIZE			(50)
+#define mainMAX_ACTIONS					(50) 	// max number of actions
+
+#define mainLOG_ACTIONS_SIZE			(10) 	// size of log actions array
 
 #endif /* INC_SSN_PREFS_PROD1_H_ */

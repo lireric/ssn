@@ -50,6 +50,92 @@
 	#include "gsm.h"
 #endif
 
+int32_t adc_setup(sDevice* pDev, char* psChannels)
+{
+	int i=0;
+	uint8_t j, k=0;
+	int32_t nRes = pdPASS;
+	char cBuf[3] = {0};
+	uint8_t ch;
+	sGrpInfo* pGrp = pDev->pGroup;
+
+	pGrp->iDevQty = 0;
+
+	for (j = 0; j <= strlen(psChannels); j++) {
+		if ((psChannels[j] == ',') || (j == strlen(psChannels)))
+		{
+			cBuf[k] = 0;
+			if (strlen(cBuf) > 0) {
+				ch = conv2d(cBuf);
+				gpio_set_mode(pGrp->GrpDev.pPort, GPIO_MODE_INPUT,
+						GPIO_CNF_INPUT_ANALOG, 1 << ch);
+				pGrp->iDevQty++;
+				((sADC_data_t*)pDev->pDevStruct)->nChannelArray[i++] = ch;
+				k = 0;
+			}
+		} else if ((psChannels[j] >= '0') && (psChannels[j] <= '9')) {
+			cBuf[k++] = psChannels[j];
+		}
+	}
+
+	if (pGrp->iDevQty == 0) {
+		nRes = pdFAIL;
+		goto adc_setup_ret;
+	}
+
+	rcc_periph_clock_enable(RCC_ADC1);
+
+	/* Make sure the ADC doesn't run during config. */
+	adc_off(ADC1);
+
+	/* We configure everything for one single conversion. */
+	// adc_disable_scan_mode(ADC1);
+	adc_enable_scan_mode(ADC1);
+	adc_set_single_conversion_mode(ADC1);
+	adc_disable_external_trigger_regular(ADC1);
+	adc_set_right_aligned(ADC1);
+//	// timer:
+//	rcc_periph_clock_enable(RCC_TIM4);
+//		/* Timer set up */
+//		//rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_TIM4EN);
+//		timer_set_mode(TIM4, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
+//		/* 24MHz/12kHz = 2kHz timer clock. /2 gives 1000Hz sampling frequency */
+//		timer_set_period(TIM4, 2);
+//		timer_set_prescaler(TIM4, 12000);
+//
+//		timer_set_oc_mode(TIM4, TIM_OC4, TIM_OCM_PWM1);
+//		timer_enable_oc_preload(TIM4, TIM_OC4);
+//		timer_set_oc_value(TIM4, TIM_OC4, 1);
+//
+//		timer_set_master_mode(TIM4, TIM_CR2_MMS_COMPARE_OC1REF);
+//
+//		timer_enable_preload(TIM4);
+//		timer_enable_counter(TIM4);
+//
+//		adc_enable_external_trigger_regular	(ADC1, ADC_CR2_EXTSEL_TIM4_CC4);
+
+/* We want to read the temperature sensor, so we have to enable it. */
+adc_enable_temperature_sensor(ADC1);
+	adc_set_sample_time_on_all_channels(ADC1, ADC_SMPR_SMP_28DOT5CYC);
+
+	adc_power_on(ADC1);
+
+	/* Wait for ADC starting up. */
+	for (i = 0; i < 800000; i++)    /* Wait a bit. */
+		__asm__("nop");
+
+	adc_reset_calibration(ADC1);
+	adc_calibration(ADC1);
+//	adc_enable_eoc_interrupt(ADC1);
+	/* Enable the ADC1 interrupt. */
+//	nvic_enable_irq(NVIC_ADC1_2_IRQ);
+//	nvic_set_priority(NVIC_ADC1_2_IRQ, 193);
+
+adc_setup_ret:
+	return nRes;
+}
+
+
 sGrpInfo* getGroupByID (uint8_t nGrpID)
 {
 	uint8_t i;
@@ -61,6 +147,7 @@ sGrpInfo* getGroupByID (uint8_t nGrpID)
 				break;
 			}
 	}
+
 	return pGrp;
 }
 
@@ -145,6 +232,10 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue, uint32_t*
 	case device_TYPE_MEMORY:
 		e = (int32_t*)dev->pDevStruct;
 		nValue = e[nValCode];
+		break;
+	case device_TYPE_BB1BIT_IO_AI:
+		nValue = ((sADC_data_t*)dev->pDevStruct)->nADCValueArray[nValCode];
+		nLastUpdate = ((sADC_data_t*)dev->pDevStruct)->uiLastUpdate;
 		break;
 	}
 

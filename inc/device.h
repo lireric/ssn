@@ -30,6 +30,7 @@
 
 //#include "DS18B20.h"
 #include <libopencm3/stm32/timer.h>
+#include <libopencm3/stm32/adc.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
@@ -110,6 +111,13 @@ typedef struct
     void * 		pActionsCash;	// pointer to the actions array linked with this device
 	uint8_t 	nActionsCashSize;	// number of actions in array
 } sDevice;
+
+// structure for ADC device:
+typedef struct{
+	int16_t 	nADCValueArray[16]; // array of measured values
+	uint8_t 	nChannelArray[16];	// array of used channels
+    uint32_t 	uiLastUpdate;		// last update device value
+} sADC_data_t;
 
 // action events operands elements
 typedef struct
@@ -219,7 +227,7 @@ int32_t				setAction (uint16_t nActId, char* pAStr, uint32_t arep, uint16_t nFla
 int32_t				refreshActions2DeviceCash ();
 void				clearActionsDeviceCash (sDevice* pDev);
 int32_t				calcAndDoAction (sAction* pAct);
-
+int32_t 			adc_setup(sDevice* pDev, char* psChannels);
 
 #ifdef __cplusplus
 }

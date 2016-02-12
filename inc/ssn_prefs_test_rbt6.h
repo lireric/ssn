@@ -41,12 +41,12 @@
 
 //#define DEBUG_S	// debug task statistics
 
-#define MC_OBJECT	2
+#define MC_OBJECT	1
 
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
-#define configTICK_RATE_HZ			( ( portTickType ) 100 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 15 * 1024 ) )
+#define configTICK_RATE_HZ			( ( portTickType ) 50 )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 17 * 1024 ) )
 
 /* Persistence settings *
  * (select one) */
@@ -55,9 +55,9 @@
 
 /*-----------------------------------------------------------*/
 /* Hardware application settings */
-#define mainMAX_DEV_GROUPS				(5) 	// max number sensor groups
+#define mainMAX_DEV_GROUPS				(6) 	// max number sensor groups
 #define mainMAX_GRP_DEVICES				(5) 	// default max number devices on one group
-#define mainMAX_ALL_DEVICES				(5) 	// default max number of all devices
+#define mainMAX_ALL_DEVICES				(6) 	// default max number of all devices
 #define mainMAX_DHT_DEVICES				(1) 	// default max number of dht devices
 #define mainMAX_ROUTES					(2)		// max number routing interfaces
 
@@ -84,10 +84,10 @@
 #define EEPROM_PAGE_SIZE      	32
 
 /* Maximum elements number in parsed action formula string */
-#define MAX_ACTION_ARRAY_SIZE			(10)
-#define mainMAX_ACTIONS					(10) 	// max number of actions
+#define MAX_ACTION_ARRAY_SIZE			(8)
+#define mainMAX_ACTIONS					(8) 	// max number of actions
 
-#define mainLOG_ACTIONS_SIZE			(10) 	// size of log actions array
+#define mainLOG_ACTIONS_SIZE			(5) 	// size of log actions array
 
 //#define mainDEFAULT_LOG_INTERFACE		main_IF_GSM 	// interface to routing log info
 
@@ -100,6 +100,9 @@
 #define mainINPUT_QUEUE_SIZE	5
 #define mainSENSORS_QUEUE_SIZE	5
 #define mainDEBUG_QUEUE_SIZE	10
+
+#define mainINPUT_TASK_STACK	200
+#define mainPROCSENSORS_TASK_STACK	200
 
 //extern void log_event (void* poldt, void* pnewt, uint32_t xTickCount);
 //extern void log_event2 (char c, void* pt);

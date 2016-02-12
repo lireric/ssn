@@ -103,4 +103,12 @@
 #define mainMAX_ACTIONS					(30) 	// max number of actions
 #endif
 
+#ifndef mainINPUT_TASK_STACK
+#define mainINPUT_TASK_STACK	450
+#endif
+#ifndef mainPROCSENSORS_TASK_STACK
+#define mainPROCSENSORS_TASK_STACK	400
+#endif
+
+
 #endif /* INC_SSN_PREFS_H_ */

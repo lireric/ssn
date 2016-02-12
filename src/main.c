@@ -75,6 +75,10 @@ sSSNPDU xSSNPDU;
 int uiDevCounter=0;
 static uint32_t uiMainTick = 0;
 
+//static uint8_t nADCch_counter = 0;
+//int16_t* 	pADCValueArray = NULL;
+//uint32_t* 	pADCLastUpdate = NULL;
+
 xTaskHandle pCheckSensorHRTaskHnd;
 xTaskHandle pCheckSensorMRTaskHnd;
 
@@ -493,7 +497,7 @@ int main(void)
 	xReturn = xTaskCreate( prvDebugStatTask, ( char * ) "Debug_S", 210, NULL, tskIDLE_PRIORITY + 2, &pTmpTask );
 #endif
 
-	xReturn = xTaskCreate( prvInputTask, ( char * ) "InputTask", 450, NULL, mainINPUT_TASK_PRIORITY, &pTmpTask );
+	xReturn = xTaskCreate( prvInputTask, ( char * ) "InputTask", mainINPUT_TASK_STACK, NULL, mainINPUT_TASK_PRIORITY, &pTmpTask );
 
 	xReturn = xTaskCreate( prvCheckSensorMRTask, ( char * ) "CheckSensorMRTask", 200, devArray, mainCHECK_SENSOR_MR_TASK_PRIORITY, &pTmpTask );
 	pCheckSensorMRTaskHnd = pTmpTask;
@@ -503,8 +507,7 @@ int main(void)
 	pCheckSensorHRTaskHnd = pTmpTask;
 
 
-
-	xReturn = xTaskCreate( prvProcSensorTask, ( char * ) "ProcSensorTask", 400, devArray, mainPROC_SENSOR_TASK_PRIORITY, &pTmpTask );
+	xReturn = xTaskCreate( prvProcSensorTask, ( char * ) "ProcSensorTask", mainPROCSENSORS_TASK_STACK, devArray, mainPROC_SENSOR_TASK_PRIORITY, &pTmpTask );
 
 
 	( void ) xReturn;
@@ -881,6 +884,7 @@ static void prvCheckSensorMRTask( void *pvParameters )
 	uint8_t ut;
 	uint32_t res;
 	(void) res;
+//	uint8_t channel_array[16];
 
 	xLastWakeTime = xTaskGetTickCount();
 
@@ -920,8 +924,27 @@ static void prvCheckSensorMRTask( void *pvParameters )
 								res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
 								break;
 #endif
-//							case device_TYPE_BB1BIT_IO_INPUT:
-//								break;
+							case device_TYPE_BB1BIT_IO_AI:
+								// ADC calculation:
+								//channel_array[0] = 0; // to do - take from prefs
+//								((sADC_data_t*)devArray[j]->pDevStruct)->nChannelArray[0]=0;
+								adc_set_regular_sequence(ADC1, devArray[j]->pGroup->iDevQty, ((sADC_data_t*)devArray[j]->pDevStruct)->nChannelArray);
+								adc_start_conversion_direct(ADC1);
+//								adc_start_conversion_regular(ADC1);
+//								while (!adc_eoc(ADC1));
+//								nADCch_counter = 0;
+
+								for (uint8_t nch=0; nch < devArray[j]->pGroup->iDevQty; nch++) {
+
+									adc_set_regular_sequence(ADC1, 1, ((((sADC_data_t*)devArray[j]->pDevStruct)->nChannelArray)+nch));
+									adc_start_conversion_direct(ADC1);
+									while (!adc_eoc(ADC1));
+//									nADCch_counter = 0;
+									((sADC_data_t*)devArray[j]->pDevStruct)->nADCValueArray[nch] = adc_read_regular(ADC1);
+									((sADC_data_t*)devArray[j]->pDevStruct)->uiLastUpdate = rtc_get_counter_val();
+								}
+								res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
+								break;
 //							case device_TYPE_BB1BIT_IO_PP:
 //							case device_TYPE_BB1BIT_IO_OD:
 //								res = (int8_t) bb_read_wire_data_bit(&devArray[j]->pGroup->GrpDev);
@@ -1015,6 +1038,7 @@ static void prvProcSensorTask( void *pvParameters )
 {
 	sDevice* dev;
 	char msg[mainMAX_MSG_LEN];
+	char msg2[mainMAX_MSG_LEN] = {0};
 	uint8_t i;
 	uint32_t res;
 	( void ) pvParameters;
@@ -1037,6 +1061,13 @@ static void prvProcSensorTask( void *pvParameters )
 					xsprintf(msg, "temperature = %d humidity = %d lastupdate = %ld", ((DHT_data_t*) dev->pDevStruct)->temperature, ((DHT_data_t*) dev->pDevStruct)->humidity, ((DHT_data_t*) dev->pDevStruct)->uiLastUpdate );
 					break;
 #endif
+				case device_TYPE_BB1BIT_IO_AI:
+					for (uint8_t ch=0; ch < dev->pGroup->iDevQty; ch++) {
+						xsprintf(msg2, "%s [%d]=%d", msg2, ((sADC_data_t*)dev->pDevStruct)->nChannelArray[ch], ((sADC_data_t*)dev->pDevStruct)->nADCValueArray[ch]);
+					}
+					xsprintf(msg, "voltage: %s mv, lastupdate = %ld", msg2, ((sADC_data_t*)dev->pDevStruct)->uiLastUpdate );
+					msg2[0] = 0;
+					break;
 				}
 				sendBaseOut(msg);
 
@@ -1460,12 +1491,14 @@ void vMainStartTimer(sAction* pAct)
 
 }
 
+#ifdef  M_GSM
 uint32_t vMainStartGSMTask(void* pParam)
 {
 	uint32_t nRes;
 	nRes = xTaskCreate( prvStartGSMTask, ( char * ) "StartGSMTask", configMINIMAL_STACK_SIZE, pParam, gsmGSM_TASK_START_PRIORITY, NULL);
 	return nRes;
 }
+#endif
 
 xTimerHandle mainTimerCreate(char* pcTimerName, uint32_t nPeriod, uint32_t isPeriodic, sEvtElm* pEvtElm)
 {
@@ -1476,6 +1509,20 @@ xTimerHandle mainTimerCreateOneShot(char* pcTimerName, uint32_t nPeriod, sEvtElm
 {
 	return xTimerCreate(pcTimerName, nPeriod / portTICK_RATE_MS, pdFALSE, pEvtElm, vMainTimerFunctionInterval2);
 }
+
+//void adc1_2_isr(void)
+//{
+//	long xHigherPriorityTaskWoken = pdFALSE;
+//	if (nADCch_counter < 16) {
+//		if (pADCValueArray) {
+//			pADCValueArray[nADCch_counter++] = adc_read_regular(ADC1);
+//		}
+//		if (pADCLastUpdate) {
+//			*pADCLastUpdate = rtc_get_counter_val();
+//		}
+//	}
+//	portEND_SWITCHING_ISR( xHigherPriorityTaskWoken );
+//}
 
 #ifdef DEBUG_S
 static void prvDebugStatTask(void* pParam)
