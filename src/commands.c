@@ -289,15 +289,15 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 					return pdFAIL;
 #endif
 
-			} else if (devArray[all_devs_counter]->ucType == device_TYPE_MEMORY) {
-				// memory element pseudo device
-				if (strcmp(sName, "e") == 0) {
-					devArray[all_devs_counter]->pGroup->iDevQty = conv2d(sValue);
-					// allocate memory for memory elements array:
-					devArray[all_devs_counter]->pDevStruct = (void*)pvPortMalloc(sizeof(uint32_t)*devArray[all_devs_counter]->pGroup->iDevQty);
-					if (!devArray[all_devs_counter]->pDevStruct) {
-						return pdFAIL;
-					}
+			}
+		} else if (devArray[all_devs_counter]->ucType == device_TYPE_MEMORY) {
+			// memory element pseudo device
+			if (strcmp(sName, "e") == 0) {
+				devArray[all_devs_counter]->pGroup->iDevQty = conv2d(sValue);
+				// allocate memory for memory elements array:
+				devArray[all_devs_counter]->pDevStruct = (void*)pvPortMalloc(sizeof(uint32_t)*devArray[all_devs_counter]->pGroup->iDevQty);
+				if (!devArray[all_devs_counter]->pDevStruct) {
+					return pdFAIL;
 				}
 			}
 		} else	if (strcmp(sName, "ch") == 0) {

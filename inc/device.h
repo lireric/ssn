@@ -86,6 +86,7 @@ typedef struct
 	uint32_t 	pPort;		// the port of the device group
 	uint8_t 	ucPin;		// the pin of the device group or SDA for soft i2c
 	uint8_t 	ucPin2;		// SCL for soft i2c
+	uint16_t 	nReserve;		//
     uint32_t 	pTimer;		// the timer of the device group
 } sGrpDev;
 
@@ -105,18 +106,20 @@ typedef struct
 	uint16_t	nDevObj;		// object with this device
 	uint8_t 	ucType;			// device type
 	uint8_t		nLastPinValue;	// previous device value (only for 1 pin i/o devices)
+	uint8_t 	nActionsCashSize;	// number of actions in array
+	uint8_t 	nReserve;		//
+    uint32_t 	uiLastUpdate;	// last update device value
 	uint32_t	nEventTime;		// number of sec/10 from event (setDevEvent)
     sGrpInfo * 	pGroup;			// pointer to the device group
     void * 		pDevStruct;		// pointer to the structure with device description
     void * 		pActionsCash;	// pointer to the actions array linked with this device
-	uint8_t 	nActionsCashSize;	// number of actions in array
 } sDevice;
 
 // structure for ADC device:
 typedef struct{
 	int16_t 	nADCValueArray[16]; // array of measured values
 	uint8_t 	nChannelArray[16];	// array of used channels
-    uint32_t 	uiLastUpdate;		// last update device value
+//    uint32_t 	uiLastUpdate;		// last update device value
 } sADC_data_t;
 
 // action events operands elements
@@ -127,6 +130,7 @@ typedef struct
 	void* 		pPrevElm;	// pointer to previous element or NULL if begin stack
 	uint16_t	nElmData2;	// additional element data (device value index, etc...)
 	uint8_t		nElmType;	// element type (ref. eElmTypes)
+	uint8_t 	nReserve;		//
 } sEvtElm;
 
 
@@ -226,6 +230,7 @@ int16_t 			getDeviceObjByID (uint16_t nDevID);
 int32_t				setAction (uint16_t nActId, char* pAStr, uint32_t arep, uint16_t nFlags);
 int32_t				refreshActions2DeviceCash ();
 void				clearActionsDeviceCash (sDevice* pDev);
+int32_t				scanDevActions (sDevice* dev);
 int32_t				calcAndDoAction (sAction* pAct);
 int32_t 			adc_setup(sDevice* pDev, char* psChannels);
 

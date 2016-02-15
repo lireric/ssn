@@ -7,7 +7,7 @@ obj_dst=1;
 obj_src=3;
 message_type=2;
 
-jsonValue="{\"ssn\":{\"v\":1,\"obj\":2,\"cmd\":\"reboot\"}}";
+jsonValue="{\"ssn\":{\"v\":1,\"obj\":1,\"cmd\":\"reboot\"}}";
 len=${#jsonValue};
 
 crc=$(./crc16 "$jsonValue" $len);

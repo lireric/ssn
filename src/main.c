@@ -941,7 +941,8 @@ static void prvCheckSensorMRTask( void *pvParameters )
 									while (!adc_eoc(ADC1));
 //									nADCch_counter = 0;
 									((sADC_data_t*)devArray[j]->pDevStruct)->nADCValueArray[nch] = adc_read_regular(ADC1);
-									((sADC_data_t*)devArray[j]->pDevStruct)->uiLastUpdate = rtc_get_counter_val();
+									//((sADC_data_t*)devArray[j]->pDevStruct)->uiLastUpdate = rtc_get_counter_val();
+									devArray[j]->uiLastUpdate = rtc_get_counter_val();
 								}
 								res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
 								break;
@@ -968,7 +969,7 @@ static void prvCheckSensorHRTask( void *pvParameters )
 	uint8_t res, ut;
 	uint16_t j;
 	while (1) {
-					for (j = 0; j < all_devs_counter; j++) {
+					for (j = 0; j <= all_devs_counter; j++) {
 // select hi rate group:
 //							if (devArray[j]->pGroup->ucDevRate == device_RATE_HI) {
 							ut = devArray[j]->ucType;
@@ -977,7 +978,11 @@ static void prvCheckSensorHRTask( void *pvParameters )
 								res = (int8_t) bb_read_wire_data_bit(&devArray[j]->pGroup->GrpDev);
 								if (res != devArray[j]->nLastPinValue) {
 									devArray[j]->nLastPinValue = res;
-									xQueueSend(xSensorsQueue, &devArray[j], 0);
+									devArray[j]->uiLastUpdate = rtc_get_counter_val();
+
+									// res = scanDevActions (devArray[j]);
+									// xQueueSend(xSensorsQueue, &devArray[j], 0);
+									xQueueSendToFront(xSensorsQueue, &devArray[j], 0); // send to head of queue!
 								}
 								break;
 							case device_TYPE_BB1BIT_IO_PP:
@@ -1039,8 +1044,8 @@ static void prvProcSensorTask( void *pvParameters )
 	sDevice* dev;
 	char msg[mainMAX_MSG_LEN];
 	char msg2[mainMAX_MSG_LEN] = {0};
-	uint8_t i;
-	uint32_t res;
+//	uint8_t i;
+//	uint32_t res;
 	( void ) pvParameters;
 
 	while (1)
@@ -1065,22 +1070,18 @@ static void prvProcSensorTask( void *pvParameters )
 					for (uint8_t ch=0; ch < dev->pGroup->iDevQty; ch++) {
 						xsprintf(msg2, "%s [%d]=%d", msg2, ((sADC_data_t*)dev->pDevStruct)->nChannelArray[ch], ((sADC_data_t*)dev->pDevStruct)->nADCValueArray[ch]);
 					}
-					xsprintf(msg, "voltage: %s mv, lastupdate = %ld", msg2, ((sADC_data_t*)dev->pDevStruct)->uiLastUpdate );
+					xsprintf(msg, "voltage: %s mv, lastupdate = %ld", msg2, dev->uiLastUpdate);
 					msg2[0] = 0;
+					break;
+				case device_TYPE_BB1BIT_IO_INPUT:
+					xsprintf(msg, "digital input = %d, lastupdate = %ld", dev->nLastPinValue, dev->uiLastUpdate);
 					break;
 				}
 				sendBaseOut(msg);
 
 				// scan thru actions linked with this device:
-				for (i=0; i<dev->nActionsCashSize; i++) {
-					sAction* pAct = ((sAction**)dev->pActionsCash)[i];
-					if (pAct) {
-						res = calcAndDoAction (pAct);
-						if (!res) {
-							// to do: process error
-						}
-					}
-				}
+				scanDevActions (dev);
+
 		}
 			taskYIELD();
 	}

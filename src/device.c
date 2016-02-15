@@ -94,25 +94,7 @@ int32_t adc_setup(sDevice* pDev, char* psChannels)
 	adc_set_single_conversion_mode(ADC1);
 	adc_disable_external_trigger_regular(ADC1);
 	adc_set_right_aligned(ADC1);
-//	// timer:
-//	rcc_periph_clock_enable(RCC_TIM4);
-//		/* Timer set up */
-//		//rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_TIM4EN);
-//		timer_set_mode(TIM4, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
-//		/* 24MHz/12kHz = 2kHz timer clock. /2 gives 1000Hz sampling frequency */
-//		timer_set_period(TIM4, 2);
-//		timer_set_prescaler(TIM4, 12000);
-//
-//		timer_set_oc_mode(TIM4, TIM_OC4, TIM_OCM_PWM1);
-//		timer_enable_oc_preload(TIM4, TIM_OC4);
-//		timer_set_oc_value(TIM4, TIM_OC4, 1);
-//
-//		timer_set_master_mode(TIM4, TIM_CR2_MMS_COMPARE_OC1REF);
-//
-//		timer_enable_preload(TIM4);
-//		timer_enable_counter(TIM4);
-//
-//		adc_enable_external_trigger_regular	(ADC1, ADC_CR2_EXTSEL_TIM4_CC4);
+
 
 /* We want to read the temperature sensor, so we have to enable it. */
 adc_enable_temperature_sensor(ADC1);
@@ -156,7 +138,7 @@ sDevice* getDeviceByID (uint16_t nDevID)
 	uint16_t i;
 	sDevice* pDev = 0;
 
-	for (i = 0; i < all_devs_counter; i++) {
+	for (i = 0; i <= all_devs_counter; i++) {
 			if (devArray[i]->nId == nDevID) {
 				pDev = devArray[i];
 				break;
@@ -179,7 +161,7 @@ int32_t getDevValueByID(uint8_t nValCode, uint16_t nDevID)
 {
 	uint16_t i;
 	int32_t res = 0;
-	for (i = 0; i < all_devs_counter; i++) {
+	for (i = 0; i <= all_devs_counter; i++) {
 			if (devArray[i]->nId == nDevID) { res = getDevValue(nValCode, devArray[i]); break;}
 	}
 	return res;
@@ -213,6 +195,8 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue, uint32_t*
 
 	if (!dev) return pdFALSE;
 
+	nLastUpdate = dev->uiLastUpdate;
+
 	switch (dev->ucType) {
 	case device_TYPE_DS18B20:
 		nValue = (int32_t)((ds18b20_device*) dev->pDevStruct)->iDevValue;
@@ -226,8 +210,10 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue, uint32_t*
 	case device_TYPE_BB1BIT_IO_PP:
 	case device_TYPE_BB1BIT_IO_OD:
 	case device_TYPE_BB1BIT_IO_INPUT:
-		nValue = (int32_t) bb_read_wire_data_bit(&dev->pGroup->GrpDev);
-		nLastUpdate = rtc_get_counter_val();
+		// nValue = (int32_t) bb_read_wire_data_bit(&dev->pGroup->GrpDev);
+		nValue = dev->nLastPinValue;
+		//nLastUpdate = rtc_get_counter_val();
+		//nLastUpdate = dev->uiLastUpdate;
 		break;
 	case device_TYPE_MEMORY:
 		e = (int32_t*)dev->pDevStruct;
@@ -235,7 +221,8 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue, uint32_t*
 		break;
 	case device_TYPE_BB1BIT_IO_AI:
 		nValue = ((sADC_data_t*)dev->pDevStruct)->nADCValueArray[nValCode];
-		nLastUpdate = ((sADC_data_t*)dev->pDevStruct)->uiLastUpdate;
+		//nLastUpdate = ((sADC_data_t*)dev->pDevStruct)->uiLastUpdate;
+		//nLastUpdate = dev->uiLastUpdate;
 		break;
 	}
 
@@ -271,7 +258,7 @@ void setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t n
 // if DevID == 0 then search action with ActID == nValue, else search device:
 
 	if (nDevID == 0) {
-		for (i=0; i<=act_counter;i++) {
+		for (i=0; i<act_counter;i++) {
 			if (actArray[i]->nActId == nValue) {
 				vMainStartTimer(actArray[i]);
 			}
@@ -328,6 +315,7 @@ void setDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nDataTyp
 		e = (int32_t*)dev->pDevStruct;
 		if (e) {
 			e[nDevCmd] = nValue;
+			dev->uiLastUpdate = rtc_get_counter_val();
 		//= nValue;
 		}
 		break;
@@ -538,6 +526,8 @@ sEvtElm* parseActionString(char* pAStr)
 	xActElm.nElmDataIn = 0;
 	xActElm.nElmDataType = 0;
 	xActElm.nActCmdIn = 0;
+	xActElm.nActFlag = 0;
+	xActElm.ngetDevCmdIn = 0;
 
 	if (!pAStr) return NULL;
 
@@ -629,6 +619,7 @@ beginSwitch:
 	    	    	if (c == '(')
 	    	    	{
 	    	    		d = 0;
+	    	    		xActElm.nActFlag ^= devEXEC_ACTION_FLAG_OUT_ARG;
 	    	    		xActElm.nActCmdOut = 0;
 	    	    		xActElm.nElmDataOut = 0;
 	    	    		nCurrentState = eCurState_A_Arg1_Process;
@@ -771,7 +762,7 @@ beginSwitch:
 	    	    	if (c == ',') {
 	    	    		d = 0;
     	    			nCurrentState = eCurState_A_Arg4_Process;
-    	    			xActElm.nActFlag ^= devEXEC_ACTION_FLAG_OUT_ARG;
+    	    			xActElm.nActFlag |= devEXEC_ACTION_FLAG_OUT_ARG;
 	    	    	} else
 		    	    	if (c == ')') {
 		    	    		// action has only 3 arguments - push it to elm stack
@@ -782,6 +773,7 @@ beginSwitch:
 	    	    }
 	    	    case eCurState_A_Arg4_Process:
 	    	    {
+	    	    	xActElm.nActFlag |= devEXEC_ACTION_FLAG_OUT_ARG;
 	    	    	if (c >= '0' && c <= '9') {
 	    	    		strBuf[d++] = c;
 	    	    	} else
@@ -870,6 +862,8 @@ beginSwitch:
 	    	    		pActElm->nElmDataIn = xActElm.nElmDataIn;
 	    	    		pActElm->nElmDataOut  = xActElm.nElmDataOut;
 	    	    		pActElm->nElmDataType = xActElm.nElmDataType;
+	    	    		pActElm->nActFlag	= xActElm.nActFlag;
+	    	    		pActElm->ngetDevCmdIn = xActElm.ngetDevCmdIn;
 
 	    	    		xEvtElm.nElmData1 = (uint32_t)pActElm;
 	    	    		xEvtElm.nElmType = eElmAction;
@@ -1516,7 +1510,7 @@ int32_t	refreshActions2DeviceCash ()
 
 	vTaskSuspendAll();
 
-	for (nDevIndex = 0; nDevIndex < all_devs_counter; nDevIndex++)
+	for (nDevIndex = 0; nDevIndex <= all_devs_counter; nDevIndex++)
 	{
 		pDev = devArray[nDevIndex];
 		if (pDev) {
@@ -1587,6 +1581,28 @@ void	clearActionsDeviceCash (sDevice* pDev)
 	}
 }
 
+
+/*
+ * Scan actions associated with device and call action processing if needed
+ * return pdTRUE if success
+ */
+int32_t	scanDevActions (sDevice* dev)
+{
+	int32_t res = pdTRUE;
+	sAction* pAct;
+
+	for (uint8_t i=0; i<dev->nActionsCashSize; i++) {
+		pAct = ((sAction**)dev->pActionsCash)[i];
+		if (pAct) {
+			res = calcAndDoAction (pAct);
+			if (!res) {
+				// to do: process error
+				res = pdFAIL;
+			}
+		}
+	}
+	return res;
+}
 
 /*
  * calculate action event formula and call action device(devices) if needed
@@ -1748,27 +1764,26 @@ finishCalc:
 							}
 							setDevValueByID(nSetDevValue, nSetDevCmd, pActionInfo->nDevId, nSetDataType);
 							if (nSetDataType == eElmString) {
-								xsprintf(msg, "set dev[%d,%d] = %s ", pActionInfo->nDevId, pActionInfo->nActCmdOut, (char*)pActionInfo->nElmDataIn);
+								xsprintf(msg, " act_in[%d] -> set dev[%d,%d] = %s ", pAct->nActId, pActionInfo->nDevId, pActionInfo->nActCmdOut, (char*)pActionInfo->nElmDataIn);
 							} else {
-								xsprintf(msg, "set dev[%d,%d] = %d ", pActionInfo->nDevId, nSetDevCmd, nSetDevValue);
+								xsprintf(msg, " act_in[%d] -> set dev[%d,%d] = %d ", pAct->nActId, pActionInfo->nDevId, nSetDevCmd, nSetDevValue);
 								if (!(pAct->nFlags & devACTION_FLAG_NOLOG))
 								{
-									logAction(pAct->nActId, pActionInfo->nDevId, nSetDevValue);
+								//	logAction(pAct->nActId, pActionInfo->nDevId, nSetDevValue);
 								}
 							}
 
-						} else if (pActionInfo->nActFlag & devEXEC_ACTION_FLAG_OUT_ARG)
-							{
-								setDevValueByID(pActionInfo->nElmDataOut, pActionInfo->nActCmdOut, pActionInfo->nDevId, pActionInfo->nElmDataType);
-								if (pActionInfo->nElmDataType == eElmString) {
-									xsprintf(msg, "set dev[%d,%d] = %s ", pActionInfo->nDevId, pActionInfo->nActCmdOut, (char*)pActionInfo->nElmDataOut);
-								} else {
-									xsprintf(msg, "set dev[%d,%d] = %d ", pActionInfo->nDevId, pActionInfo->nActCmdOut, pActionInfo->nElmDataOut);
-									if (!(pAct->nFlags & devACTION_FLAG_NOLOG))
-									{
-										logAction(pAct->nActId, pActionInfo->nDevId, pActionInfo->nElmDataOut);
-									}
+						} else if (pActionInfo->nActFlag & devEXEC_ACTION_FLAG_OUT_ARG)	{
+							setDevValueByID(pActionInfo->nElmDataOut, pActionInfo->nActCmdOut, pActionInfo->nDevId, pActionInfo->nElmDataType);
+							if (pActionInfo->nElmDataType == eElmString) {
+								xsprintf(msg, " act_out[%d] -> set dev[%d,%d] = %s ", pAct->nActId, pActionInfo->nDevId, pActionInfo->nActCmdOut, (char*)pActionInfo->nElmDataOut);
+							} else {
+								xsprintf(msg, " act_out[%d] -> set dev[%d,%d] = %d ", pAct->nActId, pActionInfo->nDevId, pActionInfo->nActCmdOut, pActionInfo->nElmDataOut);
+								if (!(pAct->nFlags & devACTION_FLAG_NOLOG))
+								{
+								//	logAction(pAct->nActId, pActionInfo->nDevId, pActionInfo->nElmDataOut);
 								}
+							}
 						}
 					}
 
