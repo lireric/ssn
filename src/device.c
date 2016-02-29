@@ -29,6 +29,9 @@
 #include "utils.h"
 #include "stack.h"
 #include "rtc_func.h"
+#include <libopencm3/stm32/gpio.h>
+#include <libopencm3/stm32/timer.h>
+#include <libopencm3/stm32/rcc.h>
 
 #define M_DS18B20
 #define M_LCD
@@ -50,37 +53,197 @@
 	#include "gsm.h"
 #endif
 
+int8_t  getTIM_OC(int8_t nChannel)
+{
+	int8_t nRet = 0;
+
+	switch (nChannel) {
+		case 1:	nRet = TIM_OC1;	break;
+		case 2:	nRet = TIM_OC2;	break;
+		case 3:	nRet = TIM_OC3;	break;
+		case 4:	nRet = TIM_OC4;	break;
+		}
+	return nRet;
+}
+
+int8_t  getTIM_Pin(int32_t nTimer, int32_t nPort, int8_t nChannel)
+{
+	int8_t nRet = -1;
+
+	if (nTimer == TIM1) {
+		if (nPort == GPIOA) {
+			switch (nChannel) {
+				case 1:	nRet = 8;	break;
+				case 2:	nRet = 9;	break;
+				case 3:	nRet = 10;	break;
+				case 4:	nRet = 11;	break;
+				}
+		} else if (nPort == GPIOE) { // remapping
+			switch (nChannel) {
+				case 1:	nRet = 9;	break;
+				case 2:	nRet = 11;	break;
+				case 3:	nRet = 13;	break;
+				case 4:	nRet = 14;	break;
+				}
+		}
+	}
+	else if (nTimer == TIM2) {
+		if (nPort == GPIOA) {
+			switch (nChannel) {
+				case 1:	nRet = 0;	break;
+				case 2:	nRet = 1;	break;
+				case 3:	nRet = 2;	break;
+				case 4:	nRet = 3;	break;
+				}
+		} else if (nPort == GPIOB) { // remapping
+			switch (nChannel) {
+				case 1:	nRet = 0;	break; // ???
+				case 2:	nRet = 3;	break;
+				case 3:	nRet = 10;	break;
+				case 4:	nRet = 11;	break;
+				}
+		}
+	}
+	else if (nTimer == TIM3) {
+		if (nPort == GPIOA) {
+			switch (nChannel) {
+				case 1:	nRet = 6;	break;
+				case 2:	nRet = 7;	break;
+				case 3:	nRet = 0;	break; // PB0!
+				case 4:	nRet = 1;	break; // PB1!
+				}
+		} else if (nPort == GPIOC) { // remapping
+			switch (nChannel) {
+				case 1:	nRet = 6;	break;
+				case 2:	nRet = 7;	break;
+				case 3:	nRet = 8;	break;
+				case 4:	nRet = 9;	break;
+				}
+		}
+	}
+	else if (nTimer == TIM4) {
+		if (nPort == GPIOB) {
+			switch (nChannel) {
+				case 1:	nRet = 6;	break;
+				case 2:	nRet = 7;	break;
+				case 3:	nRet = 8;	break;
+				case 4:	nRet = 9;	break;
+				}
+		} else if (nPort == GPIOD) { // remapping
+			switch (nChannel) {
+				case 1:	nRet = 12;	break;
+				case 2:	nRet = 13;	break;
+				case 3:	nRet = 14;	break;
+				case 4:	nRet = 15;	break;
+				}
+		}
+	}
+	else if (nTimer == TIM5) {
+		if (nPort == GPIOA) {
+			switch (nChannel) {
+				case 1:	nRet = 0;	break;
+				case 2:	nRet = 1;	break;
+				case 3:	nRet = 2;	break;
+				case 4:	nRet = 3;	break;
+				}
+		}
+	}
+	else if (nTimer == TIM8) {
+		if (nPort == GPIOC) {
+			switch (nChannel) {
+				case 1:	nRet = 6;	break;
+				case 2:	nRet = 7;	break;
+				case 3:	nRet = 8;	break;
+				case 4:	nRet = 9;	break;
+				}
+		}
+	}
+	return nRet;
+}
+
+int32_t pwm_setup(sDevice* pDev, char* psChannels)
+{
+	int32_t nRes = pdPASS;
+	sGrpInfo* pGrp = pDev->pGroup;
+
+	pGrp->iDevQty = parseCommaString(psChannels, ((sPWM_data_t*)pDev->pDevStruct)->nChannelArray, 4);
+
+	if (pGrp->iDevQty == 0 || ((sPWM_data_t*)pDev->pDevStruct)->nFreq == 0) {
+		nRes = pdFAIL;
+		goto pwm_setup_ret;
+	}
+
+	rcc_periph_clock_enable(get_rcc_by_port(pGrp->GrpDev.pPort));
+	rcc_periph_clock_enable(get_rcc_by_port(pGrp->GrpDev.pTimer));
+	rcc_periph_clock_enable(RCC_AFIO);
+
+	// check remapping or not:
+	if (((pGrp->GrpDev.pTimer == TIM1) && (pGrp->GrpDev.pPort == GPIOE)) || ((pGrp->GrpDev.pTimer == TIM2) && (pGrp->GrpDev.pPort == GPIOB))
+			|| ((pGrp->GrpDev.pTimer == TIM3) && (pGrp->GrpDev.pPort == GPIOC)) || ((pGrp->GrpDev.pTimer == TIM4) && (pGrp->GrpDev.pPort == GPIOD)))
+	{
+		gpio_primary_remap(0, AFIO_MAPR_TIM3_REMAP_FULL_REMAP); // to do - auto define remap or not!
+	}
+	timer_reset(pGrp->GrpDev.pTimer);
+	timer_set_mode(pGrp->GrpDev.pTimer, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
+
+	/* Reset prescaler value. */
+    timer_set_prescaler(pGrp->GrpDev.pTimer, ((sPWM_data_t*)pDev->pDevStruct)->nFreq); // to do: calculate from pref freq. value
+	timer_set_period(pGrp->GrpDev.pTimer, 65535);
+
+    /* Continuous mode. */
+    timer_continuous_mode(pGrp->GrpDev.pTimer);
+
+	for (int8_t i = 0; i < pGrp->iDevQty; i++)
+	{
+		int8_t nTimCC = getTIM_OC(((sPWM_data_t*)pDev->pDevStruct)->nChannelArray[i]);
+		int8_t nPin = getTIM_Pin(pGrp->GrpDev.pTimer, pGrp->GrpDev.pPort, ((sPWM_data_t*)pDev->pDevStruct)->nChannelArray[i]);
+		if (nPin < 0) { break; } // may be error
+
+		gpio_set_mode(pGrp->GrpDev.pPort, GPIO_MODE_OUTPUT_50_MHZ,
+				GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, 1 << nPin);
+		/* Disable outputs. */
+		timer_disable_oc_output(pGrp->GrpDev.pTimer, nTimCC);
+
+		/* Configure global mode of line 1. */
+		timer_disable_oc_clear(pGrp->GrpDev.pTimer, nTimCC);
+		timer_enable_oc_preload(pGrp->GrpDev.pTimer, nTimCC);
+		timer_set_oc_slow_mode(pGrp->GrpDev.pTimer, nTimCC);
+		timer_set_oc_mode(pGrp->GrpDev.pTimer, nTimCC, TIM_OCM_PWM1);
+
+		/* Set the capture compare value for OC1. */
+		timer_set_oc_value(pGrp->GrpDev.pTimer, nTimCC, 32000 ); // default - 50%
+
+		/* Reenable outputs. */
+		timer_enable_oc_output(pGrp->GrpDev.pTimer, nTimCC);
+	}
+
+    /* ARR reload enable. */
+    timer_enable_preload(pGrp->GrpDev.pTimer);
+
+	timer_enable_counter(pGrp->GrpDev.pTimer);
+
+pwm_setup_ret:
+	return nRes;
+}
+
+
 int32_t adc_setup(sDevice* pDev, char* psChannels)
 {
 	int i=0;
-	uint8_t j, k=0;
 	int32_t nRes = pdPASS;
-	char cBuf[3] = {0};
-	uint8_t ch;
 	sGrpInfo* pGrp = pDev->pGroup;
 
-	pGrp->iDevQty = 0;
-
-	for (j = 0; j <= strlen(psChannels); j++) {
-		if ((psChannels[j] == ',') || (j == strlen(psChannels)))
-		{
-			cBuf[k] = 0;
-			if (strlen(cBuf) > 0) {
-				ch = conv2d(cBuf);
-				gpio_set_mode(pGrp->GrpDev.pPort, GPIO_MODE_INPUT,
-						GPIO_CNF_INPUT_ANALOG, 1 << ch);
-				pGrp->iDevQty++;
-				((sADC_data_t*)pDev->pDevStruct)->nChannelArray[i++] = ch;
-				k = 0;
-			}
-		} else if ((psChannels[j] >= '0') && (psChannels[j] <= '9')) {
-			cBuf[k++] = psChannels[j];
-		}
-	}
+	pGrp->iDevQty = parseCommaString(psChannels, ((sADC_data_t*)pDev->pDevStruct)->nChannelArray, 16);
 
 	if (pGrp->iDevQty == 0) {
 		nRes = pdFAIL;
 		goto adc_setup_ret;
+	}
+
+	for (i = 0; i < pGrp->iDevQty; i++)
+	{
+		gpio_set_mode(pGrp->GrpDev.pPort, GPIO_MODE_INPUT,
+					GPIO_CNF_INPUT_ANALOG, 1 << ((sADC_data_t*)pDev->pDevStruct)->nChannelArray[i]);
 	}
 
 	rcc_periph_clock_enable(RCC_ADC1);
@@ -89,7 +252,6 @@ int32_t adc_setup(sDevice* pDev, char* psChannels)
 	adc_off(ADC1);
 
 	/* We configure everything for one single conversion. */
-	// adc_disable_scan_mode(ADC1);
 	adc_enable_scan_mode(ADC1);
 	adc_set_single_conversion_mode(ADC1);
 	adc_disable_external_trigger_regular(ADC1);
@@ -108,10 +270,6 @@ adc_enable_temperature_sensor(ADC1);
 
 	adc_reset_calibration(ADC1);
 	adc_calibration(ADC1);
-//	adc_enable_eoc_interrupt(ADC1);
-	/* Enable the ADC1 interrupt. */
-//	nvic_enable_irq(NVIC_ADC1_2_IRQ);
-//	nvic_set_priority(NVIC_ADC1_2_IRQ, 193);
 
 adc_setup_ret:
 	return nRes;
@@ -318,6 +476,9 @@ void setDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nDataTyp
 			dev->uiLastUpdate = rtc_get_counter_val();
 		//= nValue;
 		}
+		break;
+	case device_TYPE_PWM:
+		timer_set_oc_value(dev->pGroup->GrpDev.pTimer, getTIM_OC(nDevCmd), nValue); // channel = nDevCmd, % = nValue
 		break;
 	case device_TYPE_GSM:
 #ifdef  M_GSM
@@ -606,6 +767,7 @@ beginSwitch:
 		    	    		d = 0;
 		    	    		xActElm.nActCmdOut = 0;
 	    	    			nCurrentState = eCurState_A_Arg4x_Process; // continue processing
+	    	    			xActElm.nActFlag ^= devEXEC_ACTION_FLAG_OUT_ARG;
 	    	    		}
 	    	    		else {
 	    	    			nCurrentState = eCurStateParseError;
@@ -686,6 +848,7 @@ beginSwitch:
 	    	    			xActElm.nElmDataType = eElmInteger;
 		    	    		d = 0;
 		    	    		xActElm.nActCmdOut = 0;
+		    	    		xActElm.nActFlag |= devEXEC_ACTION_FLAG_OUT_ARG;
 	    	    			nCurrentState = eCurState_A_Arg4_Process;
 	    	    		} else
 	   	    			if (c == '\'')
@@ -773,7 +936,7 @@ beginSwitch:
 	    	    }
 	    	    case eCurState_A_Arg4_Process:
 	    	    {
-	    	    	xActElm.nActFlag |= devEXEC_ACTION_FLAG_OUT_ARG;
+	    	    	//xActElm.nActFlag |= devEXEC_ACTION_FLAG_OUT_ARG;
 	    	    	if (c >= '0' && c <= '9') {
 	    	    		strBuf[d++] = c;
 	    	    	} else

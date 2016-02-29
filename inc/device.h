@@ -67,7 +67,8 @@
 #define device_TYPE_GSM					( 10 )	// GSM Modem
 #define device_TYPE_RF					( 11 )	// wireless transceiver /* to do */
 #define device_TYPE_ETH					( 12 )	// ethernet	/* to do */
-#define device_TYPE_MEMORY				( 13 )	// pseudo device - memory store variable	/* to do */
+#define device_TYPE_MEMORY				( 13 )	// pseudo device - memory store variable
+#define device_TYPE_PWM					( 14 )	// PWM
 
 // actions flags
 #define devACTION_FLAG_NOLOG		0x01	//	No logging option for this action
@@ -121,6 +122,13 @@ typedef struct{
 	uint8_t 	nChannelArray[16];	// array of used channels
 //    uint32_t 	uiLastUpdate;		// last update device value
 } sADC_data_t;
+
+// structure for PWM device:
+typedef struct{
+	int16_t 	nPWMValueArray[4]; // array of PWM values
+	uint8_t 	nChannelArray[4];	// array of timer channels
+	int16_t		nFreq;				// PWM frequency
+} sPWM_data_t;
 
 // action events operands elements
 typedef struct
@@ -233,6 +241,7 @@ void				clearActionsDeviceCash (sDevice* pDev);
 int32_t				scanDevActions (sDevice* dev);
 int32_t				calcAndDoAction (sAction* pAct);
 int32_t 			adc_setup(sDevice* pDev, char* psChannels);
+int32_t 			pwm_setup(sDevice* pDev, char* psChannels);
 
 #ifdef __cplusplus
 }

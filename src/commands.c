@@ -269,13 +269,16 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_AO) {
 				// to do:
 
+			} else if (devArray[all_devs_counter]->ucType == device_TYPE_PWM) {
+
+				devArray[all_devs_counter]->pDevStruct = pvPortMalloc(sizeof(sPWM_data_t));
+
 			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_AI) {
+
 				devArray[all_devs_counter]->pDevStruct = pvPortMalloc(sizeof(sADC_data_t));
 					if (!devArray[all_devs_counter]->pDevStruct) {
 						return pdFAIL;
 					}
-//					pADCValueArray = ((sADC_data_t*)devArray[all_devs_counter]->pDevStruct)->nADCValueArray;
-//					pADCLastUpdate = &((sADC_data_t*)devArray[all_devs_counter]->pDevStruct)->uiLastUpdate;
 
 			} else if (devArray[all_devs_counter]->ucType == device_TYPE_GSM) {
 #ifdef  M_GSM
@@ -300,11 +303,21 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 					return pdFAIL;
 				}
 			}
-		} else	if (strcmp(sName, "ch") == 0) {
-			// devArray[all_devs_counter]->pGroup->iDevQty = 1; // to do ...
+		} else if (devArray[all_devs_counter]->ucType == device_TYPE_PWM) {
+			if (strcmp(sName, "ch") == 0) {
+				if (!pwm_setup(devArray[all_devs_counter], sValue)) {
+					return pdFAIL;
+				}
+			} else if (strcmp(sName, "freq") == 0) {
+				((sPWM_data_t*)devArray[all_devs_counter]->pDevStruct)->nFreq = conv2d(sValue);
+			}
+
+		} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_AI) {
+			if (strcmp(sName, "ch") == 0) {
 				if (!adc_setup(devArray[all_devs_counter], sValue)) {
 					return pdFAIL;
 				}
+			}
 		} else if (strcmp(sName, "romid") == 0) {
 #ifdef  M_DS18B20
 			devArray[all_devs_counter]->pDevStruct = (void*) ds18b20_init(devArray[all_devs_counter]->pGroup, sValue);

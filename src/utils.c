@@ -28,6 +28,32 @@
 
 volatile int critical_section_counter;
 
+// --------------------------------------------------------------------------------------------------------------
+// parse comma delimited string. return number of parsed values
+// input:  char* - string buffer, uint16_t* - pointer to filled array of integer values, uint8_t - max array size
+//
+uint8_t parseCommaString(char* psChannels, uint8_t* pChannelArray, uint8_t nArrayMaxSize)
+{
+	uint8_t j=0, i=0, k=0;
+	uint8_t ch;
+	char cBuf[3] = {0};
+
+	for (j = 0; ((j <= strlen(psChannels)) && (i < nArrayMaxSize)); j++) {
+		if ((psChannels[j] == ',') || (j == strlen(psChannels)))
+		{
+			cBuf[k] = 0;
+			if (strlen(cBuf) > 0) {
+				ch = conv2d(cBuf);
+				pChannelArray[i++] = ch;
+				k = 0;
+			}
+		} else if ((psChannels[j] >= '0') && (psChannels[j] <= '9')) {
+			cBuf[k++] = psChannels[j];
+		}
+	}
+	return i;
+}
+
 /* Version of strncpy that ensures dest (size bytes) is null-terminated. */
 char* strncpy0(char* dest, const char* src, size_t size)
 {
@@ -76,6 +102,19 @@ uint32_t get_port_by_name(char* name)
 	else if (!strcmp(name,"TIM7")) {return TIM7;}
 	else if (!strcmp(name,"TIM8")) {return TIM8;}
 	return 0;
+}
+
+uint32_t get_rcc_by_port(uint32_t nPort)
+{
+	uint32_t nRet = 0;
+	switch (nPort) {
+		case TIM1:	nRet = RCC_TIM1;	break;
+		case TIM2:	nRet = RCC_TIM2;	break;
+		case TIM3:	nRet = RCC_TIM3;	break;
+		case TIM4:	nRet = RCC_TIM4;	break;
+		case TIM5:	nRet = RCC_TIM5;	break;
+		}
+	return nRet;
 }
 
 uint32_t conv2d(const char* p) {

@@ -171,10 +171,12 @@ static inline void exit_critical_section(void)
 }
 
 uint32_t get_port_by_name(char* name);
+uint32_t get_rcc_by_port(uint32_t nPort);
 uint32_t conv2d(const char* p);
 uint32_t convHex2d(const char* p);
 int32_t	GetNumbersValue(char* pcSrcString);
 int32_t	fillCommandStruct(char* pcBuf, sSSNCommand* xSSNCommand);
+uint8_t parseCommaString(char* psChannels, uint8_t* pChannelArray, uint8_t nArrayMaxSize);
 
 #ifdef __cplusplus
 }
