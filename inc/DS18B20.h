@@ -50,6 +50,7 @@ typedef struct
 	OWI_device* owiDevice;		// common OWI data of this device
     uint32_t 	uiLastUpdate;	// last update device value
     signed int 	iDevValue;		// device value
+    signed int 	nDevPrevValue;		// device value
 } ds18b20_device;
 
 

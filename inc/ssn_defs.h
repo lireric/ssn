@@ -170,6 +170,9 @@ typedef struct
 {
 	uint16_t nActId;
 	uint16_t nDevId;
+	uint8_t	 nDevCmd;
+	uint8_t	 nFlag1;
+	uint16_t nFlag2;
 	uint32_t nValue;
 	uint32_t nTimestamp;
 } slogAction;

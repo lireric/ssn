@@ -95,10 +95,13 @@ uint8_t Rx1Buffer[BUFFER1_SIZE];
 #define mainINPUT_QUEUE_SIZE	15
 #endif
 #ifndef  mainSENSORS_QUEUE_SIZE
-#define mainSENSORS_QUEUE_SIZE	25
+#define mainSENSORS_QUEUE_SIZE	15
 #endif
 #ifndef  mainDEBUG_QUEUE_SIZE
-#define mainDEBUG_QUEUE_SIZE	50
+#define mainDEBUG_QUEUE_SIZE	5
+#endif
+#ifndef  mainBASEOUT_QUEUE_SIZE
+#define mainBASEOUT_QUEUE_SIZE	50
 #endif
 
 
@@ -119,6 +122,8 @@ xQueueHandle xInputQueue;
 xQueueHandle xSensorsQueue;
 /* The queue used to send common messages. */
 xQueueHandle xBaseOutQueue;
+// Queue for logging messages.
+xQueueHandle xLogOutQueue;
 
 
 #endif /* __MAIN_H */

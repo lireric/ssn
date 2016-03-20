@@ -152,7 +152,9 @@ uint8_t dht_get_data (sGrpDev* pGrpDev, DHT_data_t* dht_data) {
 	bb_set_wire(pGrpDev);
 
 	check_sum = (uint8_t)(data>>8)+(uint8_t)(data>>16)+(uint8_t)(data>>24)+(uint8_t)(data>>32);
+	dht_data->nPrevTemperature = dht_data->temperature;
 	dht_data->temperature = (uint16_t)(data>>8);
+	dht_data->nPrevHumidity = dht_data->humidity;
 	dht_data->humidity = (uint16_t)(data>>24);
 	dht_data->uiLastUpdate = rtc_get_counter_val();
 

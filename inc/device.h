@@ -108,7 +108,7 @@ typedef struct
 	uint8_t 	ucType;			// device type
 	uint8_t		nLastPinValue;	// previous device value (only for 1 pin i/o devices)
 	uint8_t 	nActionsCashSize;	// number of actions in array
-	uint8_t 	nReserve;		//
+	uint8_t 	nFlag;			//	1-st bit - one of the device channels values is changed
     uint32_t 	uiLastUpdate;	// last update device value
 	uint32_t	nEventTime;		// number of sec/10 from event (setDevEvent)
     sGrpInfo * 	pGroup;			// pointer to the device group
@@ -222,6 +222,7 @@ extern sGrpInfo* 		grpArray[];
 extern uint8_t 		grp_counter;
 
 extern void 		vMainStartTimer(sAction* pAct);
+extern void 		debugMsg (char *str);
 
 sGrpInfo* 			getGroupByID (uint8_t nGrpID);
 sDevice*			getDeviceByID (uint16_t nDevID);

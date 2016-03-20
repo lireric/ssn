@@ -486,6 +486,9 @@ void setDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nDataTyp
 #endif
 		break;
 	}
+	// log device value changing for local device:
+//	logAction(0, dev->nId, nDevCmd, nValue);
+
 }
 
 sAction* getActionByID (uint16_t nActId)
@@ -1932,7 +1935,7 @@ finishCalc:
 								xsprintf(msg, " act_in[%d] -> set dev[%d,%d] = %d ", pAct->nActId, pActionInfo->nDevId, nSetDevCmd, nSetDevValue);
 								if (!(pAct->nFlags & devACTION_FLAG_NOLOG))
 								{
-								//	logAction(pAct->nActId, pActionInfo->nDevId, nSetDevValue);
+									logAction(pAct->nActId, pActionInfo->nDevId, nSetDevCmd, nSetDevValue);
 								}
 							}
 
@@ -1944,7 +1947,7 @@ finishCalc:
 								xsprintf(msg, " act_out[%d] -> set dev[%d,%d] = %d ", pAct->nActId, pActionInfo->nDevId, pActionInfo->nActCmdOut, pActionInfo->nElmDataOut);
 								if (!(pAct->nFlags & devACTION_FLAG_NOLOG))
 								{
-								//	logAction(pAct->nActId, pActionInfo->nDevId, pActionInfo->nElmDataOut);
+									logAction(pAct->nActId, pActionInfo->nDevId, pActionInfo->nActCmdOut, pActionInfo->nElmDataOut);
 								}
 							}
 						}
@@ -1952,7 +1955,8 @@ finishCalc:
 
 					if (!(pAct->nFlags & devACTION_FLAG_NOLOG))
 					{
-						sendBaseOut(msg);
+						//sendBaseOut(msg);
+						debugMsg(msg);
 						// to do: make notification!!!
 	//					buff = pvPortMalloc(50);
 	//					if (buff) {

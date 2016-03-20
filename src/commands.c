@@ -144,7 +144,8 @@ void process_setdatetime(cJSON *json_data)
 	DS1307_time.min = rtc.min;
 	DS1307_time.sec = rtc.sec;
 	RTC_DS1307_adjust(pGrpDev2);
-	sendBaseOut("\n\rSet local & RTC DS1307 date/time from JSON");
+	//sendBaseOut("\n\rSet local & RTC DS1307 date/time from JSON");
+	debugMsg("\n\rSet local & RTC DS1307 date/time from JSON");
 
 }
 
@@ -165,6 +166,7 @@ void process_getowilist(cJSON *json_data)
 	if (!res) {
 	xsprintf((char *) cPassMessage, "{\"ssn\":{\"v\":1,\"ret\":\"getowilist\", \"data\":{ \"num\":%d, \"owiid\":[", pGrpInfo->iDevQty);
 	sendBaseOut((char *)cPassMessage);
+
 	char comma = ',';
 	uint8_t i;
 		for (i = 0; i<pGrpInfo->iDevQty; i++) {
@@ -450,14 +452,16 @@ uint32_t storePreferences(char* sBuf, uint16_t nBufSize)
 			delay_nus(&grpArray[0]->GrpDev, 1000);	// 10ms
 			nRes = eeprom_write(&grpArray[0]->GrpDev, EEPROM_ADDRESS, 0, (uint8_t*)tmpBuf, 2);
 			if (nRes) {
-				sendBaseOut("\n\rNew preferences saved into EEPROM. Reboot");
+				//sendBaseOut("\n\rNew preferences saved into EEPROM. Reboot");
+				debugMsg("\n\rNew preferences saved into EEPROM. Reboot");
 				delay_nus(&grpArray[0]->GrpDev, 10000);	// 10ms
 //			    SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
 //			    while (1);
 			}
 
 		} else {
-			sendBaseOut("\n\rError saving preferences into EEPROM");
+			//sendBaseOut("\n\rError saving preferences into EEPROM");
+			debugMsg("\n\rError saving preferences into EEPROM");
 		}
 #endif
 #ifdef PERSIST_STM32FLASH
@@ -523,7 +527,8 @@ void process_loadprefs(cJSON *json_data, char * jsonMsg, sGrpInfo*  grpArray[])
 
 
 	} else {
-		sendBaseOut("\n\rError loading preferences");
+		//sendBaseOut("\r\nError loading preferences");
+		debugMsg("\r\nError loading preferences");
 	}
 	xTaskResumeAll();
 }
@@ -623,6 +628,12 @@ void vSendSSNPacket (uint16_t nObjDst, uint16_t nObjSrc, uint8_t nMessType, char
 	vPortFree(tmpBuf);
 }
 
+void debugMsg (char *str)
+{
+//	uint32_t xReturn;
+	xQueueSend( xLogOutQueue, str, 0);
+}
+
 void sendBaseOut (char *str)
 {
 	uint8_t uiCnt;
@@ -655,7 +666,8 @@ void vCommandSelector(sSSNCommand* xSSNCommand)
 		switch (xSSNCommand->nCmd) {
 		case mainCOMMAND_COMMITED: {
 			xsprintf(msg, "\r\nCOMMITED: %d ", xSSNCommand->nCmdID);
-			sendBaseOut(msg);
+			//sendBaseOut(msg);
+			debugMsg(msg);
 
 			// do nothing
 			break;
@@ -671,7 +683,8 @@ void vCommandSelector(sSSNCommand* xSSNCommand)
 		case mainCOMMAND_DISMODEMCHARGE: {
 			// disable charging of battery
 #ifdef  M_GSM
-			sendBaseOut("\r\nOVER-VOLTAGE, disable charging");
+			//sendBaseOut("\r\nOVER-VOLTAGE, disable charging");
+			debugMsg("\r\nOVER-VOLTAGE, disable charging");
 			sGSMDevice* pGSMDev = (sGSMDevice*) xSSNCommand->pcData;
 			if (pGSMDev) {
 				gpio_clear(pGSMDev->uiPortChgCtrl, 1 << pGSMDev->uiPortChgCtrl);
@@ -682,7 +695,8 @@ void vCommandSelector(sSSNCommand* xSSNCommand)
 		case mainCOMMAND_ENBMODEMCHARGE: {
 			// disable charging of battery
 #ifdef  M_GSM
-			sendBaseOut("\r\nLOW-VOLTAGE, enable charging");
+			//sendBaseOut("\r\nLOW-VOLTAGE, enable charging");
+			debugMsg("\r\nLOW-VOLTAGE, enable charging");
 			sGSMDevice* pGSMDev = (sGSMDevice*) xSSNCommand->pcData;
 			if (pGSMDev) {
 				gpio_set(pGSMDev->uiPortChgCtrl, 1 << pGSMDev->uiPortChgCtrl);
@@ -701,7 +715,8 @@ void vCommandSelector(sSSNCommand* xSSNCommand)
 		}
 		}
 		xsprintf(msg, "\r\nFreeHeapSize:=%d **********", xPortGetFreeHeapSize());
-		sendBaseOut(msg);
+		debugMsg(msg);
+		//sendBaseOut(msg);
 
 	}
 }
@@ -766,7 +781,8 @@ void	UpdateActionJSON(cJSON *devactitem)
 
 		if (!ret) {
 			xsprintf(msg, "\r\nError processing action rules! AID=%d", nActID);
-			sendBaseOut(msg);
+			debugMsg(msg);
+			//sendBaseOut(msg);
 		}
 	}
 }
@@ -795,58 +811,65 @@ void log_event (void* poldt, void* pnewt, uint32_t xTickCount)
 			pcTaskGetTaskName((TaskHandle_t) poldt),
 			pcTaskGetTaskName((TaskHandle_t) pnewt),
 			xTickCount );
-	sendBaseOut(cBuffer);
+	//sendBaseOut(cBuffer);
+	debugMsg(cBuffer);
 }
 
 void log_event2 (char c, void* pt)
 {
 	char cBuffer [200];
 	xsprintf( cBuffer, "\r\n***%c: task %s delay",c, pcTaskGetTaskName((TaskHandle_t) pt));
-	sendBaseOut(cBuffer);
+	//sendBaseOut(cBuffer);
+	debugMsg(cBuffer);
 }
 
 /* log action event into temporary buffer and send it if buffer full */
-void	logAction(uint16_t nActId, uint16_t nDevId, uint32_t nValue)
+void	logAction(uint16_t nActId, uint16_t nDevId, uint8_t nDevCmd, uint32_t nValue)
 {
 	uint16_t i;
 	uint16_t j;
 	char* pBuffer;
-	char tmpBuffer[20];
+	char tmpBuffer[100];
+	uint32_t nCurTimestamp = rtc_get_counter_val();
 
-	if (logActCounter < mainLOG_ACTIONS_SIZE)
-	{
+	if (nDevId) {
+		logActionsArray[logActCounter].nActId = nActId;
+		logActionsArray[logActCounter].nDevId = nDevId;
+		logActionsArray[logActCounter].nDevCmd = nDevCmd;
+		logActionsArray[logActCounter].nValue = nValue;
+		logActionsArray[logActCounter].nTimestamp = nCurTimestamp;
 		logActCounter++;
-
-	} else {
-		// send log to logger object
-		pBuffer = pvPortMalloc(60*mainLOG_ACTIONS_SIZE);	// allocate memory for all data JSON elements
-		if (!pBuffer) {
-			sendBaseOut("\r\nError allocate memory for log data!");
-			return;
-		}
-
-		xsprintf( tmpBuffer, "{\"log\":[");
-		memcpy(&pBuffer[0], &tmpBuffer, strlen(tmpBuffer));
-		j = strlen(tmpBuffer);
-
-		for (i = 0; i < mainLOG_ACTIONS_SIZE; i++)
-		{
-			xsprintf( tmpBuffer, "{\"a\":%d,\"d\":%d,\"v\":%d,\"t\":%d},", logActionsArray[logActCounter].nActId, logActionsArray[logActCounter].nDevId, logActionsArray[logActCounter].nValue, logActionsArray[logActCounter].nTimestamp);
-			memcpy(&pBuffer[j], &tmpBuffer, strlen(tmpBuffer));
-			j += strlen(tmpBuffer);
-		}
-		xsprintf( tmpBuffer, "{}]}");
-		memcpy(&pBuffer[j], &tmpBuffer, strlen(tmpBuffer));
-		pBuffer[j+strlen(tmpBuffer)] = 0;
-
-		// send log data to input buffer for routing to destination:
-		vSendInputMessage(1, 0, mainLOG_MESSAGE, 0,	0, (void*) pBuffer, strlen(pBuffer), 0);
-		logActCounter = 0;
 	}
+	if (logActCounter && ((logActCounter >= mainLOG_ACTIONS_SIZE) || (nCurTimestamp >= (nlogActLastUpdate + mainACTIONSARRAYTIMEOUT))))
+		{
+			// send log to logger object
+			pBuffer = pvPortMalloc(70*logActCounter+10);	// allocate memory for current log elements
+			if (!pBuffer) {
+				//sendBaseOut("\r\nError allocate memory for log data!");
+				debugMsg("\r\nError allocate memory for log data!");
+				return;
+			}
 
-	logActionsArray[logActCounter].nActId = nActId;
-	logActionsArray[logActCounter].nDevId = nDevId;
-	logActionsArray[logActCounter].nValue = nValue;
-	logActionsArray[logActCounter].nTimestamp = rtc_get_counter_val();
+			xsprintf( tmpBuffer, "{\"log\":[");
+			memcpy(&pBuffer[0], &tmpBuffer, strlen(tmpBuffer));
+			j = strlen(tmpBuffer);
+
+			for (i = 0; i < logActCounter; i++)
+			{
+				xsprintf( tmpBuffer, "{\"a\":%d,\"d\":%d,\"c\":%d,\"v\":%d,\"t\":%d},", logActionsArray[i].nActId,
+						logActionsArray[i].nDevId, logActionsArray[i].nDevCmd, logActionsArray[i].nValue,
+						logActionsArray[i].nTimestamp);
+				memcpy(&pBuffer[j], &tmpBuffer, strlen(tmpBuffer));
+				j += strlen(tmpBuffer);
+			}
+			xsprintf( tmpBuffer, "{}]}");
+			memcpy(&pBuffer[j], &tmpBuffer, strlen(tmpBuffer));
+			pBuffer[j+strlen(tmpBuffer)] = 0;
+
+			// send log data to input buffer for routing to destination:
+			vSendInputMessage(1, 0, mainLOG_MESSAGE, 0,	0, (void*) pBuffer, strlen(pBuffer), 0);
+			nlogActLastUpdate = nCurTimestamp;
+			logActCounter = 0;
+	}
 
 }

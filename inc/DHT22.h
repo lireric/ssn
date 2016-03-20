@@ -60,6 +60,8 @@
 typedef struct{
 	int16_t 	temperature;
 	uint16_t	humidity;
+	int16_t 	nPrevTemperature;
+	uint16_t	nPrevHumidity;
     uint32_t 	uiLastUpdate;	// last update device value
 } DHT_data_t;
 

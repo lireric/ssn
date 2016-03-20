@@ -63,6 +63,7 @@
 #define mainDEBUG_STAT_RATE			( ( portTickType ) 10000 / portTICK_RATE_MS )
 
 /* Task priorities. */
+#define mainDEBUG_OUT_TASK_PRIORITY			( tskIDLE_PRIORITY)
 #define mainINPUT_TASK_PRIORITY				( tskIDLE_PRIORITY + 1 )
 #define gsmGSM_TASK_START_PRIORITY			( tskIDLE_PRIORITY + 1 )
 #define mainCHECK_SENSOR_MR_TASK_PRIORITY	( tskIDLE_PRIORITY + 1 )
@@ -82,6 +83,7 @@
 #define mainBASECOM_Priority				(193)
 
 #define mainMINMEMORYALLOCATE				( 8 ) // minimum memory size for allocate
+#define mainACTIONSARRAYTIMEOUT				(30)	// timeout submitting actions log (sec)
 
 /* FLASH prefs: */
 /* Define the STM32F10x FLASH Page Size depending on the used STM32 device */

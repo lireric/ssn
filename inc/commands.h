@@ -42,6 +42,7 @@ extern uint16_t 	logActCounter;
 extern uint16_t		uiLog_Object;
 extern sDevice* 	devArray[];
 extern uint16_t 	all_devs_counter;
+extern uint32_t		nlogActLastUpdate;
 
 //extern xTaskHandle pCheckSensorHRTaskHnd;
 //extern xTaskHandle pCheckSensorMRTaskHnd;
@@ -67,7 +68,7 @@ uint32_t delObjRoute(uint16_t	nDestObj);
 uint16_t 	getLog_Object(void);
 void 		setLog_Object(uint16_t uiObj);
 
-void	logAction(uint16_t nActId, uint16_t nDevId, uint32_t nValue);
+void	logAction(uint16_t nActId, uint16_t nDevId, uint8_t nDevCmd, uint32_t nValue);
 
 //void log_event (TaskHandle_t xTH);
 void 	log_event (void* poldt, void* pnewt, uint32_t xTickCount);

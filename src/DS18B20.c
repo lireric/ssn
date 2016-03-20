@@ -84,6 +84,7 @@ uint8_t ds_read_temperature(sGrpDev* pGrpDev, ds18b20_device* ds18b20Dev)
 
   result = result + ((frac*10)/16);                  //учитываем дробную часть
 
+  ds18b20Dev->nDevPrevValue = ds18b20Dev->iDevValue;
   ds18b20Dev->iDevValue = result;
   ds18b20Dev->uiLastUpdate = rtc_get_counter_val();
 
