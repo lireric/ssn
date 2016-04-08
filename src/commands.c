@@ -585,7 +585,7 @@ char* process_getdevvals(sDevice* devArray[], uint16_t all_devs_counter)
 				}
 
 		}
-		const char* pcTeleFooter = "{\"dev\":0, \"n\":0, \"val1\":0}]}}}";
+		const char* pcTeleFooter = "{}]}}}";
 		uiBufLen = strlen(pcTeleFooter);
 		if ((nStrCounter+uiBufLen) > nBufSize) {
 			nExtBufCounter++;

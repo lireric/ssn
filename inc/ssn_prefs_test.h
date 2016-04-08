@@ -29,14 +29,14 @@
 
 /* Used modules */
 
-//#define M_RTC_DS1307
+#define M_RTC_DS1307
 //#define M_LCD
 #define M_USART
 #define M_DS18B20
 #define M_DHT
-#define M_GSM
+//#define M_GSM
 
-//#define WATCHDOG
+#define WATCHDOG
 
 #define WATCHDOG_PERIOD 10000	// period of watchdog timer (ms)
 
@@ -60,8 +60,8 @@
 
 /* Persistence settings *
  * (select one) */
-//#define PERSIST_EEPROM_I2C
-#define PERSIST_STM32FLASH
+#define PERSIST_EEPROM_I2C
+//#define PERSIST_STM32FLASH
 
 
 /* EEPROM I2C ------------------------------------------------*/
@@ -74,16 +74,17 @@
 
 /* soft i2c hardware settings */
 /*  soft i2c group must be = 0 */
-#define SOFTI2C_1_PIN_SDA        7	//	PB7
-#define SOFTI2C_1_PIN_SCL        6	//	PB6
-#define SOFTI2C_1_PORT      	 GPIOB
+#define SOFTI2C_1_PIN_SDA        1	//	PB7
+#define SOFTI2C_1_PIN_SCL        0	//	PB6
+#define SOFTI2C_1_PORT      	 GPIOC
 #define SOFTI2C_TIMER_1 		TIM3    // timer for module delays
 #define SOFTI2C_1_GRP			( 0 )	// group soft i2c
 #define SOFTI2C_1_MAXDEVS		( 2 )
 
 /* COM port and baud rate used by the base out task. */
-#define mainBAUD_RATE						( 57600 )
-#define mainBASECOM							( mainCOM0 )
+#define mainBAUD_RATE						( 38400 )
+#define mainBASECOM							( mainCOM1 )
+//#define mainBASECOM_USE_RTS					( 1 ) // if 1, than we use hardware RTS ___ to do
 
 
 /* Maximum elements number in parsed action formula string */

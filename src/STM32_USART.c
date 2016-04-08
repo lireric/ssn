@@ -143,7 +143,7 @@ long lReturn = pdFAIL;
 		/* Init the buffer structures with the buffer for the COM port being
 		initialised, and perform any non-common initialisation necessary.  This
 		does not check to see if the COM port has already been initialised. */
-		if( ulPort == 0 )
+		if( ulPort == 0 ) 	// *** USART1
 		{
 			if (!xCharsForTx[0]) {
 			/* Create the queue of chars that are waiting to be sent to COM0. */
@@ -165,7 +165,10 @@ long lReturn = pdFAIL;
 
 			/* Setup GPIO pin GPIO_USART1_RE_TX on GPIO port B for transmit. */
 			gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
-				      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART1_TX);
+				      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART1_TX | GPIO12);
+//			gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
+//					GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO12); // RTS - PA12
+			gpio_clear(GPIOA, GPIO12);
 
 			/* Setup GPIO pin GPIO_USART1_RE_RX on GPIO port B for receive. */
 			gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
@@ -177,6 +180,7 @@ long lReturn = pdFAIL;
 			usart_set_stopbits(USART1, USART_STOPBITS_1);
 			usart_set_parity(USART1, USART_PARITY_NONE);
 			usart_set_flow_control(USART1, USART_FLOWCONTROL_NONE);
+//			usart_set_flow_control(USART1, USART_FLOWCONTROL_RTS);
 			usart_set_mode(USART1, USART_MODE_TX_RX);
 
 			/* Enable USART1 Receive interrupt. */
@@ -189,7 +193,7 @@ long lReturn = pdFAIL;
 			/* Everything is ok. */
 			lReturn = pdPASS;
 		}
-		else if( ulPort == 1 )
+		else if( ulPort == 1 )	// *** USART2
 		{
 			/* Create the queue of chars that are waiting to be sent to COM1. */
 			if (!xCharsForTx[1]) {
@@ -212,6 +216,9 @@ long lReturn = pdFAIL;
 			/* Setup GPIO pin GPIO_USART2_RE_TX on GPIO port B for transmit. */
 			gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
 				      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART2_TX);
+			gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
+					GPIO_CNF_OUTPUT_PUSHPULL, GPIO_USART2_RTS);
+			gpio_clear(GPIOA, GPIO_USART2_RTS);
 
 			/* Setup GPIO pin GPIO_USART1_RE_RX on GPIO port B for receive. */
 			gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
@@ -227,9 +234,7 @@ long lReturn = pdFAIL;
 
 			/* Enable USART1 Receive interrupt. */
 			USART_CR1(USART2) |= USART_CR1_RXNEIE;
-
-//			usart_enable_rx_dma(USART2);
-//			usart_enable_tx_dma(USART2);
+			USART_CR1(USART2) |= USART_CR1_TCIE;
 
 			/* Finally enable the USART. */
 			usart_enable(USART2);
@@ -237,8 +242,55 @@ long lReturn = pdFAIL;
 			/* Everything is ok. */
 			lReturn = pdPASS;
 		}	
-		else
+		else if( ulPort == 2 )	// *** USART3
 		{
+			/* Create the queue of chars that are waiting to be sent to COM1. */
+			if (!xCharsForTx[ulPort]) {
+			xCharsForTx[ulPort] = xQueueCreate( serTX_QUEUE_LEN, sizeof( char ) );
+			}
+
+			if (!xRxedChars[ulPort]) {
+			/* Create the queue used to hold characters received from USART3. */
+			xRxedChars[ulPort] = xQueueCreate( serRX_QUEUE_LEN, sizeof( char ) );
+			}
+			/* Enable clocks for GPIO port B (for GPIO_USART3_TX) and USART3. */
+			rcc_periph_clock_enable(GPIO_USART3_TX);
+			rcc_periph_clock_enable(RCC_AFIO);
+			rcc_periph_clock_enable(RCC_USART3);
+
+			/* Enable the USART2 interrupt. */
+			nvic_enable_irq(NVIC_USART3_IRQ);
+			nvic_set_priority(NVIC_USART3_IRQ, priority);
+
+			/* Setup GPIO pin GPIO_USART2_RE_TX on GPIO port B for transmit. */
+			gpio_set_mode(GPIO_BANK_USART3_TX, GPIO_MODE_OUTPUT_10_MHZ,
+				      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART3_TX);
+			gpio_set_mode(GPIO_BANK_USART3_RTS, GPIO_MODE_OUTPUT_10_MHZ,
+					GPIO_CNF_OUTPUT_PUSHPULL, GPIO_USART3_RTS);
+			gpio_clear(GPIO_BANK_USART3_RTS, GPIO_USART3_RTS);
+
+			/* Setup GPIO pin GPIO_USART1_RE_RX on GPIO port B for receive. */
+			gpio_set_mode(GPIO_BANK_USART3_RX, GPIO_MODE_INPUT,
+				      GPIO_CNF_INPUT_FLOAT, GPIO_USART3_RX);
+
+			/* Setup UART parameters. */
+			usart_set_baudrate(USART3, ulWantedBaud);
+			usart_set_databits(USART3, 8);
+			usart_set_stopbits(USART3, USART_STOPBITS_1);
+			usart_set_parity(USART3, USART_PARITY_NONE);
+			usart_set_flow_control(USART3, USART_FLOWCONTROL_NONE);
+			usart_set_mode(USART3, USART_MODE_TX_RX);
+
+			/* Enable USART1 Receive interrupt. */
+			USART_CR1(USART3) |= USART_CR1_RXNEIE;
+			USART_CR1(USART3) |= USART_CR1_TCIE;
+
+			/* Finally enable the USART. */
+			usart_enable(USART3);
+
+			/* Everything is ok. */
+			lReturn = pdPASS;
+		} else {
 			/* Nothing to do unless more than two ports are supported. */
 		}
 	}
@@ -328,6 +380,7 @@ char cChar;
 		{
 			/* A character was retrieved from the buffer so can be sent to the
 			THR now. */
+			gpio_set(GPIOA, GPIO12); // set RTS
 			usart_send(USART1, (uint8_t) cChar);
 		}
 		else
@@ -341,6 +394,13 @@ char cChar;
 		cChar = (char) usart_recv(USART1);
 		xQueueSendFromISR( xRxedChars[ 0 ], &cChar, &xHigherPriorityTaskWoken );
 	}	
+
+// ----- transmission complete:
+			if( usart_get_flag(USART1, USART_SR_TC) == true)
+			{
+				gpio_clear(GPIOA, GPIO12); // clear RTS
+				USART_SR(USART1) &= ~USART_SR_TC;	// reset flag TC
+			}
 	
 	portEND_SWITCHING_ISR( xHigherPriorityTaskWoken );
 }
@@ -358,6 +418,7 @@ void usart2_isr(void)
 			more characters to transmit? */
 			if( xQueueReceiveFromISR( xCharsForTx[ 1 ], &cChar, &xHigherPriorityTaskWoken ) )
 			{
+				gpio_set(GPIOA, GPIO_USART2_RTS); // set RTS
 				/* A character was retrieved from the buffer so can be sent to the THR now. */
 				usart_send(USART2, (uint8_t) cChar);
 			}
@@ -371,6 +432,52 @@ void usart2_isr(void)
 		{
 			cChar = (char) usart_recv(USART2);
 			xQueueSendFromISR( xRxedChars[ 1 ], &cChar, &xHigherPriorityTaskWoken );
+		}
+
+// ----- transmission complete:
+		if( usart_get_flag(USART2, USART_SR_TC) == true)
+		{
+			gpio_clear(GPIOA, GPIO_USART2_RTS); // clear RTS
+			USART_SR(USART2) &= ~USART_SR_TC;	// reset flag TC
+		}
+
+		portEND_SWITCHING_ISR( xHigherPriorityTaskWoken );
+
+}
+
+void usart3_isr(void)
+{
+
+	long xHigherPriorityTaskWoken = pdFALSE;
+	char cChar;
+
+		if( usart_get_flag(USART3, USART_SR_TXE) == true)
+		{
+			/* The interrupt was caused by the THR becoming empty.  Are there any
+			more characters to transmit? */
+			if( xQueueReceiveFromISR( xCharsForTx[ 1 ], &cChar, &xHigherPriorityTaskWoken ) )
+			{
+				gpio_set(GPIOA, GPIO_USART3_RTS); // set RTS
+				/* A character was retrieved from the buffer so can be sent to the THR now. */
+				usart_send(USART3, (uint8_t) cChar);
+			}
+			else
+			{
+				usart_disable_tx_interrupt(USART3);
+			}
+		}
+
+		if( usart_get_flag(USART3, USART_SR_RXNE) == true)
+		{
+			cChar = (char) usart_recv(USART3);
+			xQueueSendFromISR( xRxedChars[ 1 ], &cChar, &xHigherPriorityTaskWoken );
+		}
+
+// ----- transmission complete:
+		if( usart_get_flag(USART3, USART_SR_TC) == true)
+		{
+			gpio_clear(GPIOA, GPIO_USART3_RTS); // clear RTS
+			USART_SR(USART3) &= ~USART_SR_TC;	// reset flag TC
 		}
 
 		portEND_SWITCHING_ISR( xHigherPriorityTaskWoken );

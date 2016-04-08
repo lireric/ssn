@@ -449,30 +449,32 @@ int main(void)
 				    }
 				} else {
 // JSON format
-					cJSON *json_root, *json_ssn;
-					json_root = cJSON_Parse(xPrefsBuffer.buffer);
-					if (!json_root) {
-						res = 1;
-					} else {
-						json_ssn = cJSON_GetObjectItem(json_root, "ssn");
-						if (!json_ssn) {
-							xsprintf(( portCHAR *) msg, "\n\rJSON error before: [%s]\n\r", cJSON_GetErrorPtr());
-							//sendBaseOut((char *) &msg);
-							debugMsg((char *) &msg);
-						} else {
-							int version =
-									cJSON_GetObjectItem(json_ssn, "v")->valueint;
-							if (version == 1) {
-								cJSON *json_data = cJSON_GetObjectItem(json_ssn, "data");
-								if (!json_data) {
-									//sendBaseOut("\n\rError JSON data");
-									debugMsg("\n\rError JSON data");
-								} else {
-									res = apply_preferences(json_data);	// res == 0 -> good!
-								}
-							}
-						}
-					}
+// skip JSON format!!!
+					res = pdFAIL;
+//					cJSON *json_root, *json_ssn;
+//					json_root = cJSON_Parse(xPrefsBuffer.buffer);
+//					if (!json_root) {
+//						res = 1;
+//					} else {
+//						json_ssn = cJSON_GetObjectItem(json_root, "ssn");
+//						if (!json_ssn) {
+//							xsprintf(( portCHAR *) msg, "\n\rJSON error before: [%s]\n\r", cJSON_GetErrorPtr());
+//							//sendBaseOut((char *) &msg);
+//							debugMsg((char *) &msg);
+//						} else {
+//							int version =
+//									cJSON_GetObjectItem(json_ssn, "v")->valueint;
+//							if (version == 1) {
+//								cJSON *json_data = cJSON_GetObjectItem(json_ssn, "data");
+//								if (!json_data) {
+//									//sendBaseOut("\n\rError JSON data");
+//									debugMsg("\n\rError JSON data");
+//								} else {
+//									res = apply_preferences(json_data);	// res == 0 -> good!
+//								}
+//							}
+//						}
+//					}
 				}
 				if (!res) {
 					//sendBaseOut("\n\rError of apply the configuration");
@@ -1304,9 +1306,13 @@ static void prvBaseOutTask( void *pvParameters )
 	char buf[mainMAX_MSG_LEN+1];
 	memset (&buf,0,mainMAX_MSG_LEN+1);
 	while (1) {
-		/* Wait for a message from Debug queue */
+		/* Wait for a message from base out queue */
 		while( (xQueueReceive( xBaseOutQueue, &buf, portMAX_DELAY ) != pdPASS) && (xSSNPDU.state != SSN_STATE_LOADING) && (xSSNPDU.state != SSN_STATE_DATA));
 		if (lComState == pdPASS) {
+			// check minimum send after receive timeout and make some delay if needed:
+			if ((getMainTimerTick() - xSSNPDU.uiLastTick) < SSN_MIN_SEND_TIMEOUT) {
+				vTaskDelay((getMainTimerTick() - xSSNPDU.uiLastTick) + SSN_MIN_SEND_TIMEOUT / portTICK_RATE_MS);
+			}
 #ifdef  M_USART
 			xReturn = lSerialPutString ( mainBASECOM, buf, strlen(buf) );
 #endif
