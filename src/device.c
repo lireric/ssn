@@ -446,7 +446,7 @@ void setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t n
 			if (buf)
 			{
 				memcpy(buf, &msg, strlen(msg) + 1);
-				vSendInputMessage(1, 0, mainJSON_MESSAGE, 0, nDevID, (void*) buf, strlen(buf), 0);
+				vSendInputMessage(1, 0, mainJSON_MESSAGE, 0, 0, nDevID, (void*) buf, strlen(buf), 0);
 			}
 		}
 	}

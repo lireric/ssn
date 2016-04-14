@@ -552,9 +552,10 @@ char* process_getdevvals(sDevice* devArray[], uint16_t all_devs_counter)
 
 	taskENTER_CRITICAL();
 	{
-		const char* pcTeleHeader = "{\"ssn\":{\"v\":1,\"ret\":\"getdevvals\", \"data\":{\"devs\":[";
-		uiBufLen = strlen(pcTeleHeader);
-		memcpy(tele_data, pcTeleHeader, uiBufLen);
+//		const char* pcTeleHeader = "{\"ssn\":{\"v\":1,\"ret\":\"getdevvals\", \"data\":{\"devs\":[";
+		xsprintf(buf, "{\"ssn\":{\"v\":1,\"obj\":%d,\"ret\":\"getdevvals\", \"data\":{\"devs\":[",  getMC_Object() );
+		uiBufLen = strlen(buf);
+		memcpy(tele_data, buf, uiBufLen);
 		nStrCounter+=uiBufLen;
 
 		for (j = 0; j <= all_devs_counter; j++) {
@@ -602,7 +603,7 @@ char* process_getdevvals(sDevice* devArray[], uint16_t all_devs_counter)
 	return tele_data;
 }
 
-void vSendInputMessage (uint8_t version, uint16_t	uiDestObject, uint8_t xMessageType, uint16_t xSourceDev, uint16_t xDestDev, void* pcMessage, uint16_t nSize, uint16_t nCommand)
+void vSendInputMessage (uint8_t version, uint16_t	uiDestObject, uint8_t xMessageType, uint16_t uiSrcObject, uint16_t xSourceDev, uint16_t xDestDev, void* pcMessage, uint16_t nSize, uint16_t nCommand)
 {
 	xInputMessage sInputMessage;
 
@@ -610,6 +611,7 @@ void vSendInputMessage (uint8_t version, uint16_t	uiDestObject, uint8_t xMessage
 	sInputMessage.version = version;
 	sInputMessage.uiDestObject = uiDestObject;
 	sInputMessage.xSourceDevice = xSourceDev;
+	sInputMessage.uiSrcObject = uiSrcObject;
 	sInputMessage.xDestDevice = xDestDev;
 	sInputMessage.pcMessage = pcMessage;
 	sInputMessage.xMessageType = xMessageType;
@@ -664,55 +666,55 @@ void vCommandSelector(sSSNCommand* xSSNCommand)
 	char msg[30];
 	if (xSSNCommand) {
 		switch (xSSNCommand->nCmd) {
-		case mainCOMMAND_COMMITED: {
-			xsprintf(msg, "\r\nCOMMITED: %d ", xSSNCommand->nCmdID);
-			//sendBaseOut(msg);
-			debugMsg(msg);
+			case mainCOMMAND_COMMITED: {
+				xsprintf(msg, "\r\nCOMMITED: %d ", xSSNCommand->nCmdID);
+				//sendBaseOut(msg);
+				debugMsg(msg);
 
-			// do nothing
-			break;
-		}
-		case mainCOMMAND_UPDATEACTION: {
-			UpdateAction(xSSNCommand->pcData);
-			break;
-		}
-		case mainCOMMAND_REBOOT: {
-			main_reboot();
-			break;
-		}
-		case mainCOMMAND_DISMODEMCHARGE: {
-			// disable charging of battery
-#ifdef  M_GSM
-			//sendBaseOut("\r\nOVER-VOLTAGE, disable charging");
-			debugMsg("\r\nOVER-VOLTAGE, disable charging");
-			sGSMDevice* pGSMDev = (sGSMDevice*) xSSNCommand->pcData;
-			if (pGSMDev) {
-				gpio_clear(pGSMDev->uiPortChgCtrl, 1 << pGSMDev->uiPortChgCtrl);
+				// do nothing
+				break;
 			}
-#endif
-			break;
-		}
-		case mainCOMMAND_ENBMODEMCHARGE: {
-			// disable charging of battery
-#ifdef  M_GSM
-			//sendBaseOut("\r\nLOW-VOLTAGE, enable charging");
-			debugMsg("\r\nLOW-VOLTAGE, enable charging");
-			sGSMDevice* pGSMDev = (sGSMDevice*) xSSNCommand->pcData;
-			if (pGSMDev) {
-				gpio_set(pGSMDev->uiPortChgCtrl, 1 << pGSMDev->uiPortChgCtrl);
+			case mainCOMMAND_UPDATEACTION: {
+				UpdateAction(xSSNCommand->pcData);
+				break;
 			}
-#endif
-			break;
-		}
-		case mainCOMMAND_GETDEVVALS: {
-			char * pcTeleData;
-			pcTeleData = process_getdevvals(devArray, all_devs_counter);
-			if (pcTeleData) {
-				vSendInputMessage(1, 0, mainTELEMETRY_MESSAGE, 0,
-						xSSNCommand->uiDevDest, (void*) pcTeleData, strlen(pcTeleData), 0);
+			case mainCOMMAND_REBOOT: {
+				main_reboot();
+				break;
 			}
-			break;
-		}
+			case mainCOMMAND_DISMODEMCHARGE: {
+				// disable charging of battery
+	#ifdef  M_GSM
+				//sendBaseOut("\r\nOVER-VOLTAGE, disable charging");
+				debugMsg("\r\nOVER-VOLTAGE, disable charging");
+				sGSMDevice* pGSMDev = (sGSMDevice*) xSSNCommand->pcData;
+				if (pGSMDev) {
+					gpio_clear(pGSMDev->uiPortChgCtrl, 1 << pGSMDev->uiPortChgCtrl);
+				}
+	#endif
+				break;
+			}
+			case mainCOMMAND_ENBMODEMCHARGE: {
+				// disable charging of battery
+	#ifdef  M_GSM
+				//sendBaseOut("\r\nLOW-VOLTAGE, enable charging");
+				debugMsg("\r\nLOW-VOLTAGE, enable charging");
+				sGSMDevice* pGSMDev = (sGSMDevice*) xSSNCommand->pcData;
+				if (pGSMDev) {
+					gpio_set(pGSMDev->uiPortChgCtrl, 1 << pGSMDev->uiPortChgCtrl);
+				}
+	#endif
+				break;
+			}
+			case mainCOMMAND_GETDEVVALS: {
+				char * pcTeleData;
+				pcTeleData = process_getdevvals(devArray, all_devs_counter);
+				if (pcTeleData) {
+					vSendInputMessage(1, xSSNCommand->uiObjSrc, mainTELEMETRY_MESSAGE, getMC_Object(), 0,
+							xSSNCommand->uiDevDest, (void*) pcTeleData, strlen(pcTeleData), 0);
+				}
+				break;
+			}
 		}
 		xsprintf(msg, "\r\nFreeHeapSize:=%d **********", xPortGetFreeHeapSize());
 		debugMsg(msg);
@@ -867,7 +869,7 @@ void	logAction(uint16_t nActId, uint16_t nDevId, uint8_t nDevCmd, uint32_t nValu
 			pBuffer[j+strlen(tmpBuffer)] = 0;
 
 			// send log data to input buffer for routing to destination:
-			vSendInputMessage(1, 0, mainLOG_MESSAGE, 0,	0, (void*) pBuffer, strlen(pBuffer), 0);
+			vSendInputMessage(1, 0, mainLOG_MESSAGE, getMC_Object(), 0,	0, (void*) pBuffer, strlen(pBuffer), 0);
 			nlogActLastUpdate = nCurTimestamp;
 			logActCounter = 0;
 	}

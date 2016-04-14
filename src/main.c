@@ -562,7 +562,9 @@ static void prvInputTask( void *pvParameters )
 		if (xInputMessage.version == 1) {
 			uiDestInterface = getObjRoute(xInputMessage.uiDestObject);
 
-			xsprintf(cPassMessage, "\r\nInputMessage:: dest=%d, msgtype=%d, cmd=%d", xInputMessage.uiDestObject, xInputMessage.xMessageType, xInputMessage.nCommand);
+			xsprintf(cPassMessage, "\r\nInputMessage: dest=%d, src=%d, msgtype=%d, cmd=%d",
+					xInputMessage.uiDestObject, xInputMessage.uiSrcObject,
+					xInputMessage.xMessageType, xInputMessage.nCommand);
 			//sendBaseOut(cPassMessage);
 			debugMsg(cPassMessage);
 
@@ -593,7 +595,7 @@ static void prvInputTask( void *pvParameters )
 					case main_IF_UART4:
 					case main_IF_UART5:
 					{
-						vSendSSNPacket (xInputMessage.xDestDevice, getMC_Object(), xInputMessage.xMessageType, xInputMessage.pcMessage);
+						vSendSSNPacket (xInputMessage.uiDestObject, getMC_Object(), xInputMessage.xMessageType, xInputMessage.pcMessage);
 						break;
 					}
 #ifdef  M_GSM
@@ -634,7 +636,7 @@ processLocalMessages:
 						case main_IF_UART4:
 						case main_IF_UART5:
 						{
-							vSendSSNPacket (xInputMessage.xDestDevice, getMC_Object(), xInputMessage.xMessageType, xInputMessage.pcMessage);
+							vSendSSNPacket (xInputMessage.uiDestObject, getMC_Object(), xInputMessage.xMessageType, xInputMessage.pcMessage);
 							break;
 						}
 						/* to do: add other node types...  */
@@ -665,7 +667,9 @@ processLocalMessages:
 						case main_IF_UART5:
 						{
 								//sendBaseOut((char *) xInputMessage.pcMessage);
-								debugMsg((char *) xInputMessage.pcMessage);
+							vSendSSNPacket (xInputMessage.uiDestObject, getMC_Object(), mainJSON_MESSAGE, xInputMessage.pcMessage);
+
+//								debugMsg((char *) xInputMessage.pcMessage);
 								break;
 						}
 						/* to do: add other node types...  */
@@ -711,6 +715,7 @@ processLocalMessages:
 					// process commands if they exists
 					if (xReturn) {
 						xSSNCommand.uiDevDest = xInputMessage.xSourceDevice;
+						//xSSNCommand.
 						// EXTERNAL COMMANDS =======================================================
 						vCommandSelector(&xSSNCommand);
 #ifdef  M_GSM
@@ -742,6 +747,7 @@ processLocalMessages:
 					xSSNCommand.nCmdsLeft = 0;
 					xSSNCommand.pcData = xInputMessage.pcMessage;
 					xSSNCommand.uiDevDest = xInputMessage.xDestDevice;
+					xSSNCommand.uiObjSrc = xInputMessage.xSourceDevice;
 					vCommandSelector(&xSSNCommand);
 					vPortFree(xInputMessage.pcMessage);
 					break;
@@ -865,7 +871,7 @@ processLocalMessages:
 													memcpy(pResp,cPassMessage,strlen(cPassMessage));
 													pResp[strlen(cPassMessage)]=0;
 
-													vSendInputMessage (1, nObjSrc, mainJSON_MESSAGE, dev_id, main_IF_PROGRAM, pResp, strlen(cPassMessage), 0);
+													vSendInputMessage (1, nObjSrc, mainJSON_MESSAGE, xInputMessage.uiSrcObject, dev_id, main_IF_PROGRAM, pResp, strlen(cPassMessage), 0);
 												}
 											}
 #ifdef  M_GSM
@@ -881,11 +887,17 @@ processLocalMessages:
 											void* pData = 0;
 											if (strcmp(cmd, "reboot") == 0) {
 												nCmd = mainCOMMAND_REBOOT;
-												vSendInputMessage (1, nObjDest, mainCOMMAND_MESSAGE, xInputMessage.xSourceDevice, main_IF_PROGRAM, pData, 0, nCmd);
+												vSendInputMessage (1, nObjDest, mainCOMMAND_MESSAGE, xInputMessage.uiSrcObject, xInputMessage.xSourceDevice, main_IF_PROGRAM, pData, 0, nCmd);
 											}
 											if (strcmp(cmd, "getdevvals") == 0) {
-												nCmd = mainCOMMAND_GETDEVVALS;
-												vSendInputMessage (1, nObjDest, mainCOMMAND_MESSAGE, 0, xInputMessage.xSourceDevice, pData, 0, nCmd);
+												//nCmd = mainCOMMAND_GETDEVVALS;
+												char * pcTeleData;
+												pcTeleData = process_getdevvals(devArray, all_devs_counter);
+												if (pcTeleData) {
+													vSendInputMessage(1, xInputMessage.uiSrcObject, mainTELEMETRY_MESSAGE, getMC_Object(), 0,
+															0, (void*) pcTeleData, strlen(pcTeleData), 0);
+												}
+												// vSendInputMessage (1, nObjDest, mainCOMMAND_MESSAGE, xInputMessage.uiSrcObject, 0, xInputMessage.xSourceDevice, pData, 0, nCmd);
 											}
 
 										}	else 	{
@@ -1261,8 +1273,7 @@ uint16_t calcCRC;
 								xSSNPDU.state = SSN_STATE_READY;
 								nScanCnt = 0;
 								/* Write the received message to common Input queue. */
-								// to do: xSSNPDU.obj_src
-								vSendInputMessage (1, xSSNPDU.obj_dest, xSSNPDU.message_type, 0, 0, (void*) xSSNPDU.buffer, xSSNPDU.nDataSize,0);
+								vSendInputMessage (1, xSSNPDU.obj_dest, xSSNPDU.message_type, xSSNPDU.obj_src, 0, 0, (void*) xSSNPDU.buffer, xSSNPDU.nDataSize,0);
 							} else {
 								xSSNPDU.state = SSN_STATE_ERROR;
 								xsprintf(cTmpBuf, "\r\nSSN data CRC error! (calc=%04x, msg=%04x)", calcCRC, xSSNPDU.crc16);

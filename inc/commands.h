@@ -55,7 +55,7 @@ void 	process_setdatetime(cJSON *json_data);
 void 	process_getowilist(cJSON *json_data);
 void 	process_loadprefs(cJSON *json_data, char * jsonMsg, sGrpInfo* grpArray[]);
 char* 	process_getdevvals(sDevice* devArray[], uint16_t all_devs_counter);
-void 	vSendInputMessage (uint8_t version, uint16_t	uiDestObject, uint8_t xMessageType, uint16_t xSourceDev, uint16_t xDestDev, void* pcMessage, uint16_t nSize, uint16_t nCommand);
+void 	vSendInputMessage (uint8_t version, uint16_t	uiDestObject, uint8_t xMessageType, uint16_t uiSrcObject, uint16_t xSourceDev, uint16_t xDestDev, void* pcMessage, uint16_t nSize, uint16_t nCommand);
 void 	vSendSSNPacket (uint16_t nObjDst, uint16_t nObjSrc, uint8_t nMessType, char* cData);
 void 	sendBaseOut (char *str);
 void 	vCommandSelector(sSSNCommand* xSSNCommand);

@@ -66,8 +66,8 @@ typedef enum {FAILED = 0, PASSED = !FAILED} TestStatus;
 typedef struct
 {
 	uint8_t 	state;			// state of SSN buffer (SSN_STATE_XXX constants)
-	uint8_t		obj_dest;		// destination object
-	uint8_t		obj_src;		// source object
+	uint16_t		obj_dest;		// destination object
+	uint16_t		obj_src;		// source object
 	uint8_t		message_type;	// message type (mainXXX_MESSAGE constants)
 	uint16_t	crc16;			// CRC16 (get from message)
 	uint16_t 	counter;		// pointer to current position in buffer
@@ -129,10 +129,12 @@ typedef struct
 	uint8_t 	version;
 	uint8_t 	xMessageType;
 	uint16_t	uiDestObject; 	// destination object number, 0 for automatic routing
+	uint16_t	uiSrcObject; 	// source object number
 	uint16_t 	xSourceDevice;
 	uint16_t 	xDestDevice;	// xDestDevice = 0 for automatic routing
 	uint16_t 	nMsgSize;	 	// size of message
 	uint16_t 	nCommand;	 	// for command type message
+	uint16_t 	nFlag;	 		// flags
 	void* 		pcMessage;	 	// pointer to message
 } xInputMessage;
 
@@ -165,6 +167,7 @@ typedef struct
 	uint16_t	nCmdsLeft;	// count commands in external queue for loading
 	char*		pcData;		// command data (if exist)
 	uint16_t	uiDevDest;	// destination device
+	uint16_t	uiObjSrc;	// source object
 } sSSNCommand;
 
 typedef struct

@@ -1074,11 +1074,11 @@ static void prvGSMRespTask( void *pvParameters )
 
 		if (strncmp(buf, "OVER-VOLTAGE WARNNING",21)==0) {
 			// disable charging of battery
-			vSendInputMessage (1, 0, mainCOMMAND_MESSAGE, pDev->nId, main_IF_PROGRAM, (void*)pGSMDev, 0, mainCOMMAND_DISMODEMCHARGE);
+			vSendInputMessage (1, 0, mainCOMMAND_MESSAGE, 0, pDev->nId, main_IF_PROGRAM, (void*)pGSMDev, 0, mainCOMMAND_DISMODEMCHARGE);
 		}
 		if (strncmp(buf, "UNDER-VOLTAGE WARNNING",22)==0) {
 			// disable charging of battery
-			vSendInputMessage (1, 0, mainCOMMAND_MESSAGE, pDev->nId, main_IF_PROGRAM, (void*)pGSMDev, 0, mainCOMMAND_ENBMODEMCHARGE);
+			vSendInputMessage (1, 0, mainCOMMAND_MESSAGE, 0, pDev->nId, main_IF_PROGRAM, (void*)pGSMDev, 0, mainCOMMAND_ENBMODEMCHARGE);
 		}
 //		if (strncmp(buf, "CLOSED",6)==0) {
 //			// begin receiving http body
@@ -1299,7 +1299,7 @@ xSerialPutChar(0, cChar, 5 );
 			print_gsm_debug((char*)GSMData.pHttpRespBuffer);
 
 //			if ((nDataRecvRemain <= 0) || (getTimerTick() >= uiDataRecvTimeout) || (strncmp(buf, "==end==",7)==0))
-			vSendInputMessage (1, 0, mainGSM_MESSAGE_IN, pDev->nId, main_IF_PROGRAM, GSMData.pHttpRespBuffer, GSMData.uiHttpRespCounter,0);
+			vSendInputMessage (1, 0, mainGSM_MESSAGE_IN, 0, pDev->nId, main_IF_PROGRAM, GSMData.pHttpRespBuffer, GSMData.uiHttpRespCounter,0);
 			GSMData.uiState = gsmDATA_INIT;
 		}
 
@@ -1369,7 +1369,7 @@ void setGSMDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nData
 		// to do:
 		break;
 	case gsmCmdSendWSCmd:
-		vSendInputMessage (1, 0, mainGSM_MESSAGE_OUT, main_IF_PROGRAM, dev->nId, (void*) 0, 0, (int16_t) nValue);
+		vSendInputMessage (1, 0, mainGSM_MESSAGE_OUT, 0, main_IF_PROGRAM, dev->nId, (void*) 0, 0, (int16_t) nValue);
 		break;
 	case gsmCmdSendTelemetry:
 		pcTeleData = process_getdevvals(devArray, all_devs_counter);
@@ -1395,7 +1395,7 @@ void setGSMDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nData
 #endif
 
 		if (buffer) {
-			vSendInputMessage (1, 0, mainTELEMETRY_MESSAGE, main_IF_PROGRAM, dev->nId, (void*) buffer, nSize,0);
+			vSendInputMessage (1, 0, mainTELEMETRY_MESSAGE, 0, main_IF_PROGRAM, dev->nId, (void*) buffer, nSize,0);
 		}
 		break;
 	}
