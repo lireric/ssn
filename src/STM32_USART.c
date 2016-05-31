@@ -93,17 +93,17 @@
 /*-----------------------------------------------------------*/
 
 /* The number of COM ports that can be controlled at the same time. */
-#define serNUM_COM_PORTS				( 2 )
+#define serNUM_COM_PORTS				( 3 )
 
 /* Queues are used to hold characters that are waiting to be transmitted.  This
 constant sets the maximum number of characters that can be contained in such a
 queue at any one time. */
-#define serTX_QUEUE_LEN					( 50 )
+#define serTX_QUEUE_LEN					( 30 )
 
 /* Queues are used to hold characters that have been received but not yet 
 processed.  This constant sets the maximum number of characters that can be 
 contained in such a queue. */
-#define serRX_QUEUE_LEN					( 50 )
+#define serRX_QUEUE_LEN					( 30 )
 
 /* The maximum amount of time that calls to lSerialPutString() should wait for
 there to be space to post each character to the queue of characters waiting
@@ -122,7 +122,7 @@ static xQueueHandle xCharsForTx[ serNUM_COM_PORTS ] = { 0 };
 /* Queues holding received characters - one queue per port. */
 static xQueueHandle xRxedChars[ serNUM_COM_PORTS ] = { 0 };
 
-static uint32_t xUSART[2] = {USART1,USART2};
+static uint32_t xUSART[3] = {USART1,USART2,USART3};
 
 /*-----------------------------------------------------------*/
 
@@ -369,40 +369,36 @@ long lReturn;
 
 void usart1_isr(void)
 {
-long xHigherPriorityTaskWoken = pdFALSE;
-char cChar;
+	long xHigherPriorityTaskWoken = pdFALSE;
+	char cChar;
 
-	if( usart_get_flag(USART1, USART_SR_TXE) == true)
-	{
+	if (usart_get_flag(USART1, USART_SR_TXE) == true) {
 		/* The interrupt was caused by the THR becoming empty.  Are there any
-		more characters to transmit? */
-		if( xQueueReceiveFromISR( xCharsForTx[ 0 ], &cChar, &xHigherPriorityTaskWoken ) )
-		{
+		 more characters to transmit? */
+		if (xQueueReceiveFromISR(xCharsForTx[0], &cChar,
+				&xHigherPriorityTaskWoken)) {
 			/* A character was retrieved from the buffer so can be sent to the
-			THR now. */
+			 THR now. */
 			gpio_set(GPIOA, GPIO12); // set RTS
 			usart_send(USART1, (uint8_t) cChar);
-		}
-		else
-		{
+		} else {
+			gpio_clear(GPIOA, GPIO12); // clear RTS
 			usart_disable_tx_interrupt(USART1);
-		}		
+		}
 	}
-	
-	if( usart_get_flag(USART1, USART_SR_RXNE) == true)
-	{
+
+	if (usart_get_flag(USART1, USART_SR_RXNE) == true) {
 		cChar = (char) usart_recv(USART1);
-		xQueueSendFromISR( xRxedChars[ 0 ], &cChar, &xHigherPriorityTaskWoken );
-	}	
+		xQueueSendFromISR(xRxedChars[0], &cChar, &xHigherPriorityTaskWoken);
+	}
 
 // ----- transmission complete:
-			if( usart_get_flag(USART1, USART_SR_TC) == true)
-			{
-				gpio_clear(GPIOA, GPIO12); // clear RTS
-				USART_SR(USART1) &= ~USART_SR_TC;	// reset flag TC
-			}
-	
-	portEND_SWITCHING_ISR( xHigherPriorityTaskWoken );
+	if (usart_get_flag(USART1, USART_SR_TC) == true) {
+		gpio_clear(GPIOA, GPIO12); // clear RTS
+		USART_SR(USART1) &= ~USART_SR_TC;	// reset flag TC
+	}
+
+	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 /*-----------------------------------------------------------*/
 
@@ -412,36 +408,32 @@ void usart2_isr(void)
 	long xHigherPriorityTaskWoken = pdFALSE;
 	char cChar;
 
-		if( usart_get_flag(USART2, USART_SR_TXE) == true)
-		{
-			/* The interrupt was caused by the THR becoming empty.  Are there any
-			more characters to transmit? */
-			if( xQueueReceiveFromISR( xCharsForTx[ 1 ], &cChar, &xHigherPriorityTaskWoken ) )
-			{
-				gpio_set(GPIOA, GPIO_USART2_RTS); // set RTS
-				/* A character was retrieved from the buffer so can be sent to the THR now. */
-				usart_send(USART2, (uint8_t) cChar);
-			}
-			else
-			{
-				usart_disable_tx_interrupt(USART2);
-			}
+	if (usart_get_flag(USART2, USART_SR_TXE) == true) {
+		/* The interrupt was caused by the THR becoming empty.  Are there any
+		 more characters to transmit? */
+		if (xQueueReceiveFromISR(xCharsForTx[1], &cChar,
+				&xHigherPriorityTaskWoken)) {
+			gpio_set(GPIOA, GPIO_USART2_RTS); // set RTS
+			/* A character was retrieved from the buffer so can be sent to the THR now. */
+			usart_send(USART2, (uint8_t) cChar);
+		} else {
+			gpio_clear(GPIOA, GPIO_USART2_RTS); // clear RTS
+			usart_disable_tx_interrupt(USART2);
 		}
+	}
 
-		if( usart_get_flag(USART2, USART_SR_RXNE) == true)
-		{
-			cChar = (char) usart_recv(USART2);
-			xQueueSendFromISR( xRxedChars[ 1 ], &cChar, &xHigherPriorityTaskWoken );
-		}
+	if (usart_get_flag(USART2, USART_SR_RXNE) == true) {
+		cChar = (char) usart_recv(USART2);
+		xQueueSendFromISR(xRxedChars[1], &cChar, &xHigherPriorityTaskWoken);
+	}
 
 // ----- transmission complete:
-		if( usart_get_flag(USART2, USART_SR_TC) == true)
-		{
-			gpio_clear(GPIOA, GPIO_USART2_RTS); // clear RTS
-			USART_SR(USART2) &= ~USART_SR_TC;	// reset flag TC
-		}
+	if (usart_get_flag(USART2, USART_SR_TC) == true) {
+		gpio_clear(GPIOA, GPIO_USART2_RTS); // clear RTS
+		USART_SR(USART2) &= ~USART_SR_TC;	// reset flag TC
+	}
 
-		portEND_SWITCHING_ISR( xHigherPriorityTaskWoken );
+	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 
 }
 
@@ -451,35 +443,31 @@ void usart3_isr(void)
 	long xHigherPriorityTaskWoken = pdFALSE;
 	char cChar;
 
-		if( usart_get_flag(USART3, USART_SR_TXE) == true)
-		{
-			/* The interrupt was caused by the THR becoming empty.  Are there any
-			more characters to transmit? */
-			if( xQueueReceiveFromISR( xCharsForTx[ 1 ], &cChar, &xHigherPriorityTaskWoken ) )
-			{
-				gpio_set(GPIOA, GPIO_USART3_RTS); // set RTS
-				/* A character was retrieved from the buffer so can be sent to the THR now. */
-				usart_send(USART3, (uint8_t) cChar);
-			}
-			else
-			{
-				usart_disable_tx_interrupt(USART3);
-			}
+	if (usart_get_flag(USART3, USART_SR_TXE) == true) {
+		/* The interrupt was caused by the THR becoming empty.  Are there any
+		 more characters to transmit? */
+		if (xQueueReceiveFromISR(xCharsForTx[2], &cChar,
+				&xHigherPriorityTaskWoken)) {
+			gpio_set(GPIOA, GPIO_USART3_RTS); // set RTS
+			/* A character was retrieved from the buffer so can be sent to the THR now. */
+			usart_send(USART3, (uint8_t) cChar);
+		} else {
+			gpio_clear(GPIOA, GPIO_USART3_RTS); // clear RTS
+			usart_disable_tx_interrupt(USART3);
 		}
+	}
 
-		if( usart_get_flag(USART3, USART_SR_RXNE) == true)
-		{
-			cChar = (char) usart_recv(USART3);
-			xQueueSendFromISR( xRxedChars[ 1 ], &cChar, &xHigherPriorityTaskWoken );
-		}
+	if (usart_get_flag(USART3, USART_SR_RXNE) == true) {
+		cChar = (char) usart_recv(USART3);
+		xQueueSendFromISR(xRxedChars[2], &cChar, &xHigherPriorityTaskWoken);
+	}
 
 // ----- transmission complete:
-		if( usart_get_flag(USART3, USART_SR_TC) == true)
-		{
-			gpio_clear(GPIOA, GPIO_USART3_RTS); // clear RTS
-			USART_SR(USART3) &= ~USART_SR_TC;	// reset flag TC
-		}
+	if (usart_get_flag(USART3, USART_SR_TC) == true) {
+		gpio_clear(GPIOA, GPIO_USART3_RTS); // clear RTS
+		USART_SR(USART3) &= ~USART_SR_TC;	// reset flag TC
+	}
 
-		portEND_SWITCHING_ISR( xHigherPriorityTaskWoken );
+	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 
 }

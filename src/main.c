@@ -365,7 +365,7 @@ int main(void)
 		owi_device_init_i2c(pGrpDev);
 #endif
 
-#ifdef M_RTC_DS1307
+#if defined (M_RTC_DS1307)
 		// load RTC from RTC_DS1307:
 		if ( RTC_DS1307_now(pGrpDev) )
 			{
@@ -1175,7 +1175,7 @@ uint16_t calcCRC;
 	xSSNPDU.state = SSN_STATE_INIT;
 
 	while (1) {
-		/* Block to wait for a character to be received on COM0. */
+		/* Block to wait for a character to be received on mainBASECOM */
 #ifdef  M_USART
 		xSerialGetChar( mainBASECOM, &cChar, portMAX_DELAY);
 #endif

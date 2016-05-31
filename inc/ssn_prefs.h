@@ -29,9 +29,9 @@
 #ifndef INC_SSN_PREFS_H_
 #define INC_SSN_PREFS_H_
 
-#define CONF_TEST
+//#define CONF_TEST
 //#define CONF_RELEASE
-//#define CONF_TEST2
+#define CONF_PROD2
 //#define CONF_PROD1
 
 
@@ -80,7 +80,7 @@
 #define mainCOM3							( 3 )
 #define mainCOM4							( 4 )
 
-#define mainBASECOM_Priority				(193)
+#define mainBASECOM_Priority				(200)
 
 #define mainMINMEMORYALLOCATE				( 8 ) // minimum memory size for allocate
 #define mainACTIONSARRAYTIMEOUT				(30)	// timeout submitting actions log (sec)
