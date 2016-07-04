@@ -20,8 +20,7 @@
 /*
  * ssn_prefs_prod1.h
  *
- *  Created on: 29 дек. 2014 г.
- *      Author: eric
+ *      Preferences for Lobnja flat ***********************
  */
 
 #ifndef INC_SSN_PREFS_PROD1_H_
@@ -33,14 +32,14 @@
 #define M_USART
 #define M_DS18B20
 #define M_DHT
-#define M_GSM
+//#define M_GSM
 
 /* Persistence settings *
  * (select one) */
-//#define PERSIST_EEPROM_I2C
-#define PERSIST_STM32FLASH
+#define PERSIST_EEPROM_I2C
+//#define PERSIST_STM32FLASH
 
-#define WATCHDOG
+//#define WATCHDOG
 #define WATCHDOG_PERIOD 10000	// period of watchdog timer (ms)
 
 #define MC_OBJECT	10
@@ -56,11 +55,11 @@
 #define mainMAX_GRP_DEVICES				(7) 	// default max number devices on one group
 #define mainMAX_ALL_DEVICES				(30) 	// default max number of all devices
 #define mainMAX_DHT_DEVICES				(3) 	// default max number of dht devices
-#define mainMAX_ROUTES					(2)		// max number routing interfaces
+#define mainMAX_ROUTES					(3)		// max number routing interfaces
 
 ///#define I2C 	I2C1
 #define EEPROM_ADDRESS        	0xA0	// at24c32
-//#define DS1307_ADDRESS        0xD0	// rtc ds1307 address
+#define DS1307_ADDRESS        	0xD0	// rtc ds1307 address
 
 #define EEPROM_PAGE_SIZE      	32
 /* soft i2c hardware settings */
@@ -73,7 +72,9 @@
 #define SOFTI2C_1_MAXDEVS		( 2 )	// максимальное количество датчиков на линии
 
 #define mainBAUD_RATE						( 57600 )
-#define mainBASECOM							( mainCOM0 )
+#define mainBASECOM							( mainCOM2 )
+//#define mainBASECOM3_RTSBANK				GPIOB
+//#define mainBASECOM3_RTSPIN					GPIO10
 
 /* Maximum elements number in parsed action formula string */
 #define MAX_ACTION_ARRAY_SIZE			(50)

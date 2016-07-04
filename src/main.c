@@ -23,6 +23,7 @@
 #include "commands.h"
 #include "../inc/ssn.h"
 #include "../inc/ini.h"
+#include "processor.h"
 
 #ifdef  M_LCD
 #include "lcd.h"
@@ -403,7 +404,7 @@ int main(void)
 		uint16_t nBufSize = Rx1Buffer[0] + (Rx1Buffer[1] << 8);
 		xPrefsBuffer.nBufSize = nBufSize;
 		if (nBufSize < xPortGetFreeHeapSize())
-			xPrefsBuffer.buffer = pvPortMalloc(nBufSize);
+			xPrefsBuffer.buffer = pvPortMalloc(nBufSize+1);
 
 		if (xPrefsBuffer.buffer) {
 #ifdef PERSIST_EEPROM_I2C
@@ -417,6 +418,7 @@ int main(void)
 			if (res) {
 				xPrefsBuffer.state = JSON_STATE_READY;
 				xPrefsBuffer.counter = nBufSize;
+				xPrefsBuffer.buffer[nBufSize]=0;
 #ifdef PERSIST_STM32FLASH
 				//sendBaseOut("\n\rConfiguration loaded from FLASH");
 				debugMsg("\n\rConfiguration loaded from FLASH");
@@ -424,6 +426,7 @@ int main(void)
 				//sendBaseOut("\n\rConfiguration loaded from EEPROM");
 				debugMsg("\n\rConfiguration loaded from EEPROM");
 #endif
+//		    	debugMsg((char *) &xPrefsBuffer.buffer);
 				// define format preferences: if first char = "{" than JSON, else INI
 				if (xPrefsBuffer.buffer[0] != '{') {
 // INI format
@@ -1067,10 +1070,10 @@ static uint32_t	getMainTimerTick()
 static void prvCronFunc( void *pvParameters )
 {
 	( void ) pvParameters;
-	uint16_t i;
+//	uint16_t i;
 	RTC_t rtc;
-	uint32_t res;
-	sAction* pAct;
+//	uint32_t res;
+//	sAction* pAct;
 
 		uiMainTick++;
 		rtc_gettime(&rtc);
@@ -1089,6 +1092,8 @@ static void prvCronFunc( void *pvParameters )
 
 		sDevice* pDev = devArray[0]; // get virtual time device
 		// scan thru actions with time events:
+		scanDevActions (pDev);
+/*
 		for (i=0; i<pDev->nActionsCashSize; i++) {
 
 			pAct = &((sAction*)pDev->pActionsCash)[i];
@@ -1099,7 +1104,7 @@ static void prvCronFunc( void *pvParameters )
 				}
 			}
 		}
-
+*/
 		logAction(0, 0, 0, 0); // check timeout for log submitting
 }
 

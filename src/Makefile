@@ -29,6 +29,7 @@ OBJS+=lcd.o
 OBJS+=crc16.o
 OBJS+=stack.o
 OBJS+=ini.o
+OBJS+=processor.o
 
 all: src
 

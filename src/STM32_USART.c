@@ -98,7 +98,7 @@
 /* Queues are used to hold characters that are waiting to be transmitted.  This
 constant sets the maximum number of characters that can be contained in such a
 queue at any one time. */
-#define serTX_QUEUE_LEN					( 30 )
+#define serTX_QUEUE_LEN					( 50 )
 
 /* Queues are used to hold characters that have been received but not yet 
 processed.  This constant sets the maximum number of characters that can be 
@@ -109,7 +109,17 @@ contained in such a queue. */
 there to be space to post each character to the queue of characters waiting
 transmission.  NOTE!  This is the time to wait per character - not the time to
 wait for the entire string. */
-#define serPUT_STRING_CHAR_DELAY		( 6 / portTICK_RATE_MS )
+#define serPUT_STRING_CHAR_DELAY		( 10 / portTICK_RATE_MS )
+
+
+
+//#ifndef mainBASECOM3_RTSBANK
+//#define mainBASECOM3_RTSBANK GPIO_BANK_USART3_RTS
+//#endif
+//
+//#ifndef mainBASECOM3_RTSPIN
+//#define mainBASECOM3_RTSPIN GPIO_USART3_RTS
+//#endif
 
 /*-----------------------------------------------------------*/
 
@@ -254,7 +264,7 @@ long lReturn = pdFAIL;
 			xRxedChars[ulPort] = xQueueCreate( serRX_QUEUE_LEN, sizeof( char ) );
 			}
 			/* Enable clocks for GPIO port B (for GPIO_USART3_TX) and USART3. */
-			rcc_periph_clock_enable(GPIO_USART3_TX);
+			rcc_periph_clock_enable(RCC_GPIOB);
 			rcc_periph_clock_enable(RCC_AFIO);
 			rcc_periph_clock_enable(RCC_USART3);
 
@@ -263,9 +273,10 @@ long lReturn = pdFAIL;
 			nvic_set_priority(NVIC_USART3_IRQ, priority);
 
 			/* Setup GPIO pin GPIO_USART2_RE_TX on GPIO port B for transmit. */
-			gpio_set_mode(GPIO_BANK_USART3_TX, GPIO_MODE_OUTPUT_10_MHZ,
+			gpio_set_mode(GPIO_BANK_USART3_TX, GPIO_MODE_OUTPUT_50_MHZ,
 				      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART3_TX);
-			gpio_set_mode(GPIO_BANK_USART3_RTS, GPIO_MODE_OUTPUT_10_MHZ,
+
+			gpio_set_mode(GPIO_BANK_USART3_RTS, GPIO_MODE_OUTPUT_50_MHZ,
 					GPIO_CNF_OUTPUT_PUSHPULL, GPIO_USART3_RTS);
 			gpio_clear(GPIO_BANK_USART3_RTS, GPIO_USART3_RTS);
 
@@ -382,7 +393,7 @@ void usart1_isr(void)
 			gpio_set(GPIOA, GPIO12); // set RTS
 			usart_send(USART1, (uint8_t) cChar);
 		} else {
-			gpio_clear(GPIOA, GPIO12); // clear RTS
+//			gpio_clear(GPIOA, GPIO12); // clear RTS
 			usart_disable_tx_interrupt(USART1);
 		}
 	}
@@ -417,7 +428,7 @@ void usart2_isr(void)
 			/* A character was retrieved from the buffer so can be sent to the THR now. */
 			usart_send(USART2, (uint8_t) cChar);
 		} else {
-			gpio_clear(GPIOA, GPIO_USART2_RTS); // clear RTS
+//			gpio_clear(GPIOA, GPIO_USART2_RTS); // clear RTS
 			usart_disable_tx_interrupt(USART2);
 		}
 	}
@@ -448,11 +459,11 @@ void usart3_isr(void)
 		 more characters to transmit? */
 		if (xQueueReceiveFromISR(xCharsForTx[2], &cChar,
 				&xHigherPriorityTaskWoken)) {
-			gpio_set(GPIOA, GPIO_USART3_RTS); // set RTS
+			gpio_set(GPIO_BANK_USART3_RTS, GPIO_USART3_RTS); // set RTS
 			/* A character was retrieved from the buffer so can be sent to the THR now. */
 			usart_send(USART3, (uint8_t) cChar);
 		} else {
-			gpio_clear(GPIOA, GPIO_USART3_RTS); // clear RTS
+//			gpio_clear(GPIO_BANK_USART3_RTS, GPIO_USART3_RTS); // clear RTS
 			usart_disable_tx_interrupt(USART3);
 		}
 	}
@@ -464,7 +475,7 @@ void usart3_isr(void)
 
 // ----- transmission complete:
 	if (usart_get_flag(USART3, USART_SR_TC) == true) {
-		gpio_clear(GPIOA, GPIO_USART3_RTS); // clear RTS
+		gpio_clear(GPIO_BANK_USART3_RTS, GPIO_USART3_RTS); // clear RTS
 		USART_SR(USART3) &= ~USART_SR_TC;	// reset flag TC
 	}
 

@@ -31,8 +31,8 @@
 
 //#define CONF_TEST
 //#define CONF_RELEASE
-#define CONF_PROD2
-//#define CONF_PROD1
+//#define CONF_PROD2
+#define CONF_PROD1
 
 
 #ifdef CONF_TEST
@@ -72,6 +72,7 @@
 #define mainECHO_TASK_PRIORITY				( tskIDLE_PRIORITY + 3 )
 #define mainBASEOUT_TASK_PRIORITY			( tskIDLE_PRIORITY + 2 )
 
+#define  devMAX_MSG_LEN				(127)
 
 /* COM ports */
 #define mainCOM0							( 0 )

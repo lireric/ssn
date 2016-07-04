@@ -632,8 +632,28 @@ void vSendSSNPacket (uint16_t nObjDst, uint16_t nObjSrc, uint8_t nMessType, char
 
 void debugMsg (char *str)
 {
-//	uint32_t xReturn;
-	xQueueSend( xLogOutQueue, str, 0);
+//	xQueueSend( xLogOutQueue, str, 0);
+
+	uint8_t uiCnt;
+	uint16_t uiBufLen;
+	uint32_t xReturn;
+	char msg[mainMAX_MSG_LEN];
+
+		for (uiCnt=0; uiCnt<=strlen(str)/mainMAX_MSG_LEN; uiCnt++)
+		{
+			uiBufLen = strlen(str)-uiCnt*mainMAX_MSG_LEN;
+			if (uiBufLen > (mainMAX_MSG_LEN)) {
+				uiBufLen = mainMAX_MSG_LEN;
+			} else {
+				memset (&msg,0,mainMAX_MSG_LEN); // clear buffer
+			}
+
+			memcpy(&msg, &str[uiCnt*mainMAX_MSG_LEN], uiBufLen);
+			if (xLogOutQueue) {
+				xReturn = xQueueSend( xLogOutQueue, msg, 0 );
+			}
+		}
+		( void ) xReturn;
 }
 
 void sendBaseOut (char *str)
