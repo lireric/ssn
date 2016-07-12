@@ -789,11 +789,12 @@ processLocalMessages:
 					if (xIniHandlerData.iniSSNCommand->nCmd == mainCOMMAND_GETPREFERENCES) {
 						// check for loading last logic section:
 						if (xReturn == 0) {
+							vTaskSuspendAll();
 							if (xIniHandlerData.xTempAction.aid) {
 								xReturn = setAction (xIniHandlerData.xTempAction.aid, xIniHandlerData.xTempAction.astr, xIniHandlerData.xTempAction.arep, xIniHandlerData.xTempAction.nFlags);
 							}
 							xsprintf(cPassMessage, "\r\nConfig loaded from buffer (INI)");
-							vTaskSuspendAll();
+//							vTaskSuspendAll();
 							xReturn = refreshActions2DeviceCash();
 							xReturn = storePreferences(xInputMessage.pcMessage, strlen(xInputMessage.pcMessage));
 //							xTaskResumeAll();	// start scheduler if load preferences command
@@ -1512,22 +1513,26 @@ int32_t apply_preferences(cJSON *json_data) {
 	return pdPASS;
 }
 
-static void vMainTimerFunctionInterval1(void* pParam)
-{
-	sEvtElm* pEvtElm = (sEvtElm*) pvTimerGetTimerID( pParam );
+static void vMainTimerFunctionInterval1(void* pParam) {
+	sEvtElm* pEvtElm = (sEvtElm*) pvTimerGetTimerID(pParam);
 	sActElm* pActElm;
 	sAction* pAction;
+	int32_t nSetDevValue;
+	int32_t res = pdTRUE;
 //	char cPassMessage[ mainMAX_MSG_LEN ];
 	// search all Action elements:
-	while (pEvtElm)
-	{
-			if (pEvtElm->nElmType == eElmAction) {
-				pActElm = (sActElm*)pEvtElm->nElmData1;
-				if (pActElm) {
-					pAction = pActElm->pAction;
+	while (pEvtElm) {
+		if (pEvtElm->nElmType == eElmAction) {
+			pActElm = (sActElm*) pEvtElm->nElmData1;
+			if (pActElm) {
+				pAction = pActElm->pAction;
+
+				res = processActionStack(pActElm->nElmDataIn, &nSetDevValue);
+				if (res) {
 					if (!(pAction->nFlags & devACTION_FLAG_NOLOG)) {
 						if (pActElm->nElmDataType != eElmString) {
-							logAction(pAction->nActId, pActElm->nDevId, pActElm->nActCmdIn, pActElm->nElmDataIn);
+//							logAction(pAction->nActId, pActElm->nDevId, pActElm->nActCmdIn, pActElm->nElmDataIn);
+							logAction(pAction->nActId, pActElm->nDevId, pActElm->nActCmdIn, nSetDevValue);
 						}
 //						if (pActElm->nElmDataType == eElmString)
 //							xsprintf( cPassMessage, "\n\rTimer set dev[%d] = (%d, %s) ", pActElm->nDevId, pActElm->nActCmdIn, (char*)pActElm->nElmDataIn);
@@ -1535,36 +1540,40 @@ static void vMainTimerFunctionInterval1(void* pParam)
 //							xsprintf( cPassMessage, "\n\rTimer set dev[%d] = (%d, %d) ", pActElm->nDevId, pActElm->nActCmdIn, pActElm->nElmDataIn);
 //						sendBaseOut(cPassMessage);
 					}
-					setDevValueByID(pActElm->nElmDataIn, pActElm->nActCmdIn, pActElm->nDevId, pActElm->nElmDataType);
+//					setDevValueByID(pActElm->nElmDataIn, pActElm->nActCmdIn, pActElm->nDevId, pActElm->nElmDataType);
+					setDevValueByID(nSetDevValue, pActElm->nActCmdIn, pActElm->nDevId, pActElm->nElmDataType);
 
 					if (pAction->xActTimerOneShot) {
 						xTimerStart(pAction->xActTimerOneShot, 0);
 					}
-
 				}
 			}
-			pEvtElm = (sEvtElm*)pEvtElm->pPrevElm;
+		}
+		pEvtElm = (sEvtElm*) pEvtElm->pPrevElm;
 	}
 }
 
-static void vMainTimerFunctionInterval2(void* pParam)
-{
-	sEvtElm* pEvtElm = (sEvtElm*) pvTimerGetTimerID( pParam );
+static void vMainTimerFunctionInterval2(void* pParam) {
+	sEvtElm* pEvtElm = (sEvtElm*) pvTimerGetTimerID(pParam);
 	sActElm* pActElm;
 	sAction* pAction;
+	int32_t nSetDevValue;
+	int32_t res = pdTRUE;
 //	char cPassMessage[ mainMAX_MSG_LEN ];
 	// search all Action elements:
-	while (pEvtElm)
-	{
-			if (pEvtElm->nElmType == eElmAction) {
-				pActElm = (sActElm*)pEvtElm->nElmData1;
-				if (pActElm) {
-					pAction = pActElm->pAction;
+	while (pEvtElm) {
+		if (pEvtElm->nElmType == eElmAction) {
+			pActElm = (sActElm*) pEvtElm->nElmData1;
+			if (pActElm) {
+				pAction = pActElm->pAction;
 
+				res = processActionStack(pActElm->nElmDataOut, &nSetDevValue);
+				if (res) {
 					if (!(pAction->nFlags && devACTION_FLAG_NOLOG)) {
 
 						if (pActElm->nElmDataType != eElmString) {
-							logAction(pAction->nActId, pActElm->nDevId, pActElm->nActCmdOut, pActElm->nElmDataOut);
+//							logAction(pAction->nActId, pActElm->nDevId, pActElm->nActCmdOut, pActElm->nElmDataOut);
+							logAction(pAction->nActId, pActElm->nDevId, pActElm->nActCmdOut, nSetDevValue);
 						}
 //						if (pActElm->nElmDataType == eElmString)
 //							xsprintf(cPassMessage, "\n\rOne shot timer set dev[%d] = (%d, %s) ", pActElm->nDevId, pActElm->nActCmdOut, (char*)pActElm->nElmDataOut);
@@ -1572,10 +1581,12 @@ static void vMainTimerFunctionInterval2(void* pParam)
 //							xsprintf(cPassMessage, "\n\rOne shot timer set dev[%d] = (%d, %d) ", pActElm->nDevId, pActElm->nActCmdOut, pActElm->nElmDataOut);
 //						sendBaseOut(cPassMessage);
 					}
-					setDevValueByID(pActElm->nElmDataOut, pActElm->nActCmdOut, pActElm->nDevId, pActElm->nElmDataType);
+//					setDevValueByID(pActElm->nElmDataOut, pActElm->nActCmdOut, pActElm->nDevId, pActElm->nElmDataType);
+					setDevValueByID(nSetDevValue, pActElm->nActCmdOut, pActElm->nDevId, pActElm->nElmDataType);
 				}
 			}
-			pEvtElm = (sEvtElm*)pEvtElm->pPrevElm;
+		}
+		pEvtElm = (sEvtElm*) pEvtElm->pPrevElm;
 	}
 }
 

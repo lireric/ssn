@@ -126,6 +126,7 @@ uint8_t getPriority(uint8_t nOper)
     case eOpGE:
     case eOpAND:
     case eOpOR:
+    case eOpBitNOT:
     case eOpNOT:
          return 2;
 
@@ -147,6 +148,7 @@ typedef enum
 	eCurStateParseError,		/* fatal parsing error */
 	eCurStateArgumentError,
 	eCurState_Resume,			/* operands after '=' (can be only 'a' - actions) */
+	eCurState_ElmPush,			/* Push element into stack */
 	eCurState_Oper_begin,		/* begin process operand <, <=, == etc */
 	eCurState_A_begin,			/* begin process 'a' operand */
 	eCurState_A_Arg1_Process,	/* process argument 1 of 'a' operand */
@@ -176,23 +178,495 @@ typedef enum
 	eCurState_A3D_Arg2_Process	/* process argument 2 device in action operand */
 } eElmParseStatuses;
 
-sEvtElm* parseActionString(char* pAStr)
+
+/* Search right end of calculation formula string
+ * criteria: 1) end of string; 2) char ',' after ')'
+ * return number, pointing to ')' not included into calculation string
+ *
+ */
+uint16_t lookForCalcStrLimit(char* pAStr, uint16_t kStart)
 {
-//	int32_t res = pdFALSE;
+	uint16_t 	nStrLen = strlen(pAStr);
+	char 		c;
+	char 		c1 = 0;
+	uint16_t	k;
+	uint16_t	kLimit = nStrLen;
+
+	for (k = kStart; k < nStrLen; k++) {
+		c = pAStr[k];
+		if (c == ' ') continue;
+		if ((c1 == ')') && (c == ',')) {
+			break;
+		}
+/*		if ((c1 == ')') && (c == ')')) {
+			kLimit = k;
+			break;
+		}
+*/
+		if (c == ')') {
+			kLimit = k;
+		}
+
+		c1 = c;
+	}
+
+	return kLimit;
+}
+
+/* Parse string, containing only formula until break sign (e.g. "=" or ",")
+ *
+ */
+int32_t parseCalcString(char* pAStr, uint16_t kStart, uint16_t kLimit, sEvtElm** ppEvtElmHead, uint16_t* kEnd)
+{
+	int32_t 	res = pdTRUE;
 	int32_t 	nCurrentState = eCurStateInit;
 	sEvtElm 	xEvtElm;
-	sActElm 	xActElm;
-	sActElm* 	pActElm;
 	sEvtElm* 	pEvtElmHead = 0;
+//	pEvtElmHead = NULL;
 	char 		c;
 	char 		c1 = 0;
 	char 		strBuf[devMAX_MSG_LEN];
 	uint16_t	k;
-	uint16_t 	nStrBuf = 0;
-	uint16_t 	nStrLen = 0;
+//	uint16_t 	nStrBuf = 0;
 	uint32_t 	d = 0;
 	uint32_t 	arg1 = 0;
 	uint32_t 	arg2 = 0;
+	uint16_t 	nStrLen = strlen(pAStr);
+
+	if (kLimit > nStrLen)
+		kLimit = nStrLen-1;
+
+	for (k = kStart; k <= kLimit; k++) {
+		c = pAStr[k];
+		if (c == ' ') continue;
+
+		beginSwitch: switch (nCurrentState) {
+		case eCurStateInit: {
+			if (c >= '0' && c <= '9') {
+				strBuf[0] = c;
+				d = 1;
+				nCurrentState = eCurState_Const_Process;
+				break;
+			}
+			switch (c) {
+			case '\'':
+				arg1 = 0;
+				d = 0;
+				nCurrentState = eCurState_Const_Str_Process_h;
+				break;
+			case 't':
+				nCurrentState = eCurState_T_begin;
+				break;
+			case 'd':
+				nCurrentState = eCurState_D_begin;
+				break;
+			case 'i':
+				nCurrentState = eCurState_I_begin;
+				break;
+			case '<':
+			case '>':
+			case '=':
+			case '&':
+			case '|':
+			case '!':
+				c1 = c;
+				xEvtElm.nElmType = eElmOperation;
+				nCurrentState = eCurState_Oper_begin;
+				break;
+			case '(':
+				xEvtElm.nElmType = eElmOperation;
+				xEvtElm.nElmData1 = eOpSO;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				break;
+			case ')':
+				xEvtElm.nElmType = eElmOperation;
+				xEvtElm.nElmData1 = eOpSC;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				break;
+			case '+':
+				xEvtElm.nElmType = eElmOperation;
+				xEvtElm.nElmData1 = eOpPlus;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				break;
+			case '-':
+				xEvtElm.nElmType = eElmOperation;
+				xEvtElm.nElmData1 = eOpMinus;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				break;
+			case '*':
+				xEvtElm.nElmType = eElmOperation;
+				xEvtElm.nElmData1 = eOpMul;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				break;
+			case '/':
+				xEvtElm.nElmType = eElmOperation;
+				xEvtElm.nElmData1 = eOpDiv;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				break;
+			case '~':
+				xEvtElm.nElmType = eElmOperation;
+				xEvtElm.nElmData1 = eOpBitNOT;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				break;
+			case ',': // actual for right part of action expression
+				xEvtElm.nElmData1 = eOpResume;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				nCurrentState = eCurState_Resume;
+				k--;
+//				break;
+				goto beginSwitch;
+
+			}
+			break;
+		} // --eCurStateInit
+		case eCurState_T_begin: {
+			nCurrentState = eCurStateInit;
+			switch (c) {
+			case 't':
+				xEvtElm.nElmType = eElmTimeValue;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				break;
+			case 'y':
+				xEvtElm.nElmType = eElmDateYear;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				break;
+			case 'm':
+				xEvtElm.nElmType = eElmDateMonth;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				break;
+			case 'd':
+				xEvtElm.nElmType = eElmDateDay;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				break;
+			case 'w':
+				xEvtElm.nElmType = eElmDateDayWeek;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				break;
+			default: {
+				nCurrentState = eCurStateParseError;
+				break;
+			}
+			}
+			break;
+		} // --eCurState_T_begin
+		case eCurState_Oper_begin: {
+			if (c == '=') {
+				switch (c1) {
+				case '<':
+					xEvtElm.nElmData1 = eOpLE;
+					pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+					break;
+				case '>':
+					xEvtElm.nElmData1 = eOpGE;
+					pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+					break;
+				case '=':
+					xEvtElm.nElmData1 = eOpEq;
+					pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+					break;
+				case '!':
+					xEvtElm.nElmData1 = eOpNOT;
+					pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+					break;
+				}
+				nCurrentState = eCurStateInit;
+				break;
+			} else if (c == '&') {
+				if (c1 == '&') {
+					xEvtElm.nElmData1 = eOpAND;
+					pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+					nCurrentState = eCurStateInit;
+					break;
+				} else {
+					nCurrentState = eCurStateParseError;
+					break;
+				}
+			} else if (c1 == '=') {
+				if (c == '<') {
+					xEvtElm.nElmData1 = eOpLE;
+					pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+					nCurrentState = eCurStateInit;
+					break;
+				} else if (c == '>') {
+					xEvtElm.nElmData1 = eOpGE;
+					pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+					nCurrentState = eCurStateInit;
+					break;
+				}{
+					goto resumecase;
+//					nCurrentState = eCurStateParseError;
+					break;
+				}
+			} else if (c == '|') {
+				if (c1 == '|') {
+					xEvtElm.nElmData1 = eOpOR;
+					pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+					nCurrentState = eCurStateInit;
+					break;
+				} else {
+					nCurrentState = eCurStateParseError;
+					break;
+				}
+			}
+			switch (c1) {
+			case '<':
+				xEvtElm.nElmData1 = eOpL;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				break;
+			case '>':
+				xEvtElm.nElmData1 = eOpG;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				break;
+			case '=':
+				resumecase:
+				xEvtElm.nElmData1 = eOpResume;
+				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				nCurrentState = eCurState_Resume;
+				goto beginSwitch;
+			}
+			// now let's continue process this char as eCurStateInit state once more
+			nCurrentState = eCurStateInit;
+			goto beginSwitch;
+		} // --eCurState_Oper_begin
+		case eCurState_Const_Process: {
+			if (c >= '0' && c <= '9') {
+				strBuf[d++] = c;
+			} else {
+				if (d > 12) {
+					nCurrentState = eCurStateArgumentError;
+					break;
+				}
+				strBuf[d] = 0;
+				arg1 = (uint32_t ) conv2d(strBuf);
+
+				nCurrentState = eCurState_ElmPush;
+				xEvtElm.nElmData1 = arg1;
+				xEvtElm.nElmData2 = 0;
+				xEvtElm.nElmType = eElmConst;
+				goto beginSwitch;
+			}
+			break;
+		} // --eCurState_Const_Process
+
+		case eCurState_ElmPush: {
+			nCurrentState = eCurStateInit;
+			pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+			// now let's continue process this char as eCurStateInit state once more
+			if (k < kLimit) {
+				goto beginSwitch;
+			} else {
+				k--; // return pointer to ')'
+				goto endCalcParseAction;
+			}
+		} // --eCurState_ElmPush
+
+		case eCurState_Const_Str_Process_h: {
+			if (c >= '0' && c <= '9') {
+				strBuf[d++] = c;
+			} else if (c == ':') {
+				if (d > 3) {
+					nCurrentState = eCurStateArgumentError;
+					break;
+				}
+				strBuf[d] = 0;
+				arg1 = (uint8_t ) conv2d(strBuf);
+				arg2 = arg1 * 3600; // arg2 accumulate temporary result
+				d = 0;
+				nCurrentState = eCurState_Const_Str_Process_m;
+			} else {
+				nCurrentState = eCurStateArgumentError;
+			}
+			break;
+		} // --eCurState_Const_Str_Process_h
+		case eCurState_Const_Str_Process_m: {
+			if (c >= '0' && c <= '9') {
+				strBuf[d++] = c;
+			} else if (c == ':') {
+				if (d > 3) {
+					nCurrentState = eCurStateArgumentError;
+					break;
+				}
+				strBuf[d] = 0;
+				arg1 = (uint8_t ) conv2d(strBuf);
+				arg2 += arg1 * 60; // arg2 accumulate temporary result
+				d = 0;
+				nCurrentState = eCurState_Const_Str_Process_s;
+			} else {
+				nCurrentState = eCurStateArgumentError;
+			}
+			break;
+		} // --eCurState_Const_Str_Process_m
+		case eCurState_Const_Str_Process_s: {
+			if (c >= '0' && c <= '9') {
+				strBuf[d++] = c;
+			} else if (c == '\'') {
+				if (d > 3) {
+					nCurrentState = eCurStateArgumentError;
+					break;
+				}
+				strBuf[d] = 0;
+				arg1 = (uint8_t ) conv2d(strBuf);
+				arg2 += arg1; // arg2 accumulate temporary result
+				arg1 = arg2;
+				nCurrentState = eCurState_Const_Str_Process_Finish;
+			} else {
+				nCurrentState = eCurStateArgumentError;
+			}
+			break;
+		} // --eCurState_Const_Str_Process_s
+		case eCurState_Const_Str_Process_Finish: {
+			xEvtElm.nElmData1 = arg1;
+			xEvtElm.nElmData2 = 0;
+			xEvtElm.nElmType = eElmConst;
+//			pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+			nCurrentState = eCurState_ElmPush;
+			goto beginSwitch;
+//			break;
+		} // --eCurState_Const_Str_Process_Finish
+
+		case eCurState_D_begin: {
+			if (c == '(') {
+				d = 0;
+				nCurrentState = eCurState_D_Arg1_Process;
+			} else
+				nCurrentState = eCurStateParseError;
+			break;
+		} // --eCurState_D_begin
+		case eCurState_D_Arg1_Process: {
+			if (c >= '0' && c <= '9') {
+				strBuf[d++] = c;
+			} else if (c == ',') {
+				if (d > 12) {
+					nCurrentState = eCurStateArgumentError;
+					break;
+				}
+				strBuf[d] = 0;
+				arg1 = (uint32_t ) conv2d(strBuf);
+				d = 0;
+				nCurrentState = eCurState_D_Arg2_Process;
+			} else {
+				nCurrentState = eCurStateParseError;
+			}
+			break;
+		} // --eCurState_D_Arg1_Process
+		case eCurState_D_Arg2_Process: {
+			if (c >= '0' && c <= '9') {
+				strBuf[d++] = c;
+			} else if (c == ')') {
+				if (d > 6) {
+					nCurrentState = eCurStateArgumentError;
+					break;
+				}
+				strBuf[d] = 0;
+				arg2 = (uint32_t ) conv2d(strBuf);
+
+				nCurrentState = eCurState_ElmPush;
+				xEvtElm.nElmData1 = arg1;
+				xEvtElm.nElmData2 = (uint16_t) arg2;
+				xEvtElm.nElmType = eElmDevValue;
+//				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				break;
+//				goto beginSwitch;
+			} else {
+				nCurrentState = eCurStateParseError;
+			}
+			break;
+		} // --eCurState_D_Arg2_Process
+
+		case eCurState_I_begin: {
+			if (c == '(') {
+				d = 0;
+				nCurrentState = eCurState_I_Arg1_Process;
+			} else
+				nCurrentState = eCurStateParseError;
+			break;
+		} // --eCurState_I_begin
+		case eCurState_I_Arg1_Process: {
+			if (c >= '0' && c <= '9') {
+				strBuf[d++] = c;
+			} else if (c == ',') {
+				if (d > 12) {
+					nCurrentState = eCurStateArgumentError;
+					break;
+				}
+				strBuf[d] = 0;
+				arg1 = (uint32_t ) conv2d(strBuf);
+				d = 0;
+				nCurrentState = eCurState_I_Arg2_Process;
+			} else {
+				nCurrentState = eCurStateParseError;
+			}
+			break;
+		} // --eCurState_I_Arg1_Process
+		case eCurState_I_Arg2_Process: {
+			if (c >= '0' && c <= '9') {
+				strBuf[d++] = c;
+			} else if (c == ')') {
+				if (d > 12) {
+					nCurrentState = eCurStateArgumentError;
+					break;
+				}
+				strBuf[d] = 0;
+				arg2 = (uint32_t ) conv2d(strBuf);
+
+				nCurrentState = eCurState_ElmPush;
+				xEvtElm.nElmData1 = arg1;
+				xEvtElm.nElmData2 = (uint16_t) arg2;
+				xEvtElm.nElmType = eElmInterval;
+//				pEvtElmHead = elmPush(pEvtElmHead, &xEvtElm);
+				goto beginSwitch;
+			} else {
+				nCurrentState = eCurStateParseError;
+			}
+			break;
+		} // --eCurState_I_Arg2_Process
+		case eCurState_Resume:
+		{
+			goto endCalcParseAction;
+			break;
+		}
+		} // --switch
+    	if ((nCurrentState == eCurStateParseError) || (nCurrentState == eCurStateArgumentError)) {
+    		// free resources and return with error
+    		while (pEvtElmHead) {
+    			if (pEvtElmHead->nElmType == eElmAction) {
+    				vPortFree((void*)pEvtElmHead->nElmData1);
+    			} // to do - may be erase this check?
+    			pEvtElmHead = elmPop(pEvtElmHead);
+    		}
+    		res = pdFALSE;
+    		goto endCalcParseAction;
+    	}
+	} // --for
+
+	endCalcParseAction:
+	*kEnd = k;
+	*ppEvtElmHead = pEvtElmHead;
+	return res;
+}
+
+/* Parse full action string
+ *
+ */
+sEvtElm* parseActionString(char* pAStr)
+{
+	int32_t 	res = pdFALSE;
+	int32_t 	nCurrentState = eCurState_Resume;
+	sEvtElm 	xEvtElm;
+	sActElm 	xActElm;
+	sActElm* 	pActElm;
+	sEvtElm* 	pEvtElmHead = NULL;
+	char 		c;
+//	char 		c1 = 0;
+	char 		strBuf[devMAX_MSG_LEN];
+	uint16_t	k;
+	uint16_t	k2;
+	uint16_t	nStrLimit;
+	uint16_t 	nStrBuf = 0;
+	uint16_t 	nStrLen = 0;
+	uint32_t 	d = 0;
+//	uint32_t 	arg1 = 0;
+//	uint32_t 	arg2 = 0;
 
 	xActElm.nDevId = 0;
 	xActElm.nActCmdOut = 0;
@@ -210,12 +684,17 @@ sEvtElm* parseActionString(char* pAStr)
 	/* scan full input string
 	 * after executing sEvtElm stack will be build for next processing
 	 * */
-	    for(k = 0; k < nStrLen; k++)
-	    {
+	// process left part action string (until "="):
+   	res = parseCalcString(pAStr, 0, nStrLen, &pEvtElmHead, &k2);
+   	if (!res)
+   		nCurrentState = eCurStateParseError;
+    for(k = k2; k < nStrLen; k++)
+    {
+// 	beginSwitch0:
 	    	c = pAStr[k];
-	    	if (c == ' ') continue;
-
-beginSwitch:
+	    	if (c == ' ')
+	    		continue;
+	beginSwitch:
 	    	switch(nCurrentState)
 	    	{
 				case eCurState_Resume:
@@ -235,60 +714,6 @@ beginSwitch:
 					// to do: process error
 					break;
 				}
-
-
-
-	    	    case eCurState_A3D_Arg1_Process:
-	    	    {
-	    	    	if (c >= '0' && c <= '9') {
-	    	    		strBuf[d++] = c;
-	    	    	} else
-	    	    		if (c == ',')
-	    	    		{
-	    	    			if (d > 12) {
-	    	    				nCurrentState = eCurStateArgumentError;
-	    	    				break;
-	    	    			}
-	    	    			strBuf[d] = 0;
-	    	    			arg1 = (uint32_t )conv2d(strBuf);
-	    	    			xActElm.nElmDataIn = arg1; // in nElmDataIn store get device_ID
-		    	    		d = 0;
-	    	    			nCurrentState = eCurState_A3D_Arg2_Process;
-	    	    		}
-	    	    		else {
-	    	    			nCurrentState = eCurStateParseError;
-	    	    		}
-	    	    	break;
-	    	    }
-	    	    case eCurState_A3D_Arg2_Process:
-	    	    {
-	    	    	if (c >= '0' && c <= '9') {
-	    	    		strBuf[d++] = c;
-	    	    	} else
-	    	    		if (c == ')')
-	    	    		{
-	    	    			if (d > 6) {
-	    	    				nCurrentState = eCurStateArgumentError;
-	    	    				break;
-	    	    			}
-	    	    			strBuf[d] = 0;
-	    	    			arg2 = (uint32_t )conv2d(strBuf);
-
-	    	    			strBuf[d] = 0;
-	    	    			xActElm.ngetDevCmdIn = arg2; // store get dev value command
-	    	    			xActElm.nElmDataType = eElmGetDevValue;
-		    	    		d = 0;
-		    	    		xActElm.nActCmdOut = 0;
-	    	    			nCurrentState = eCurState_A_Arg4x_Process; // continue processing
-	    	    			xActElm.nActFlag ^= devEXEC_ACTION_FLAG_OUT_ARG;
-	    	    		}
-	    	    		else {
-	    	    			nCurrentState = eCurStateParseError;
-	    	    		}
-	    	    	break;
-	    	    }
-
-
 	    	    case eCurState_A_begin:
 	    	    {
 	    	    	if (c == '(')
@@ -302,7 +727,10 @@ beginSwitch:
 	    	    	else
 	    	    		nCurrentState = eCurStateParseError;
 	    	    	break;
-	    	    }
+	    	    } // --eCurState_A_begin
+
+
+
 	    	    case eCurState_A_Arg1_Process:
 	    	    {
 	    	    	if (c >= '0' && c <= '9') {
@@ -347,68 +775,69 @@ beginSwitch:
 	    	    }
 	    	    case eCurState_A_Arg3_Process:
 	    	    {
-	    	    	if (c >= '0' && c <= '9') {
-	    	    		strBuf[d++] = c;
-	    	    	} else
-	    	    		if (c == ',')
-	    	    		{
-	    	    			if (d > 12) {
-	    	    				nCurrentState = eCurStateArgumentError;
-	    	    				break;
-	    	    			}
-	    	    			strBuf[d] = 0;
-	    	    			xActElm.nElmDataIn = (uint32_t)conv2d(strBuf);
-	    	    			xActElm.nElmDataType = eElmInteger;
-		    	    		d = 0;
-		    	    		xActElm.nActCmdOut = 0;
-		    	    		xActElm.nActFlag |= devEXEC_ACTION_FLAG_OUT_ARG;
-	    	    			nCurrentState = eCurState_A_Arg4_Process;
-	    	    		} else
-	   	    			if (c == '\'')
-	   	    			{
-	   	    				nStrBuf = 0;
-		    	    		xActElm.nActCmdOut = 0;
-	    	    			nCurrentState = eCurState_A_Arg3S_Process;
-	   	    			} else
-		   	    			if (c == 'd')
-		   	    			{
-		   	    				// process get device value in action:
-		   	    				nStrBuf = 0;
-			    	    		xActElm.nActCmdOut = 0;
-		    	    			nCurrentState = eCurState_A_Arg3D_Process;
-		   	    		} else
-	    	    		if (c == ')') {
+
+   	    			if (c == '\'')
+   	    			{ // process string constant
+   	    				nStrBuf = 0;
+	    	    		xActElm.nActCmdOut = 0;
+    	    			nCurrentState = eCurState_A_Arg3S_Process;
+    	    			break;
+   	    			} else
+	    	    	if (c == ')') {
 	    	    			// action has only 3 arguments - push it to elm stack
-	    	    			if (d > 12) {
-	    	    				nCurrentState = eCurStateArgumentError;
-	    	    				break;
-	    	    			}
-	    	    			strBuf[d] = 0;
-	    	    			xActElm.nElmDataIn = (uint32_t)conv2d(strBuf);
-	    	    			xActElm.nElmDataType = eElmInteger;
-		    	    		d = 0;
+//	    	    			if (d > 12) {
+//	    	    				nCurrentState = eCurStateArgumentError;
+//	    	    				break;
+//	    	    			}
+//	    	    			strBuf[d] = 0;
+//	    	    			xActElm.nElmDataIn = (uint32_t)conv2d(strBuf);
+//	    	    			xActElm.nElmDataType = eElmInteger;
 	    	    			nCurrentState = eCurState_A_Push;
 	    	    			goto beginSwitch;
-	    	    		}
-	    	    		else {
-	    	    			nCurrentState = eCurStateParseError;
-	    	    			goto beginSwitch;
-	    	    		}
-	    	    	break;
-	    	    }
-	    	    case eCurState_A_Arg3D_Process:
-	    	    {
-  	    	    	// process get device value in action:
-	    	    	if (c == '(')
+	    	    	} else
+	    	    		if (c == ',')
 	    	    	{
-	    	    		d = 0;
-	    	    		nCurrentState = eCurState_A3D_Arg1_Process;
+	    	    			d = 0;
+	    	    			xActElm.nActCmdOut = 0;
+	    	    			xActElm.nActFlag |= devEXEC_ACTION_FLAG_OUT_ARG;
+	    	    			nCurrentState = eCurState_A_Arg4_Process;
+	    	    			break;
 	    	    	}
-	    	    	else
-	    	    		nCurrentState = eCurStateParseError;
-	    	    	break;
-	    	    }
 
+//	    	    		else {
+//	    	    			nCurrentState = eCurStateParseError;
+//	    	    			goto beginSwitch;
+//	    	    		}
+
+   	    			nStrLimit = lookForCalcStrLimit(pAStr, k);
+   	    			res = parseCalcString(pAStr, k, nStrLimit, &xActElm.nElmDataIn, &k2);
+	    	       	if (!res)
+	    	       	{
+	    	       		nCurrentState = eCurStateParseError;
+	    	       	} else
+	    	       	{
+	    	       		xActElm.nElmDataType = eElmInteger;
+//	    	       		if ((k == k2) && (k < nStrLimit))
+//	    	       			k2++; // TO DO: ???
+	    	    		d = 0;
+	    	    		k = k2;
+	    	       	}
+	    	       	break;
+//	    			goto beginSwitch0;
+	    	    }
+//	    	    case eCurState_A_Arg3D_Process:
+//	    	    {
+//  	    	    	// process get device value in action:
+//	    	    	if (c == '(')
+//	    	    	{
+//	    	    		d = 0;
+//	    	    		nCurrentState = eCurState_A3D_Arg1_Process;
+//	    	    	}
+//	    	    	else
+//	    	    		nCurrentState = eCurStateParseError;
+//	    	    	break;
+//	    	    }
+//
 
 	    	    case eCurState_A_Arg3S_Process:
 	    	    {
@@ -421,7 +850,7 @@ beginSwitch:
 	    	    		}
 	    	    	} else {
 	    	    		strBuf[nStrBuf++] = 0;
-	    	    		xActElm.nElmDataIn = (uint32_t)pvPortMalloc(strlen(strBuf));
+	    	    		xActElm.nElmDataIn = (sEvtElm*)pvPortMalloc(strlen(strBuf)); // TO DO: make special string attr.
 	    	    		if (!xActElm.nElmDataIn) {
     	    				nCurrentState = eCurStateParseError;
 	    	    		} else {
@@ -433,6 +862,56 @@ beginSwitch:
 	    	    	}
 	    	    	break;
 	    	    }
+//	    	    case eCurState_A3D_Arg1_Process:
+//	    	    {
+//	    	    	if (c >= '0' && c <= '9') {
+//	    	    		strBuf[d++] = c;
+//	    	    	} else
+//	    	    		if (c == ',')
+//	    	    		{
+//	    	    			if (d > 12) {
+//	    	    				nCurrentState = eCurStateArgumentError;
+//	    	    				break;
+//	    	    			}
+//	    	    			strBuf[d] = 0;
+//	    	    			arg1 = (uint32_t )conv2d(strBuf);
+//	    	    			xActElm.nElmDataIn = arg1; // in nElmDataIn store get device_ID
+//		    	    		d = 0;
+//	    	    			nCurrentState = eCurState_A3D_Arg2_Process;
+//	    	    		}
+//	    	    		else {
+//	    	    			nCurrentState = eCurStateParseError;
+//	    	    		}
+//	    	    	break;
+//	    	    }
+//	    	    case eCurState_A3D_Arg2_Process:
+//	    	    {
+//	    	    	if (c >= '0' && c <= '9') {
+//	    	    		strBuf[d++] = c;
+//	    	    	} else
+//	    	    		if (c == ')')
+//	    	    		{
+//	    	    			if (d > 6) {
+//	    	    				nCurrentState = eCurStateArgumentError;
+//	    	    				break;
+//	    	    			}
+//	    	    			strBuf[d] = 0;
+//	    	    			arg2 = (uint32_t )conv2d(strBuf);
+//
+//	    	    			strBuf[d] = 0;
+//	    	    			xActElm.ngetDevCmdIn = arg2; // store get dev value command
+//	    	    			xActElm.nElmDataType = eElmGetDevValue;
+//		    	    		d = 0;
+//		    	    		xActElm.nActCmdOut = 0;
+//	    	    			nCurrentState = eCurState_A_Arg4x_Process; // continue processing
+//	    	    			xActElm.nActFlag ^= devEXEC_ACTION_FLAG_OUT_ARG;
+//	    	    		}
+//	    	    		else {
+//	    	    			nCurrentState = eCurStateParseError;
+//	    	    		}
+//	    	    	break;
+//	    	    }
+
 	    	    case eCurState_A_Arg4x_Process:
 	    	    {
 	    	    	if (c == ',') {
@@ -471,29 +950,74 @@ beginSwitch:
 	    	    }
 	    	    case eCurState_A_Arg5_Process:
 	    	    {
-	    	    	if (c >= '0' && c <= '9') {
-	    	    		strBuf[d++] = c;
-	    	    	} else
-	    	    		if (c == ')')
-	    	    		{
-	    	    			if (d > 12) {
-	    	    				nCurrentState = eCurStateArgumentError;
-	    	    				break;
-	    	    			}
-	    	    			strBuf[d] = 0;
-	    	    			xActElm.nElmDataOut = (uint32_t )conv2d(strBuf);
-	    	    			xActElm.nElmDataType = eElmInteger;
+
+
+
+
+   	    			if (c == '\'')
+   	    			{ // process string constant
+   	    				nStrBuf = 0;
+	    	    		xActElm.nActCmdOut = 0;
+    	    			nCurrentState = eCurState_A_Arg5S_Process;
+    	    			break;
+   	    			} else
+	    	    	if (c == ')') {
 	    	    			nCurrentState = eCurState_A_Push;
 	    	    			goto beginSwitch;
-	    	    		} else
-	    	    			if (c == '\'')
-	    	    			{
-	    	    				nStrBuf = 0;
-		    	    			nCurrentState = eCurState_A_Arg5S_Process;
-	    	    			} else {
-	    	    				nCurrentState = eCurStateParseError;
-	    	    			}
+	    	    	}
+
+   	    			nStrLimit = lookForCalcStrLimit(pAStr, k);
+   	    			res = parseCalcString(pAStr, k, nStrLimit, &xActElm.nElmDataOut, &k2);
+	    	       	if (!res)
+	    	       	{
+	    	       		nCurrentState = eCurStateParseError;
+	    	       	} else
+	    	       	{
+	    	       		xActElm.nElmDataType = eElmInteger;
+	    	    		d = 0;
+	    	    		k = k2;
+	    	       	}
+	    	       	break;
+
+
+
+
+
+	    	    	/*
+    	    		if (c == ')')
+    	    		{
+//    	    			strBuf[d] = 0;
+//    	    			xActElm.nElmDataOut = (uint32_t )conv2d(strBuf);
+//    	    			xActElm.nElmDataType = eElmInteger;
+    	    			nCurrentState = eCurState_A_Push;
+    	    			goto beginSwitch;
+    	    		} else
+    	    		if (c == '\'')
+    	    			{
+    	    				nStrBuf = 0;
+	    	    			nCurrentState = eCurState_A_Arg5S_Process;
+    	    		} else {
+       	    			nStrLimit = lookForCalcStrLimit(pAStr, k);
+       	    			res = parseCalcString(pAStr, k, nStrLimit, &xActElm.nElmDataOut, &k2);
+    	    	       	if (!res)
+    	    	       	{
+    	    	       		nCurrentState = eCurStateParseError;
+    	    	       	} else
+    	    	       	{
+    //	    	       		xActElm.nElmDataType = eElmInteger;
+    	    	    		d = 0;
+    	    	    		k = k2;
+    	    	       	}
+    	    		}
+//    	    			else {
+//    	    				nCurrentState = eCurStateParseError;
+//    	    			}
+
+//	    	    	if (c >= '0' && c <= '9') {
+//	    	    		strBuf[d++] = c;
+//	    	    	} else
 	    	    	break;
+	    	    	*/
 	    	    }
 	    	    case eCurState_A_Arg5S_Process:
 	    	    {
@@ -506,7 +1030,7 @@ beginSwitch:
 	    	    		}
 	    	    	} else {
 	    	    		strBuf[nStrBuf++] = 0;
-	    	    		xActElm.nElmDataOut = (uint32_t)pvPortMalloc(strlen(strBuf));
+	    	    		xActElm.nElmDataOut = (sEvtElm*)pvPortMalloc(strlen(strBuf)); // TO DO: string ...
 	    	    		if (!xActElm.nElmDataOut) {
     	    				nCurrentState = eCurStateParseError;
 	    	    		} else {
@@ -539,7 +1063,7 @@ beginSwitch:
 	    	    		pActElm->nElmDataOut  = xActElm.nElmDataOut;
 	    	    		pActElm->nElmDataType = xActElm.nElmDataType;
 	    	    		pActElm->nActFlag	= xActElm.nActFlag;
-	    	    		pActElm->ngetDevCmdIn = xActElm.ngetDevCmdIn;
+//	    	    		pActElm->ngetDevCmdIn = xActElm.ngetDevCmdIn;
 
 	    	    		xEvtElm.nElmData1 = (uint32_t)pActElm;
 	    	    		xEvtElm.nElmType = eElmAction;
@@ -551,384 +1075,7 @@ beginSwitch:
 	    			break;
 	    	    }
 
-    			case eCurState_T_begin:
-    			{
-    				  nCurrentState = eCurStateInit;
-	    		   	  switch(c)
-	    		   	  {
-	    		   	    case 't':
-	    	    			xEvtElm.nElmType = eElmTimeValue;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    		   	    	break;
-	    		   	    case 'y':
-	    	    			xEvtElm.nElmType = eElmDateYear;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    		   	    	break;
-	    		   	    case 'm':
-	    	    			xEvtElm.nElmType = eElmDateMonth;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    		   	    	break;
-	    		   	    case 'd':
-	    	    			xEvtElm.nElmType = eElmDateDay;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    		   	    	break;
-	    		   	    case 'w':
-	    	    			xEvtElm.nElmType = eElmDateDayWeek;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    		   	    	break;
-	    		   	    default:
-	    		   	    {
-	    					nCurrentState = eCurStateParseError;
-    		   	    		break;
-	    		   	    }
-	    		   	  }
-	    			break;
-    			}
-	    		case eCurState_Oper_begin:
-	    		{
-	    			if (c == '=') {
-		    		   	  switch(c1)
-		    		   	  {
-		    		   	    case '<':
-		    	    			xEvtElm.nElmData1 = eOpLE;
-		    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-		    		   	    	break;
-		    		   	    case '>':
-		    	    			xEvtElm.nElmData1 = eOpGE;
-		    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-		    		   	    	break;
-		    		   	    case '=':
-		    	    			xEvtElm.nElmData1 = eOpEq;
-		    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-		    		   	    	break;
-		    		   	  }
-	    				nCurrentState = eCurStateInit;
-		    			break;
-	    			} else
-	    			if (c == '&') {
-	    				if (c1 == '&')
-	    				{
-	    					xEvtElm.nElmData1 = eOpAND;
-    	    				pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    					nCurrentState = eCurStateInit;
-    		   	    		break;
-	    				} else {
-	    					nCurrentState = eCurStateParseError;
-    		   	    		break;
-	    				}
-	    			} else
-	    			if (c == '|') {
-	    				if (c1 == '|')
-	    				{
-	    					xEvtElm.nElmData1 = eOpOR;
-	    					pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    					nCurrentState = eCurStateInit;
-	    					break;
-	    				} else {
-	    					nCurrentState = eCurStateParseError;
-    		   	    		break;
-	    				}
-	    			}
-
-	    		   	switch(c1)
-	    		   	{
-	    		   	    case '<':
-	    	    			xEvtElm.nElmData1 = eOpL;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    		   	    	break;
-	    		   	    case '>':
-	    	    			xEvtElm.nElmData1 = eOpG;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    		   	    	break;
-	    		   	    case '=':
-	    	    			xEvtElm.nElmData1 = eOpResume;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	        				nCurrentState = eCurState_Resume;
-	        				goto beginSwitch;
-	    		   	}
-    				// now let's continue process this char as eCurStateInit state once more
-    				nCurrentState = eCurStateInit;
-    				goto beginSwitch;
-	    		}
-	    	    case eCurState_Const_Process:
-	    	    {
-	    	    	if (c >= '0' && c <= '9') {
-	    	    		strBuf[d++] = c;
-	    	    	} else {
-    	    			if (d > 12) {
-    	    				nCurrentState = eCurStateArgumentError;
-    	    				break;
-    	    			}
-    	    			strBuf[d] = 0;
-    	    			arg1 = (uint32_t )conv2d(strBuf);
-
-    	    			nCurrentState = eCurStateInit;
-    	    			xEvtElm.nElmData1 = arg1;
-    	    			xEvtElm.nElmData2 = 0;
-    	    			xEvtElm.nElmType = eElmConst;
-    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-        				// now let's continue process this char as eCurStateInit state once more
-        				goto beginSwitch;
-	    	    	}
-	    	    	break;
-	    	    }
-	    	    case eCurState_Const_Str_Process_h:
-	    	    {
-	    	    	if (c >= '0' && c <= '9') {
-	    	    		strBuf[d++] = c;
-	    	    	} else
-	    	    		if (c == ':') {
-	    	    			if (d > 3) {
-	    	    				nCurrentState = eCurStateArgumentError;
-	    	    				break;
-	    	    			}
-	    	    			strBuf[d] = 0;
-	    	    			arg1 = (uint8_t )conv2d(strBuf);
-	    	    			arg2 = arg1 * 3600; // arg2 accumulate temporary result
-		    				d = 0;
-	    	    			nCurrentState = eCurState_Const_Str_Process_m;
-	    	    	} else {
-    					nCurrentState = eCurStateArgumentError;
-	    	    	}
-	    	    	break;
-	    	    }
-	    	    case eCurState_Const_Str_Process_m:
-	    	    {
-	    	    	if (c >= '0' && c <= '9') {
-	    	    		strBuf[d++] = c;
-	    	    	} else
-	    	    		if (c == ':') {
-	    	    			if (d > 3) {
-	    	    				nCurrentState = eCurStateArgumentError;
-	    	    				break;
-	    	    			}
-	    	    			strBuf[d] = 0;
-	    	    			arg1 = (uint8_t )conv2d(strBuf);
-	    	    			arg2 += arg1 * 60; // arg2 accumulate temporary result
-		    				d = 0;
-	    	    			nCurrentState = eCurState_Const_Str_Process_s;
-	    	    	} else {
-    					nCurrentState = eCurStateArgumentError;
-	    	    	}
-	    	    	break;
-	    	    }
-	    	    case eCurState_Const_Str_Process_s:
-	    	    {
-	    	    	if (c >= '0' && c <= '9') {
-	    	    		strBuf[d++] = c;
-	    	    	} else
-	    	    		if (c == '\'') {
-	    	    			if (d > 3) {
-	    	    				nCurrentState = eCurStateArgumentError;
-	    	    				break;
-	    	    			}
-	    	    			strBuf[d] = 0;
-	    	    			arg1 = (uint8_t )conv2d(strBuf);
-	    	    			arg2 += arg1; // arg2 accumulate temporary result
-	    	    			arg1 = arg2;
-	    	    			nCurrentState = eCurState_Const_Str_Process_Finish;
-	    	    	} else {
-    					nCurrentState = eCurStateArgumentError;
-	    	    	}
-	    	    	break;
-	    	    }
-	    	    case eCurState_Const_Str_Process_Finish:
-	    	    {
-	    			xEvtElm.nElmData1 = arg1;
-	    			xEvtElm.nElmData2 = 0;
-	    			xEvtElm.nElmType = eElmConst;
-	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    			nCurrentState = eCurStateInit;
-	    			break;
-	    	    }
-	    	    case eCurStateInit:
-	    	    {
-	    	    	  if (c >= '0' && c <= '9') {
-	    	    		strBuf[0] = c;
-	    				d = 1;
-	    				nCurrentState = eCurState_Const_Process;
-	    				break;
-	    	    	  }
-	    		   	  switch(c)
-	    		   	  {
-	    		   	    case '\'':
-	    		   	    	arg1 = 0;
-		    				d = 0;
-	    		   	    	nCurrentState = eCurState_Const_Str_Process_h;
-	    		   	    	break;
-	    		   	    case 't':
-//	    		   	    	c1 = c;
-	    		   	    	nCurrentState = eCurState_T_begin;
-	    		   	    	break;
-	    		   	    case 'd':
-	    		   	    	nCurrentState = eCurState_D_begin;
-	    		   	    	break;
-	    		   	    case 'i':
-	    		   	    	nCurrentState = eCurState_I_begin;
-	    		   	    	break;
-	    		   	    case '<':
-	    		   	    case '>':
-	    		   	    case '=':
-	    		   	    case '&':
-	    		   	    case '|':
-	    		   	    	c1 = c;
-	    		   	    	xEvtElm.nElmType = eElmOperation;
-	    		   	    	nCurrentState = eCurState_Oper_begin;
-	    		   	    	break;
-	    		   	    case '(':
-	    		   	    	xEvtElm.nElmType = eElmOperation;
-	    	    			xEvtElm.nElmData1 = eOpSO;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    		   	    	break;
-	    		   	    case ')':
-	    		   	    	xEvtElm.nElmType = eElmOperation;
-	    	    			xEvtElm.nElmData1 = eOpSC;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    		   	    	break;
-	    		   	    case '+':
-	    		   	    	xEvtElm.nElmType = eElmOperation;
-	    	    			xEvtElm.nElmData1 = eOpPlus;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    		   	    	break;
-	    		   	    case '-':
-	    		   	    	xEvtElm.nElmType = eElmOperation;
-	    	    			xEvtElm.nElmData1 = eOpMinus;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    		   	    	break;
-	    		   	    case '*':
-	    		   	    	xEvtElm.nElmType = eElmOperation;
-	    	    			xEvtElm.nElmData1 = eOpMul;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    		   	    	break;
-	    		   	    case '/':
-	    		   	    	xEvtElm.nElmType = eElmOperation;
-	    	    			xEvtElm.nElmData1 = eOpDiv;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    		   	    	break;
-	    		   	    case '~':
-	    		   	    	xEvtElm.nElmType = eElmOperation;
-	    	    			xEvtElm.nElmData1 = eOpNOT;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    		   	    	break;
-
-	    		   	  }
-	    		   	  break;
-	    	    }
-	    	    case eCurState_D_begin:
-	    	    {
-	    	    	if (c == '(')
-	    	    	{
-	    	    		d = 0;
-	    	    		nCurrentState = eCurState_D_Arg1_Process;
-	    	    	}
-	    	    	else
-	    	    		nCurrentState = eCurStateParseError;
-	    	    	break;
-	    	    }
-	    	    case eCurState_I_begin:
-	    	    {
-	    	    	if (c == '(')
-	    	    	{
-	    	    		d = 0;
-	    	    		nCurrentState = eCurState_I_Arg1_Process;
-	    	    	}
-	    	    	else
-	    	    		nCurrentState = eCurStateParseError;
-	    	    	break;
-	    	    }
-	    	    case eCurState_I_Arg1_Process:
-	    	    {
-	    	    	if (c >= '0' && c <= '9') {
-	    	    		strBuf[d++] = c;
-	    	    	} else
-	    	    		if (c == ',')
-	    	    		{
-	    	    			if (d > 12) {
-	    	    				nCurrentState = eCurStateArgumentError;
-	    	    				break;
-	    	    			}
-	    	    			strBuf[d] = 0;
-	    	    			arg1 = (uint32_t )conv2d(strBuf);
-		    	    		d = 0;
-	    	    			nCurrentState = eCurState_I_Arg2_Process;
-	    	    		}
-	    	    		else {
-	    	    			nCurrentState = eCurStateParseError;
-	    	    		}
-	    	    	break;
-	    	    }
-	    	    case eCurState_I_Arg2_Process:
-	    	    {
-	    	    	if (c >= '0' && c <= '9') {
-	    	    		strBuf[d++] = c;
-	    	    	} else
-	    	    		if (c == ')')
-	    	    		{
-	    	    			if (d > 12) {
-	    	    				nCurrentState = eCurStateArgumentError;
-	    	    				break;
-	    	    			}
-	    	    			strBuf[d] = 0;
-	    	    			arg2 = (uint32_t )conv2d(strBuf);
-
-	    	    			nCurrentState = eCurStateInit;
-	    	    			xEvtElm.nElmData1 = arg1;
-	    	    			xEvtElm.nElmData2 = (uint16_t)arg2;
-	    	    			xEvtElm.nElmType = eElmInterval;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    	    		}
-	    	    		else {
-	    	    			nCurrentState = eCurStateParseError;
-	    	    		}
-	    	    	break;
-	    	    }
-	    	    case eCurState_D_Arg1_Process:
-	    	    {
-	    	    	if (c >= '0' && c <= '9') {
-	    	    		strBuf[d++] = c;
-	    	    	} else
-	    	    		if (c == ',')
-	    	    		{
-	    	    			if (d > 12) {
-	    	    				nCurrentState = eCurStateArgumentError;
-	    	    				break;
-	    	    			}
-	    	    			strBuf[d] = 0;
-	    	    			arg1 = (uint32_t )conv2d(strBuf);
-		    	    		d = 0;
-	    	    			nCurrentState = eCurState_D_Arg2_Process;
-	    	    		}
-	    	    		else {
-	    	    			nCurrentState = eCurStateParseError;
-	    	    		}
-	    	    	break;
-	    	    }
-	    	    case eCurState_D_Arg2_Process:
-	    	    {
-	    	    	if (c >= '0' && c <= '9') {
-	    	    		strBuf[d++] = c;
-	    	    	} else
-	    	    		if (c == ')')
-	    	    		{
-	    	    			if (d > 6) {
-	    	    				nCurrentState = eCurStateArgumentError;
-	    	    				break;
-	    	    			}
-	    	    			strBuf[d] = 0;
-	    	    			arg2 = (uint32_t )conv2d(strBuf);
-
-	    	    			nCurrentState = eCurStateInit;
-	    	    			xEvtElm.nElmData1 = arg1;
-	    	    			xEvtElm.nElmData2 = (uint16_t)arg2;
-	    	    			xEvtElm.nElmType = eElmDevValue;
-	    	    			pEvtElmHead = elmPush (pEvtElmHead, &xEvtElm);
-	    	    		}
-	    	    		else {
-	    	    			nCurrentState = eCurStateParseError;
-	    	    		}
-	    	    	break;
-	    	    }
-	    	}
+	    	} // --switch
 
 	    	if ((nCurrentState == eCurStateParseError) || (nCurrentState == eCurStateArgumentError)) {
 	    		// free resources and return with error
@@ -940,33 +1087,28 @@ beginSwitch:
 	    		}
 	    		goto endParseAction;
 	    	}
-	    }
+	    } // --for
 
 endParseAction:
 	return pEvtElmHead;
 }
 
 
+
 /*
- * calculate action event formula and call action device(devices) if needed
- * return pdTRUE if success
+ * Calculate action event stack and return result
  */
-int32_t	calcAndDoAction (sAction* pAct)
+
+int32_t	processActionStack (sEvtElm* pEvtElm, int32_t* nCalcResult)
 {
 	int32_t res = pdTRUE;
-	sEvtElm* pEvtElm;
-	sEvtElm* pActElm;
-	sActElm* pActionInfo;
 	sRPNStack xRPNStack;
-	int32_t nCalcResult;
+//	int32_t nCalcResult;
 	RTC_t rtc;
-//	char* buff;
-	char msg[50];
 
-	if (pAct)
+	if (pEvtElm)
 	{
 		resetRS(&xRPNStack);	// reset stack
-		pEvtElm = pAct->pStartElmEvents;
 		rtc_gettime(&rtc);
 
 		do {
@@ -976,9 +1118,6 @@ int32_t	calcAndDoAction (sAction* pAct)
 			   	  {
 						case eElmOperation:
 						{
-//							xsprintf(msg, "a_oper = %d ", pEvtElm->nElmData1);
-//							sendBaseOut(msg);
-
 			    		   	  switch(pEvtElm->nElmData1)
 			    		   	  {
 			    		   	    case eOpResume:
@@ -1081,9 +1220,33 @@ int32_t	calcAndDoAction (sAction* pAct)
 		} while (pEvtElm);
 
 finishCalc:
-		nCalcResult = popRS(&xRPNStack);
+		*nCalcResult = popRS(&xRPNStack);
+	} else
+		res = pdFALSE;
 
-		// if changed result and timeout over -> do all actions
+	return res;
+}
+
+
+/*
+ * Process formula stack and call action device(devices) if needed
+ * return pdTRUE if success
+ */
+int32_t	calcAndDoAction (sAction* pAct)
+{
+	int32_t res = pdTRUE;
+//	sEvtElm* pEvtElm;
+	sEvtElm* pActElm;
+	sActElm* pActionInfo;
+	int32_t nCalcResult;
+	char msg[50];
+	int32_t nSetDevValue;
+
+	res = processActionStack (pAct->pStartElmEvents, &nCalcResult);
+
+	if (pAct && res)
+	{
+	// if changed result and timeout over -> do all actions
 		if ((pAct->nLastResult != nCalcResult) && ((rtc_get_counter_val()-pAct->nLastChange) >= pAct->nActRepeat))
 		{
 			// store new result and time of change
@@ -1094,19 +1257,24 @@ finishCalc:
 
 				while (pActElm) {
 					pActionInfo = (sActElm*) pActElm->nElmData1;
-					if (pActionInfo) {
+					if (pActionInfo && (pActElm->nElmType == eElmAction)) {
 						if (nCalcResult) {
+							// nCalcResult == TRUE -> event fired, calculate action value string..
 							uint8_t nSetDevCmd = pActionInfo->nActCmdIn;
-							uint32_t nSetDevValue =  pActionInfo->nElmDataIn;
-							uint8_t nSetDataType = pActionInfo->nElmDataType;
-
+//							uint32_t nSetDevValue =  pActionInfo->nElmDataIn;
+//							uint8_t nSetDataType = pActionInfo->nElmDataType;
+							res = processActionStack (pActionInfo->nElmDataIn, &nSetDevValue);
+							if (!res)
+								goto continueActProcessing; // if error, continue next action processing
+							/*
 							// if data type get dev value, than call function for it:
 							if (pActionInfo->nElmDataType == eElmGetDevValue) {
 								nSetDevValue = getDevValueByID(pActionInfo->ngetDevCmdIn, (uint16_t) nSetDevValue);
 								nSetDataType = eElmInteger; // get dev value in action works only for integer data type
 							}
-							setDevValueByID(nSetDevValue, nSetDevCmd, pActionInfo->nDevId, nSetDataType);
-							if (nSetDataType == eElmString) {
+							*/
+							setDevValueByID(nSetDevValue, nSetDevCmd, pActionInfo->nDevId, pActionInfo->nElmDataType);
+							if (pActionInfo->nElmDataType == eElmString) {
 								xsprintf(msg, " act_in[%d] -> set dev[%d,%d] = %s ", pAct->nActId, pActionInfo->nDevId, pActionInfo->nActCmdOut, (char*)pActionInfo->nElmDataIn);
 							} else {
 								xsprintf(msg, " act_in[%d] -> set dev[%d,%d] = %d ", pAct->nActId, pActionInfo->nDevId, nSetDevCmd, nSetDevValue);
@@ -1117,14 +1285,21 @@ finishCalc:
 							}
 
 						} else if (pActionInfo->nActFlag & devEXEC_ACTION_FLAG_OUT_ARG)	{
-							setDevValueByID(pActionInfo->nElmDataOut, pActionInfo->nActCmdOut, pActionInfo->nDevId, pActionInfo->nElmDataType);
+							res = processActionStack (pActionInfo->nElmDataOut, &nSetDevValue);
+							if (!res)
+								goto continueActProcessing; // if error, continue next action processing
+
+							setDevValueByID(nSetDevValue, pActionInfo->nActCmdOut, pActionInfo->nDevId, pActionInfo->nElmDataType);
+//							setDevValueByID(pActionInfo->nElmDataOut, pActionInfo->nActCmdOut, pActionInfo->nDevId, pActionInfo->nElmDataType);
 							if (pActionInfo->nElmDataType == eElmString) {
-								xsprintf(msg, " act_out[%d] -> set dev[%d,%d] = %s ", pAct->nActId, pActionInfo->nDevId, pActionInfo->nActCmdOut, (char*)pActionInfo->nElmDataOut);
+								xsprintf(msg, " act_out[%d] -> set dev[%d,%d] = %s ", pAct->nActId,
+										pActionInfo->nDevId, pActionInfo->nActCmdOut, (char*)pActionInfo->nElmDataOut);
 							} else {
-								xsprintf(msg, " act_out[%d] -> set dev[%d,%d] = %d ", pAct->nActId, pActionInfo->nDevId, pActionInfo->nActCmdOut, pActionInfo->nElmDataOut);
+								xsprintf(msg, " act_out[%d] -> set dev[%d,%d] = %d ", pAct->nActId,
+										pActionInfo->nDevId, pActionInfo->nActCmdOut, nSetDevValue);
 								if (!(pAct->nFlags & devACTION_FLAG_NOLOG))
 								{
-									logAction(pAct->nActId, pActionInfo->nDevId, pActionInfo->nActCmdOut, pActionInfo->nElmDataOut);
+									logAction(pAct->nActId, pActionInfo->nDevId, pActionInfo->nActCmdOut, nSetDevValue);
 								}
 							}
 						}
@@ -1140,7 +1315,7 @@ finishCalc:
 	//						xsprintf(buff, "set dev[%d] = %d ",actArray[i]->nActDevID, actArray[i]->nActDevValue);
 	//							vSendInputMessage (1, mainINFO_MESSAGE, main_IF_PROGRAM, main_IF_PROGRAM, (void*) buff, strlen(buff),0);
 					}
-
+					continueActProcessing:
 					pActElm = pActElm->pPrevElm;
 					}
 		}
@@ -1164,6 +1339,262 @@ sAction* getActionByID (uint16_t nActId)
 }
 
 
+/* process operational stack to out stack:
+ *
+ */
+sEvtElm* finishRPN(sCommonStack* xOpersStack, sCommonStack* xOutStack)
+{
+	sEvtElm*	pFirstEvtElm = NULL;
+	sEvtElm*	pOperationsEvtElm;	// operations stack
+	sEvtElm*	pEvtElm;
+
+	// copy all operations from operations stack to out stack:
+	do {
+		pOperationsEvtElm = (sEvtElm*) popStack(xOpersStack);
+		if (pOperationsEvtElm)
+			pushStack(xOutStack, (void*) pOperationsEvtElm);
+	} while (pOperationsEvtElm);
+
+	// align elements (correct next and prev pointers) according new order (in xOutStack):
+	// pFirstEvtElm = old, pEvtElm = new
+	pFirstEvtElm = (sEvtElm*) popStack(xOutStack);
+//	uint8_t ss = getCurrentStackSize(xOutStack);
+//	if (ss > 0) {
+		pEvtElm = pFirstEvtElm;
+
+		if (pFirstEvtElm) {
+			pEvtElm->pPrevElm = NULL; // new head of elements chain
+//		while (pFirstEvtElm) {
+			while (pFirstEvtElm->pNextElm) {
+				pEvtElm = (sEvtElm*) popStack(xOutStack);
+				pFirstEvtElm->pNextElm = pEvtElm;
+				if (pEvtElm) {
+					pEvtElm->pPrevElm = pFirstEvtElm;
+				} else {
+//				if (pAct)
+//					pAct->pStartElmEvents = pFirstEvtElm; // store last not NULL (first) element
+//					pFirstEvtElm = NULL;
+					break;
+				}
+				pFirstEvtElm = pEvtElm;
+			}
+		}
+//	}
+	return pFirstEvtElm;
+}
+
+/* Dijkstra algorithm converting to reverse polish notation (RPN)
+ *
+ */
+int32_t	processRPN(sAction* pAct, sEvtElm*	pEvtElm, sEvtElm** pEvtElmOut, uint8_t nStackSize)
+{
+	int32_t res = pdTRUE;
+	int8_t		nState; // process state: 0 - before '=', 1 - after '='
+	sCommonStack xOutStack;
+	sCommonStack xOpersStack;
+	sEvtElm*	pOperationsEvtElm;	// operations stack
+	sEvtElm*	pFirstEvtElm;		// begin of actions formula
+
+	if (!pEvtElm) { res = pdFALSE; goto endProcRPN; }
+
+	// process original stack left to right ****************************************************
+	// init temporary stacks for Dijkstra algorithm:
+	res = initStack(&xOutStack, nStackSize);
+	if (!res) { res = pdFALSE; goto endProcRPN; }
+
+	res = initStack(&xOpersStack, nStackSize);
+	if (!res) { res = pdFALSE; goto endProcRPN; }
+
+	pOperationsEvtElm = NULL;
+	*pEvtElmOut = NULL;
+	nState = 0;
+
+// Dijkstra algorithm implementation. pEvtElm - input elements for converting into RPN:
+//			pEvtElm = pFirstEvtElm;
+	while (pEvtElm) {
+//	while (pEvtElm->pPrevElm) {
+		switch (pEvtElm->nElmType) {
+		case eElmOperation: {
+			// if element == ')' then push to out stack all operations until '('
+			if (pEvtElm->nElmData1 == eOpSC) {
+				do {
+					pOperationsEvtElm = (sEvtElm*) popStack(&xOpersStack);
+					if (!pOperationsEvtElm)
+						break;
+
+					if (pOperationsEvtElm->nElmData1 != eOpSO) {
+						pushStack(&xOutStack, (void*) pOperationsEvtElm);
+					}
+
+				} while (pOperationsEvtElm->nElmData1 != eOpSO);
+			} else
+			// if element == '(' then push it to operations stack
+			if (pEvtElm->nElmData1 == eOpSO) {
+				pushStack(&xOpersStack, (void*) pEvtElm);
+			} else
+
+			// if element == '=' then finish process parsing RPN: ***********************************************
+			if (pEvtElm->nElmData1 == eOpResume) {
+				nState = 1;
+/* ///
+				// copy all operations from operations stack to out stack:
+				do {
+					pOperationsEvtElm = (sEvtElm*) popStack(&xOpersStack);
+					if (pOperationsEvtElm)
+						pushStack(&xOutStack, (void*) pOperationsEvtElm);
+				} while (pOperationsEvtElm);
+
+				// align elements (correct next and prev pointers) according new order (in xOutStack):
+				// pFirstEvtElm = old, pEvtElm = new
+				pFirstEvtElm = (sEvtElm*) popStack(&xOutStack);
+				pEvtElm = pFirstEvtElm;
+
+				if (pFirstEvtElm) {
+					pEvtElm->pPrevElm = NULL; // new head of elements chain
+					while (pFirstEvtElm) {
+						pEvtElm = (sEvtElm*) popStack(&xOutStack);
+						pFirstEvtElm->pNextElm = pEvtElm;
+						if (pEvtElm) {
+							pEvtElm->pPrevElm = pFirstEvtElm;
+						} else {
+							if (pAct)
+								pAct->pStartElmEvents = pFirstEvtElm; // store last not NULL (first) element
+						}
+						pFirstEvtElm = pEvtElm;
+					}
+				}
+*/ ///
+				pFirstEvtElm = finishRPN(&xOpersStack, &xOutStack);
+				if (pAct)
+					pAct->pStartElmEvents = pFirstEvtElm; // store last not NULL (first) element
+
+				// to do: clear resources for dropped elements: '(', ')'
+				*pEvtElmOut = pFirstEvtElm;
+				res = pdTRUE;
+				// **************************************************************************************************
+			} else {
+				// for other operation types
+				// if operations stack empty then operation from input push to operations stack
+				if (!pOperationsEvtElm) {
+					pushStack(&xOpersStack, (void*) pEvtElm);
+					pOperationsEvtElm = pEvtElm;
+				} else {
+					// if new operation priority greater operation from stack's head then push new operation to the operations stack
+					if (getPriority((uint8_t) pEvtElm->nElmData1)
+							> getPriority(
+									(uint8_t) pOperationsEvtElm->nElmData1)) {
+						//									pOperationsEvtElm = elmPush (pOperationsEvtElm, pEvtElm);
+						pushStack(&xOpersStack, (void*) pEvtElm);
+						pOperationsEvtElm = pEvtElm;
+					} else {
+						// else push to out stack all operations with greater priority. Push to operations stack new operation
+						while (getPriority((uint8_t) pEvtElm->nElmData1)
+								<= getPriority(
+										(uint8_t) pOperationsEvtElm->nElmData1)) {
+							pOperationsEvtElm = (sEvtElm*) popStack(
+									&xOpersStack);
+							pushStack(&xOutStack, (void*) pOperationsEvtElm);
+							if (!pOperationsEvtElm)
+								break;
+						}
+						pushStack(&xOpersStack, (void*) pEvtElm);
+					}
+				}
+			}
+			break;
+		}
+		case eElmAction: {
+			// call RPN for in and out action data:
+			sActElm* pActionInfo = (sActElm*) pEvtElm->nElmData1;
+			uint8_t  nSizeElm = 0;
+			sEvtElm* pFirstEvtElmTemp;
+
+			if (pActionInfo->nElmDataIn) {
+
+				// search first element and set pointer to parent Action for eElmAction types elements:
+				pFirstEvtElmTemp = pActionInfo->nElmDataIn;
+
+				while (pFirstEvtElmTemp->pNextElm)
+				{
+					pFirstEvtElmTemp = pFirstEvtElmTemp->pNextElm;
+					nSizeElm++;
+				}
+				if (nSizeElm > 0)
+					res = processRPN(NULL, pFirstEvtElmTemp, &pActionInfo->nElmDataIn, nSizeElm);
+				if (!res) { res = pdFALSE; goto endProcRPN; }
+			}
+			if (pActionInfo->nElmDataOut) {
+
+				pFirstEvtElmTemp = pActionInfo->nElmDataOut;
+				nSizeElm = 0;
+
+				while (pFirstEvtElmTemp->pNextElm)
+				{
+					pFirstEvtElmTemp = pFirstEvtElmTemp->pNextElm;
+					nSizeElm++;
+				}
+
+				if (nSizeElm > 0)
+					res = processRPN(NULL, pFirstEvtElmTemp, &pActionInfo->nElmDataOut, nSizeElm);
+				if (!res) { res = pdFALSE; goto endProcRPN; }
+			}
+
+			break;
+		}
+		case eElmInterval: {
+			// if interval timer, then add it to pAct data and start it:
+			xTimerHandle xTimer;
+			xTimerHandle xTimerOneShot;
+			// timers applicable only for Action:
+			if (pAct) {
+				pAct->pStartElmEvents = NULL;
+
+				if (pAct->nFlags & devACTION_FLAG_SINGLE_TIMER) {
+					xTimer = mainTimerCreate("SingleTimer_1",
+							pEvtElm->nElmData1,
+							pdFALSE, pEvtElm);
+				} else {
+					xTimer = mainTimerCreate("AutoReloadTimer",
+							pEvtElm->nElmData1,
+							pdTRUE, pEvtElm);
+				}
+				pAct->xActTimer = xTimer;
+
+				if (pEvtElm->nElmData2 > 0) {
+					xTimerOneShot = mainTimerCreateOneShot("SingleTimer_2",
+							pEvtElm->nElmData2, pEvtElm);
+					pAct->xActTimerOneShot = xTimerOneShot;
+				}
+				xTimerStart(xTimer, 0);
+			}
+			break;
+		}
+		default: {
+			pushStack(&xOutStack, (void*) pEvtElm);
+			break;
+		}
+		} // --switch
+		// to do: process elements after '='
+//		if (nState == 1)
+//			break;
+
+		// move to head of elements chain (left to right)
+		pEvtElm = pEvtElm->pPrevElm;
+	}
+
+// process stacks without '=' element (e.g. in action parameters):
+	if (nState == 0) {
+		pFirstEvtElm = finishRPN(&xOpersStack, &xOutStack);
+		*pEvtElmOut = pFirstEvtElm;
+	}
+
+	freeStack(&xOpersStack);
+	freeStack(&xOutStack);
+
+	endProcRPN:
+	return res;
+}
+
 /*
  * set new or update exist Action, based on string formula description
  * return pdTRUE if success
@@ -1174,12 +1605,8 @@ int32_t	setAction (uint16_t nActId, char* pAStr, uint32_t arep, uint16_t nFlags)
 	sEvtElm*	pEvtElm;
 	sEvtElm*	pFirstActionEvtElm;	// first action element (after '=')
 	sEvtElm*	pFirstEvtElm;		// begin of actions formula
-	sEvtElm*	pOperationsEvtElm;	// operations stack
 	sActElm* 	pActElm;
-	int8_t		nState; // process state: 0 - before '=', 1 - after '='
 	uint8_t		nSizeElm;
-	sCommonStack xOutStack;
-	sCommonStack xOpersStack;
 
 	if (!pAStr) return pdFALSE;
 	if (strlen(pAStr) == 0) return pdFALSE;
@@ -1225,9 +1652,7 @@ int32_t	setAction (uint16_t nActId, char* pAStr, uint32_t arep, uint16_t nFlags)
 		pAct->nActRepeat = arep;
 		pAct->nFlags = nFlags;
 
-		pOperationsEvtElm = NULL;
 		pFirstActionEvtElm = NULL;
-		nState = 0;
 
 // fill stack of parsed elements and get stack's head:
 		pEvtElm = parseActionString(pAStr);
@@ -1249,141 +1674,12 @@ int32_t	setAction (uint16_t nActId, char* pAStr, uint32_t arep, uint16_t nFlags)
 			nSizeElm++;
 		}
 
-// process original stack left to right ****************************************************
-// init temporary stacks for Dijkstra algorithm:
-		res = initStack(&xOutStack, nSizeElm);
+		pAct->pStartElmActions = pFirstActionEvtElm;
+
+// call RPN processing of stacks:
+		res = processRPN(pAct, pFirstEvtElm, &pEvtElm, nSizeElm);
 		if (!res) return pdFALSE;
-		res = initStack(&xOpersStack, nSizeElm);
-		if (!res) return pdFALSE;
 
-// Dijkstra algorithm implementation. pEvtElm - input elements for converting into RPN:
-		pEvtElm = pFirstEvtElm;
-		while (pEvtElm->pPrevElm)
-		{
-		   	  switch(pEvtElm->nElmType)
-		   	  {
-					case  eElmOperation:
-					{
-					   	// if element == ')' then push to out stack all operations until '('
-						if (pEvtElm->nElmData1 == eOpSC)
-						{
-							do {
-								pOperationsEvtElm = (sEvtElm*)popStack(&xOpersStack);
-								if (!pOperationsEvtElm) break;
-
-								if (pOperationsEvtElm->nElmData1 != eOpSO) {
-									pushStack (&xOutStack, (void*)pOperationsEvtElm);
-								}
-
-							} while (pOperationsEvtElm->nElmData1 != eOpSO);
-						} else
-					   	// if element == '(' then push it to operations stack
-						if (pEvtElm->nElmData1 == eOpSO)
-						{
-							pushStack (&xOpersStack, (void*)pEvtElm);
-						} else
-
-					   	// if element == '=' then finish process parsing RPN: ***********************************************
-						if (pEvtElm->nElmData1 == eOpResume)
-						{
-							nState = 1;
-// copy all operations from operations stack to out stack:
-							do {
-								pOperationsEvtElm = (sEvtElm*)popStack(&xOpersStack);
-								if (pOperationsEvtElm)
-									pushStack (&xOutStack, (void*)pOperationsEvtElm);
-							} while (pOperationsEvtElm);
-							// align elements (correct next and prev pointers) according new order (in xOutStack):
-							// pFirstEvtElm = old, pEvtElm = new
-									pFirstEvtElm = (sEvtElm*)popStack(&xOutStack);
-									pEvtElm = pFirstEvtElm;
-									if (pFirstEvtElm) {
-										pEvtElm->pPrevElm = NULL; // new head of elements chain
-										while (pFirstEvtElm)
-										{
-											pEvtElm = (sEvtElm*)popStack(&xOutStack);
-											pFirstEvtElm->pNextElm = pEvtElm;
-											if (pEvtElm) {
-												pEvtElm->pPrevElm = pFirstEvtElm;
-											} else {
-												pAct->pStartElmEvents  = pFirstEvtElm; // store last not NULL (first) element
-											}
-											pFirstEvtElm = pEvtElm;
-										}
-									}
-									pAct->pStartElmActions = pFirstActionEvtElm;
-									// to do: clear resources for dropped elements: '(', ')'
-									res = pdTRUE;
-						// **************************************************************************************************
-						} else
-						{
-							// for other operation types
-// if operations stack empty then operation from input push to operations stack
-							if (!pOperationsEvtElm) {
-								pushStack (&xOpersStack, (void*)pEvtElm);
-								pOperationsEvtElm = pEvtElm;
-							} else {
-// if new operation priority greater operation from stack's head then push new operation to the operations stack
-								if (getPriority((uint8_t) pEvtElm->nElmData1) > getPriority((uint8_t) pOperationsEvtElm->nElmData1))
-								{
-//									pOperationsEvtElm = elmPush (pOperationsEvtElm, pEvtElm);
-									pushStack (&xOpersStack, (void*)pEvtElm);
-									pOperationsEvtElm = pEvtElm;
-								} else {
-// else push to out stack all operations with greater priority. Push to operations stack new operation
-									while (getPriority((uint8_t) pEvtElm->nElmData1) <= getPriority((uint8_t) pOperationsEvtElm->nElmData1))
-									{
-										pOperationsEvtElm = (sEvtElm*)popStack(&xOpersStack);
-										pushStack (&xOutStack, (void*)pOperationsEvtElm);
-										if (!pOperationsEvtElm) break;
-									}
-									pushStack (&xOpersStack, (void*)pEvtElm);
-								}
-							}
-						}
-						break;
-					}
-					case  eElmAction:
-					{
-
-						break;
-					}
-					case  eElmInterval:
-					{
-						// if interval timer, then add it to pAct data and start it:
-						xTimerHandle xTimer;
-						xTimerHandle xTimerOneShot;
-						pAct->pStartElmEvents = NULL;
-
-						if (nFlags & devACTION_FLAG_SINGLE_TIMER) {
-							xTimer = mainTimerCreate("SingleTimer_1", pEvtElm->nElmData1, pdFALSE, pEvtElm);
-						} else {
-							xTimer = mainTimerCreate("AutoReloadTimer", pEvtElm->nElmData1, pdTRUE, pEvtElm);
-						}
-						pAct->xActTimer = xTimer;
-
-						if (pEvtElm->nElmData2 > 0) {
-							xTimerOneShot = mainTimerCreateOneShot("SingleTimer_2", pEvtElm->nElmData2, pEvtElm);
-							pAct->xActTimerOneShot = xTimerOneShot;
-						}
-						xTimerStart(xTimer, 0);
-						break;
-					}
-					default:
-					{
-						pushStack (&xOutStack, (void*)pEvtElm);
-						break;
-					}
-		   	  }
-		   	  // to do: process elements after '='
-		   	  if (nState == 1) break;
-
-		   	  // move to head of elements chain (left to right)
-		   	  pEvtElm = pEvtElm->pPrevElm;
-		}
-
-		freeStack(&xOpersStack);
-		freeStack(&xOutStack);
 
 		return res;
 }

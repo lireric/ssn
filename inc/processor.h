@@ -10,6 +10,7 @@
 
 #include "FreeRTOS.h"
 #include "ssn_prefs.h"
+#include "stack.h"
 
 // actions flags
 #define devACTION_FLAG_NOLOG		0x01	//	No logging option for this action
@@ -57,12 +58,12 @@ typedef enum
 // action elements
 typedef struct
 {
-	uint32_t	nElmDataIn;		// action set device value (if string type - pointer to string)
-	uint32_t	nElmDataOut;	// action reset device value
+	sEvtElm*	nElmDataIn;		// action set device value (TO DO: if string type - pointer to string)
+	sEvtElm*	nElmDataOut;	// action reset device value
 	sAction*	pAction;		// referring Action pointer
 	uint8_t		nElmDataType;	// data type (In and Out Data, ref. eElmDataTypes)
-	uint8_t		nActCmdIn;		// action set device command
-	uint8_t		nActCmdOut;		// action reset device command
+	uint8_t		nActCmdIn;		// action set device command (channel)
+	uint8_t		nActCmdOut;		// action reset device command (channel)
 	uint8_t		ngetDevCmdIn;	// command for get device value data type
 	uint16_t 	nDevId;			// device ID
 	uint16_t 	nActFlag;		// action flag: 0x0001 - action has Out argument
@@ -95,7 +96,8 @@ typedef enum
 	eOpGE,		/* >= 	*/
 	eOpAND,		/* &&	*/
 	eOpOR,		/* ||	*/
-	eOpNOT,		/* ~	*/
+	eOpNOT,		/* !=   */
+	eOpBitNOT,	/* ~	*/
 	eOpPlus,	/* +	*/
 	eOpMinus,	/* -	*/
 	eOpMul,		/* *	*/
@@ -110,7 +112,11 @@ extern void	logAction(uint16_t nActId, uint16_t nDevId, uint8_t nDevCmd, uint32_
 
 sAction* 			getActionByID (uint16_t nActId);
 int32_t				setAction (uint16_t nActId, char* pAStr, uint32_t arep, uint16_t nFlags);
+uint16_t 			lookForCalcStrLimit(char* pAStr, uint16_t kStart);
+int32_t 			parseCalcString(char* pAStr, uint16_t kStart, uint16_t kLimit, sEvtElm** 	pEvtElmHead, uint16_t* kEnd);
+int32_t				processActionStack (sEvtElm* pEvtElm, int32_t* nCalcResult);
 int32_t				calcAndDoAction (sAction* pAct);
-
+sEvtElm* 			finishRPN(sCommonStack* xOpersStack, sCommonStack* xOutStack);
+int32_t				processRPN(sAction* pAct, sEvtElm*	pEvtElm, sEvtElm** pEvtElmOut, uint8_t nStackSize);
 
 #endif /* INC_PROCESSOR_H_ */

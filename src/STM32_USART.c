@@ -103,13 +103,13 @@ queue at any one time. */
 /* Queues are used to hold characters that have been received but not yet 
 processed.  This constant sets the maximum number of characters that can be 
 contained in such a queue. */
-#define serRX_QUEUE_LEN					( 30 )
+#define serRX_QUEUE_LEN					( 50 )
 
 /* The maximum amount of time that calls to lSerialPutString() should wait for
 there to be space to post each character to the queue of characters waiting
 transmission.  NOTE!  This is the time to wait per character - not the time to
 wait for the entire string. */
-#define serPUT_STRING_CHAR_DELAY		( 10 / portTICK_RATE_MS )
+#define serPUT_STRING_CHAR_DELAY		( 5 / portTICK_RATE_MS )
 
 
 

@@ -47,7 +47,7 @@
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
 #define configTICK_RATE_HZ			( ( portTickType ) 300 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 54 * 1024 ) )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 45 * 1024 ) )
 
 /*-----------------------------------------------------------*/
 /* Hardware application settings */
