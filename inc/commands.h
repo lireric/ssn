@@ -43,6 +43,8 @@ extern uint16_t		uiLog_Object;
 extern sDevice* 	devArray[];
 extern uint16_t 	all_devs_counter;
 extern uint32_t		nlogActLastUpdate;
+extern sDevice* 	uiMemoryDevsArray[];
+extern uint8_t		mem_devs_counter;
 
 //extern xTaskHandle pCheckSensorHRTaskHnd;
 //extern xTaskHandle pCheckSensorMRTaskHnd;
@@ -75,5 +77,7 @@ void 	log_event (void* poldt, void* pnewt, uint32_t xTickCount);
 void 	log_event2 (char c, void* pt);
 uint16_t getCommandsByName(const char* sCmd);
 uint32_t storePreferences(char* sBuf, uint16_t nBufSize);
+int32_t storeMemDevs();
+int32_t restoreMemDevs();
 
 #endif /* COMMANDS_H_ */

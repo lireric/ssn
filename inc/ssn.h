@@ -95,13 +95,13 @@ uint8_t Rx1Buffer[BUFFER1_SIZE];
 #define mainINPUT_QUEUE_SIZE	15
 #endif
 #ifndef  mainSENSORS_QUEUE_SIZE
-#define mainSENSORS_QUEUE_SIZE	15
+#define mainSENSORS_QUEUE_SIZE	35
 #endif
 #ifndef  mainDEBUG_QUEUE_SIZE
-#define mainDEBUG_QUEUE_SIZE	5
+#define mainDEBUG_QUEUE_SIZE	20
 #endif
 #ifndef  mainBASEOUT_QUEUE_SIZE
-#define mainBASEOUT_QUEUE_SIZE	50
+#define mainBASEOUT_QUEUE_SIZE	70
 #endif
 
 
@@ -109,7 +109,7 @@ uint8_t Rx1Buffer[BUFFER1_SIZE];
 void 		print_debug_FROM_ISR (const char *str);
 sGrpInfo* 	getGrpInfo(unsigned char ucGrpNum);
 int32_t 	apply_preferences(cJSON *json_data);
-uint32_t vMainStartGSMTask(void* pParam);
+uint32_t 	vMainStartGSMTask(void* pParam);
 xTimerHandle mainTimerCreate(char* pcTimerName, uint32_t nPeriod, uint32_t isPeriodic, sEvtElm* pEvtElm);
 xTimerHandle mainTimerCreateOneShot(char* pcTimerName, uint32_t nPeriod, sEvtElm* pEvtElm);
 uint16_t 	getMC_Object(void);

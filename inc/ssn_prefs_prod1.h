@@ -27,7 +27,7 @@
 #define INC_SSN_PREFS_PROD1_H_
 
 /* Used modules */
-#define RTC_DS1307
+#define M_RTC_DS1307
 //#define M_LCD
 #define M_USART
 #define M_DS18B20
@@ -47,7 +47,7 @@
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
 #define configTICK_RATE_HZ			( ( portTickType ) 300 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 45 * 1024 ) )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 50 * 1024 ) )
 
 /*-----------------------------------------------------------*/
 /* Hardware application settings */
@@ -56,6 +56,18 @@
 #define mainMAX_ALL_DEVICES				(30) 	// default max number of all devices
 #define mainMAX_DHT_DEVICES				(3) 	// default max number of dht devices
 #define mainMAX_ROUTES					(3)		// max number routing interfaces
+
+// memory type device saving period (sec)
+#define mainMEMORY_DEV_SAVE_PERIOD		36000
+// maximum quantity of memory devices. Usually enough 1 element
+#define mainMEMORY_DEV_MAX_QTY			2
+
+
+// skip preferences loading button:
+#define mainSKIP_PREF_PIN		12		//	PD12
+#define mainSKIP_PREF_PORT		GPIOD
+#define mainSKIP_PREF_VALUE		pdFALSE	// pin value for skip prefs actuate
+
 
 ///#define I2C 	I2C1
 #define EEPROM_ADDRESS        	0xA0	// at24c32

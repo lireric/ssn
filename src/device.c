@@ -349,8 +349,12 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue, uint32_t*
 	int32_t nValue;
 	uint32_t nLastUpdate = 0;
 	int32_t *e;
+	int32_t res = pdTRUE;
 
-	if (!dev) return pdFALSE;
+	if (!dev) {
+		res = pdFALSE;
+		goto finishGetDevData;;
+	}
 
 	nLastUpdate = dev->uiLastUpdate;
 
@@ -374,7 +378,12 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue, uint32_t*
 		break;
 	case device_TYPE_MEMORY:
 		e = (int32_t*)dev->pDevStruct;
-		nValue = e[nValCode];
+		if (nValCode < dev->pGroup->iDevQty)
+			nValue = e[nValCode];
+		else {
+			res = pdFALSE;
+			goto finishGetDevData;
+		}
 		break;
 	case device_TYPE_BB1BIT_IO_AI:
 		nValue = ((sADC_data_t*)dev->pDevStruct)->nADCValueArray[nValCode];
@@ -386,7 +395,8 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue, uint32_t*
 	*nDevValue = nValue;
 	*nDevLastUpdate = nLastUpdate;
 
-	return pdTRUE;
+	finishGetDevData:
+	return res;
 }
 /* return number available value codes for device type */
 uint8_t getNumDevValCodes(uint8_t ucType)
@@ -470,7 +480,7 @@ void setDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nDataTyp
 		break;
 	case device_TYPE_MEMORY:
 		e = (int32_t*)dev->pDevStruct;
-		if (e) {
+		if (e && (nDevCmd < dev->pGroup->iDevQty)) {
 			e[nDevCmd] = nValue;
 			dev->uiLastUpdate = rtc_get_counter_val();
 		//= nValue;

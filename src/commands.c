@@ -304,6 +304,10 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 				if (!devArray[all_devs_counter]->pDevStruct) {
 					return pdFAIL;
 				}
+				if (mem_devs_counter <= mainMEMORY_DEV_MAX_QTY)
+					uiMemoryDevsArray[mem_devs_counter++]=devArray[all_devs_counter];
+				else
+					return pdFAIL;
 			}
 		} else if (devArray[all_devs_counter]->ucType == device_TYPE_PWM) {
 			if (strcmp(sName, "ch") == 0) {
@@ -436,6 +440,24 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 }
 
 
+// store memory device into persistent storage:
+int32_t storeMemDevs()
+{
+	int32_t nRes = pdPASS;
+	for (uint8_t i = 0; i < mem_devs_counter; i++)
+	{
+//		uiMemoryDevsArray[i]->uiLastUpdate
+	}
+	return nRes;
+}
+
+// restore memory device from persistent storage into RAM:
+int32_t restoreMemDevs()
+{
+	int32_t nRes = pdPASS;
+
+	return nRes;
+}
 
 // write preferences string into EEPROM or Flash
 uint32_t storePreferences(char* sBuf, uint16_t nBufSize)
@@ -654,6 +676,7 @@ void debugMsg (char *str)
 			}
 		}
 		( void ) xReturn;
+
 }
 
 void sendBaseOut (char *str)

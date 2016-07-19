@@ -69,6 +69,10 @@ uint16_t	uiLog_Object;	// object - receiver log messages
 sRoute routeArray[mainMAX_ROUTES];
 uint8_t 	route_counter = 0;
 
+sDevice 	*uiMemoryDevsArray[mainMEMORY_DEV_MAX_QTY];
+uint8_t 	mem_devs_counter = 0;
+uint32_t 	uiLastSaveMemoryTick = 0;
+
 sPrefsBuffer xPrefsBuffer;
 
 const char* cSSNSTART = "===ssn1";
@@ -378,8 +382,10 @@ int main(void)
 				rtc.min = DS1307_time.min;
 				rtc.sec = DS1307_time.sec;
 				rtc_settime(&rtc);
-				//sendBaseOut("\n\rSet date/time from RTC DS1307");
-				debugMsg("\n\rSet date/time from RTC DS1307");
+		    	xsprintf(( portCHAR *) msg,
+		    			"\r\nSet date/time from RTC DS1307: %d-%d-%d %d:%d:%d", rtc.year, rtc.month, rtc.mday, rtc.hour, rtc.min, rtc.sec);
+		    	debugMsg((char *) &msg);
+
 			}
 			else {
 				//sendBaseOut("\n\rRTC DS1307 not responding");
@@ -387,6 +393,17 @@ int main(void)
 			};
 #endif
 		grp_counter++;
+
+// check skip preferences button:
+
+				gpio_set_mode(mainSKIP_PREF_PORT, GPIO_MODE_INPUT,
+						GPIO_CNF_INPUT_FLOAT, 1 << mainSKIP_PREF_PIN);
+				uint32_t button = GPIO_IDR(mainSKIP_PREF_PORT) & (1 << mainSKIP_PREF_PIN);
+				if ((button && pdTRUE ) == mainSKIP_PREF_VALUE) {
+					debugMsg("\n\rSkip reading configuration from EEPROM or FLASH");
+					goto skipLoadPrefs;
+				}
+
 
 
 // first 2 byte in EEPROM consist size of JSON structure with SSN hardware and logic preferences, started from 5 byte
@@ -448,7 +465,10 @@ int main(void)
 				    	xsprintf(( portCHAR *) msg, "\r\nParsed INI format\n");
 				    	//sendBaseOut((char *) &msg);
 				    	debugMsg((char *) &msg);
-				    	res = pdPASS;
+
+				    	res = restoreMemDevs();
+				    	uiLastSaveMemoryTick = rtc_get_counter_val();
+				    	//res = pdPASS;
 				    }
 				} else {
 // JSON format
@@ -499,10 +519,11 @@ int main(void)
 	}
 
 
+skipLoadPrefs:
 // ------------------------------------------------------------------------------
 	xReturn = xTaskCreate( prvBaseOutTask, ( char * ) "BaseOutTask", 200, NULL, mainBASEOUT_TASK_PRIORITY, &pTmpTask );
 	xBaseOutTaskHnd = (void*) pTmpTask;
-	xReturn = xTaskCreate( prvLogOutTask, ( char * ) "LogOutTask", 120, NULL, mainDEBUG_OUT_TASK_PRIORITY, NULL );
+	xReturn = xTaskCreate( prvLogOutTask, ( char * ) "LogOutTask", 180, NULL, mainDEBUG_OUT_TASK_PRIORITY, NULL );
 
 	xInputQueue = xQueueCreate( mainINPUT_QUEUE_SIZE, sizeof( xInputMessage ) );
 	xSensorsQueue = xQueueCreate( mainSENSORS_QUEUE_SIZE, sizeof(void*) );
@@ -520,7 +541,7 @@ int main(void)
 
 	xReturn = xTaskCreate( prvInputTask, ( char * ) "InputTask", mainINPUT_TASK_STACK, NULL, mainINPUT_TASK_PRIORITY, &pTmpTask );
 
-	xReturn = xTaskCreate( prvCheckSensorMRTask, ( char * ) "CheckSensorMRTask", 200, devArray, mainCHECK_SENSOR_MR_TASK_PRIORITY, &pTmpTask );
+	xReturn = xTaskCreate( prvCheckSensorMRTask, ( char * ) "CheckSensorMRTask", 600, devArray, mainCHECK_SENSOR_MR_TASK_PRIORITY, &pTmpTask );
 	pCheckSensorMRTaskHnd = pTmpTask;
 
 
@@ -1072,15 +1093,19 @@ static void prvCronFunc( void *pvParameters )
 {
 	( void ) pvParameters;
 //	uint16_t i;
-	RTC_t rtc;
-//	uint32_t res;
+//	RTC_t rtc;
+	int32_t res;
+	uint32_t uiCurrentTick;
 //	sAction* pAct;
+	(void) res;
 
 		uiMainTick++;
-		rtc_gettime(&rtc);
+//		rtc_gettime(&rtc);
 
 		// check SSN protocol USART timeout
-		if ((uiMainTick > (xSSNPDU.uiLastTick + SSN_TIMEOUT/10)) && ((xSSNPDU.state == SSN_STATE_LOADING) || (xSSNPDU.state == SSN_STATE_DATA))) {
+		if ((uiMainTick > (xSSNPDU.uiLastTick + SSN_TIMEOUT/10))
+				&& ((xSSNPDU.state == SSN_STATE_LOADING) || (xSSNPDU.state == SSN_STATE_DATA)))
+		{
 			xSSNPDU.state = SSN_STATE_ERROR;
 			vPortFree(xSSNPDU.buffer);
 			//sendBaseOut("\r\nSSN receive data timeout error!");
@@ -1094,18 +1119,20 @@ static void prvCronFunc( void *pvParameters )
 		sDevice* pDev = devArray[0]; // get virtual time device
 		// scan thru actions with time events:
 		scanDevActions (pDev);
-/*
-		for (i=0; i<pDev->nActionsCashSize; i++) {
-
-			pAct = &((sAction*)pDev->pActionsCash)[i];
-			if (pAct) {
-				res = calcAndDoAction (pAct);
-				if (!res) {
-					// to do: process error
+		uiCurrentTick = rtc_get_counter_val();
+		if (uiCurrentTick > (uiLastSaveMemoryTick + mainMEMORY_DEV_SAVE_PERIOD))
+		{
+			for (uint8_t i = 0; i < mem_devs_counter; i++)
+			{
+				if (uiLastSaveMemoryTick > (uiMemoryDevsArray[i]->uiLastUpdate + mainMEMORY_DEV_SAVE_PERIOD))
+				{
+					res = storeMemDevs();
+					uiLastSaveMemoryTick = uiCurrentTick;
+					break;
 				}
 			}
 		}
-*/
+
 		logAction(0, 0, 0, 0); // check timeout for log submitting
 }
 
