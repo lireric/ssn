@@ -63,9 +63,25 @@ uint8_t getCurrentStackSize(sCommonStack* psStack)
 // ************************************************************************
 // RPN stack functions for work with values
 
-void resetRS(sRPNStack* pRPNStack)
+int32_t resetRS(sRPNStack* pRPNStack, uint8_t nMaxSize)
 {
-	pRPNStack->top = 0;
+	int32_t res = pdFALSE;
+	if (pRPNStack)
+	{
+		pRPNStack->stack = (int32_t*)pvPortMalloc(nMaxSize * sizeof(int32_t));
+		if (pRPNStack->stack)
+			pRPNStack->top = 0;
+			pRPNStack->nMaxSize = nMaxSize;
+			res = pdTRUE;
+	}
+	return res;
+//	pRPNStack->top = 0;
+}
+
+void freeRS(sRPNStack* pRPNStack)
+{
+	if (pRPNStack)
+		vPortFree(pRPNStack->stack);
 }
 
 int32_t isRSEmpty(sRPNStack* pRPNStack)

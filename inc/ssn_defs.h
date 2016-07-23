@@ -158,6 +158,7 @@ typedef struct
 #define mainCOMMAND_SETDATETIME		10
 #define mainCOMMAND_GETOWILIST		11
 #define mainCOMMAND_SETDEVVALUE		12
+#define mainCOMMAND_MEMSAVE			13	// save memDevices values into EEPROM or FLASH
 
 
 typedef struct

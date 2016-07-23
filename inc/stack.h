@@ -38,11 +38,14 @@ uint8_t getCurrentStackSize(sCommonStack* psStack);
 
 typedef struct
 {
-	int32_t stack[MAX_ACTION_ARRAY_SIZE]; // values array
+//	int32_t stack[MAX_ACTION_ARRAY_SIZE]; // values array
+	int32_t* stack; // pointer to values array
 	uint8_t top;
+	uint8_t nMaxSize;
 } sRPNStack;
 
-void 	resetRS(sRPNStack* pRPNStack);
+int32_t	resetRS(sRPNStack* pRPNStack, uint8_t nMaxSize);
+void 	freeRS(sRPNStack* pRPNStack);
 int32_t isRSEmpty(sRPNStack* pRPNStack);
 int32_t isRSFull(sRPNStack* pRPNStack);
 void 	pushRS(sRPNStack* pRPNStack, int32_t value);

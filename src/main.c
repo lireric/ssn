@@ -222,7 +222,7 @@ void print_debug_FROM_ISR (const char *str)
 		xReturn = xQueueSendFromISR( xLogOutQueue, str, &xHigherPriorityTaskWoken);
 	  if( xHigherPriorityTaskWoken == pdTRUE )
 	  {
-		  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken == pdTRUE );
+//		  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken == pdTRUE );
 	  }
 	( void ) xReturn;
 }
@@ -523,7 +523,7 @@ skipLoadPrefs:
 // ------------------------------------------------------------------------------
 	xReturn = xTaskCreate( prvBaseOutTask, ( char * ) "BaseOutTask", 200, NULL, mainBASEOUT_TASK_PRIORITY, &pTmpTask );
 	xBaseOutTaskHnd = (void*) pTmpTask;
-	xReturn = xTaskCreate( prvLogOutTask, ( char * ) "LogOutTask", 180, NULL, mainDEBUG_OUT_TASK_PRIORITY, NULL );
+	xReturn = xTaskCreate( prvLogOutTask, ( char * ) "LogOutTask", 380, NULL, mainDEBUG_OUT_TASK_PRIORITY, NULL );
 
 	xInputQueue = xQueueCreate( mainINPUT_QUEUE_SIZE, sizeof( xInputMessage ) );
 	xSensorsQueue = xQueueCreate( mainSENSORS_QUEUE_SIZE, sizeof(void*) );
@@ -536,12 +536,12 @@ skipLoadPrefs:
 	xTimerStart(xTimer, 0);
 
 #ifdef DEBUG_S
-	xReturn = xTaskCreate( prvDebugStatTask, ( char * ) "Debug_S", 210, NULL, tskIDLE_PRIORITY + 2, &pTmpTask );
+	xReturn = xTaskCreate( prvDebugStatTask, ( char * ) "Debug_S", 410, NULL, tskIDLE_PRIORITY + 2, &pTmpTask );
 #endif
 
 	xReturn = xTaskCreate( prvInputTask, ( char * ) "InputTask", mainINPUT_TASK_STACK, NULL, mainINPUT_TASK_PRIORITY, &pTmpTask );
 
-	xReturn = xTaskCreate( prvCheckSensorMRTask, ( char * ) "CheckSensorMRTask", 600, devArray, mainCHECK_SENSOR_MR_TASK_PRIORITY, &pTmpTask );
+	xReturn = xTaskCreate( prvCheckSensorMRTask, ( char * ) "CheckSensorMRTask", 300, devArray, mainCHECK_SENSOR_MR_TASK_PRIORITY, &pTmpTask );
 	pCheckSensorMRTaskHnd = pTmpTask;
 
 
@@ -913,7 +913,7 @@ processLocalMessages:
 											if (strcmp(cmd, "reboot") == 0) {
 												nCmd = mainCOMMAND_REBOOT;
 												vSendInputMessage (1, nObjDest, mainCOMMAND_MESSAGE, xInputMessage.uiSrcObject, xInputMessage.xSourceDevice, main_IF_PROGRAM, pData, 0, nCmd);
-											}
+											} else
 											if (strcmp(cmd, "getdevvals") == 0) {
 												//nCmd = mainCOMMAND_GETDEVVALS;
 												char * pcTeleData;
@@ -923,6 +923,10 @@ processLocalMessages:
 															0, (void*) pcTeleData, strlen(pcTeleData), 0);
 												}
 												// vSendInputMessage (1, nObjDest, mainCOMMAND_MESSAGE, xInputMessage.uiSrcObject, 0, xInputMessage.xSourceDevice, pData, 0, nCmd);
+											} else
+											if (strcmp(cmd, "memsave") == 0) {
+												nCmd = mainCOMMAND_MEMSAVE;
+												vSendInputMessage (1, nObjDest, mainCOMMAND_MESSAGE, xInputMessage.uiSrcObject, xInputMessage.xSourceDevice, main_IF_PROGRAM, pData, 0, nCmd);
 											}
 
 										}	else 	{
@@ -942,7 +946,7 @@ processLocalMessages:
 		xsprintf(msg, "\r\nFreeHeap:=%d =INPUTTSK===", xPortGetFreeHeapSize());
 		//sendBaseOut(msg);
 		debugMsg(msg);
-		taskYIELD();
+//		taskYIELD();
 	} // while
 }
 

@@ -110,7 +110,7 @@
 #define mainINPUT_TASK_STACK	800
 #endif
 #ifndef mainPROCSENSORS_TASK_STACK
-#define mainPROCSENSORS_TASK_STACK	400
+#define mainPROCSENSORS_TASK_STACK	300
 #endif
 
 

@@ -42,12 +42,14 @@
 //#define WATCHDOG
 #define WATCHDOG_PERIOD 10000	// period of watchdog timer (ms)
 
+//#define DEBUG_S	// debug task statistics
+
 #define MC_OBJECT	10
 
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
-#define configTICK_RATE_HZ			( ( portTickType ) 300 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 50 * 1024 ) )
+#define configTICK_RATE_HZ			( ( portTickType ) 100 )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 45 * 1024 ) )
 
 /*-----------------------------------------------------------*/
 /* Hardware application settings */
@@ -73,6 +75,7 @@
 #define EEPROM_ADDRESS        	0xA0	// at24c32
 #define DS1307_ADDRESS        	0xD0	// rtc ds1307 address
 
+#define EEPROM_MAX_SIZE      	4096	// at24c32
 #define EEPROM_PAGE_SIZE      	32
 /* soft i2c hardware settings */
 /* Группа soft i2c номер 0 */

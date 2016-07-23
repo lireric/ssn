@@ -444,10 +444,73 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 int32_t storeMemDevs()
 {
 	int32_t nRes = pdPASS;
+	uint16_t nBufSize = 5; // size(NUMDEVS=1)+size(CRC=2)+size(Addr=2)
+	uint8_t* puiBuf;
+	uint16_t calcCRC;
+	int32_t nValue;
+	int32_t *el;
+	uint16_t nIndex = 0;
+	uint16_t nAddr;
+
+	// calculate buffer size:
 	for (uint8_t i = 0; i < mem_devs_counter; i++)
 	{
+		if (uiMemoryDevsArray[i]) {
+			nBufSize += 2 + 1 + uiMemoryDevsArray[i]->pGroup->iDevQty * 4;
+		} else {
+			nRes = pdFAIL;
+			goto storeMemDevsEnd;
+		}
 //		uiMemoryDevsArray[i]->uiLastUpdate
 	}
+
+	puiBuf = pvPortMalloc(nBufSize);
+
+	if (puiBuf) {
+/* fill memDev data. Format:
+
+   NUMDEVS  DEV1  e1  Val_1    Val_2    Val_n    DEV2  e2   Val_1     Val_2     CRC    Addr
+   -------|------|--|--------|--------|--------|------|--|---------|----------|------|-------|
+      1b    2b    1b   4b        4b       4b      2b    1b    4b       4b       2b     2b
+
+*/
+		puiBuf[nIndex] = mem_devs_counter; // number of memory devices
+		nIndex += 1;
+		for (uint8_t i = 0; i < mem_devs_counter; i++)
+		{
+			// *((long long*)p) = a;
+			*((uint16_t*)(puiBuf+nIndex)) = (uint16_t)uiMemoryDevsArray[i]->nId;
+			nIndex += 2;
+			puiBuf[nIndex] = (uint8_t)uiMemoryDevsArray[i]->pGroup->iDevQty;
+			nIndex += 1;
+
+			for (uint8_t j = 0; j < uiMemoryDevsArray[i]->pGroup->iDevQty; j++)
+			{
+				el = (int32_t*)uiMemoryDevsArray[i]->pDevStruct;
+				nValue = el[j];
+
+				*((uint32_t*)(puiBuf+nIndex)) = (uint32_t)nValue;
+				nIndex += 4;
+			}
+		}
+
+		calcCRC = crc16((uint8_t*) puiBuf, nIndex);
+		*((uint16_t*)(puiBuf+nIndex)) = (uint16_t)calcCRC;
+		nIndex += 2;
+
+		// calculate EEPROM address: top EEPROM memory - nBufSize - 2 byte
+		nAddr = EEPROM_MAX_SIZE - nIndex-2;
+		*((uint16_t*)(puiBuf+nIndex)) = (uint16_t)nAddr;
+		nIndex += 2;
+		// TO DO: check with preferences overlapping..
+		nRes = eeprom_write(&grpArray[0]->GrpDev, EEPROM_ADDRESS, nAddr, (uint8_t*)puiBuf, nIndex);
+		vPortFree((void*)puiBuf);
+
+	} else {
+		nRes = pdFAIL;
+	}
+
+storeMemDevsEnd:
 	return nRes;
 }
 
@@ -455,7 +518,61 @@ int32_t storeMemDevs()
 int32_t restoreMemDevs()
 {
 	int32_t nRes = pdPASS;
+	uint16_t nBufSize = 0;
+	uint8_t* puiBuf;
+	uint16_t calcCRC, bufCRC;
+	int32_t nValue;
+	uint16_t nMemDevID;
+	uint8_t	 nMemDevElements;
+	uint16_t nIndex = 1;
+	uint16_t nAddr;
+	uint8_t sBuf1[2]; // array for address value storing
+	uint8_t nNumMemDevs = 0;
 
+	nAddr = EEPROM_MAX_SIZE - 2; // last 2 bytes EEPROM - address of memoryDev block
+
+	nRes = eeprom_read(&grpArray[0]->GrpDev, EEPROM_ADDRESS, nAddr, (uint8_t*) &sBuf1, 2);
+
+	if (nRes) {
+
+		nAddr = (sBuf1[1] << 8) + sBuf1[0];
+		nBufSize = EEPROM_MAX_SIZE - nAddr;
+
+		puiBuf = pvPortMalloc(nBufSize);
+
+			if (puiBuf) {
+				nRes = eeprom_read(&grpArray[0]->GrpDev, EEPROM_ADDRESS, nAddr, (uint8_t*) puiBuf, nBufSize);
+				calcCRC = crc16((uint8_t*) puiBuf, nBufSize-4);
+				bufCRC = *(uint16_t*)(puiBuf+nBufSize-4); // last 2 bytes = CRC
+
+				if (calcCRC == bufCRC) {
+					nNumMemDevs = *(uint8_t*)(puiBuf);
+
+					for (uint8_t i = 0; i < nNumMemDevs; i++)
+					{
+						nMemDevID = *(uint16_t*)(puiBuf+nIndex);
+						nIndex += 2;
+						nMemDevElements = *(uint8_t*)(puiBuf+nIndex);
+						nIndex += 1;
+
+						for (uint8_t j = 0; j < nMemDevElements; j++)
+						{
+							nValue = *(int32_t*)(puiBuf+nIndex);
+							nIndex += 4;
+							setDevValueByID(nValue, j, nMemDevID, eElmInteger);
+						}
+					}
+
+				} else {
+					nRes = pdFAIL;
+				}
+				vPortFree((void*)puiBuf);
+			}
+	} else {
+		nRes = pdFAIL;
+	}
+
+//restoreMemDevsEnd:
 	return nRes;
 }
 
@@ -541,10 +658,13 @@ void process_loadprefs(cJSON *json_data, char * jsonMsg, sGrpInfo*  grpArray[])
 
 	vTaskSuspendAll();
 
+	storeMemDevs(); // save MemDevices values
+
 	res = apply_preferences(json_data);		// res == pdPASS -> good!
 	if (res) {
 		uint16_t jsonSize = strlen(jsonMsg);
 		res = storePreferences(jsonMsg, jsonSize);
+
 	    SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ; // reboot
 
 
@@ -725,6 +845,10 @@ void vCommandSelector(sSSNCommand* xSSNCommand)
 				main_reboot();
 				break;
 			}
+			case mainCOMMAND_MEMSAVE: {
+				storeMemDevs();
+				break;
+			}
 			case mainCOMMAND_DISMODEMCHARGE: {
 				// disable charging of battery
 	#ifdef  M_GSM
@@ -768,6 +892,8 @@ void vCommandSelector(sSSNCommand* xSSNCommand)
 
 void main_reboot()
 {
+	storeMemDevs();
+
     SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
     while (1);
 }

@@ -1103,12 +1103,18 @@ int32_t	processActionStack (sEvtElm* pEvtElm, int32_t* nCalcResult)
 {
 	int32_t res = pdTRUE;
 	sRPNStack xRPNStack;
+//	sRPNStack* xRPNStack;
+
 //	int32_t nCalcResult;
+	int32_t a, b;
 	RTC_t rtc;
 
 	if (pEvtElm)
 	{
-		resetRS(&xRPNStack);	// reset stack
+		res = resetRS(&xRPNStack, MAX_ACTION_ARRAY_SIZE);	// reset stack. TO DO: calc real max size
+		if (!res)
+			goto endCalc;
+
 		rtc_gettime(&rtc);
 
 		do {
@@ -1123,40 +1129,63 @@ int32_t	processActionStack (sEvtElm* pEvtElm, int32_t* nCalcResult)
 			    		   	    case eOpResume:
 			    		   	    	goto finishCalc;
 			    		   	    case eOpLE:
-			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) >= popRS(&xRPNStack)));
+			    		   	    	a = popRS(&xRPNStack);
+			    		   	    	b = popRS(&xRPNStack);
+			    	    			pushRS(&xRPNStack, (a >= b));
 			    		   	    	break;
 			    		   	    case eOpGE:
-			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) <= popRS(&xRPNStack)));
+			    		   	    	a = popRS(&xRPNStack);
+			    		   	    	b = popRS(&xRPNStack);
+			    	    			pushRS(&xRPNStack, (a <= b));
 			    		   	    	break;
 			    		   	    case eOpEq:
-			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) == popRS(&xRPNStack)));
+			    		   	    	a = popRS(&xRPNStack);
+			    		   	    	b = popRS(&xRPNStack);
+			    	    			pushRS(&xRPNStack, (a == b));
 			    		   	    	break;
 			    		   	    case eOpL:
-			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) > popRS(&xRPNStack)));
+			    		   	    	a = popRS(&xRPNStack);
+			    		   	    	b = popRS(&xRPNStack);
+			    	    			pushRS(&xRPNStack, (a > b));
 			    		   	    	break;
 			    		   	    case eOpG:
-			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) < popRS(&xRPNStack)));
+			    		   	    	a = popRS(&xRPNStack);
+			    		   	    	b = popRS(&xRPNStack);
+			    	    			pushRS(&xRPNStack, (a < b));
 			    		   	    	break;
 			    		   	    case eOpAND:
-			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) && popRS(&xRPNStack)));
+			    		   	    	a = popRS(&xRPNStack);
+			    		   	    	b = popRS(&xRPNStack);
+			    	    			pushRS(&xRPNStack, (a && b));
 			    		   	    	break;
 			    		   	    case eOpOR:
-			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) || popRS(&xRPNStack)));
+			    		   	    	a = popRS(&xRPNStack);
+			    		   	    	b = popRS(&xRPNStack);
+			    	    			pushRS(&xRPNStack, (a || b));
 			    		   	    	break;
 			    		   	    case eOpNOT:
-			    	    			pushRS(&xRPNStack, (~popRS(&xRPNStack)));
+			    		   	    	a = popRS(&xRPNStack);
+			    	    			pushRS(&xRPNStack, (!a));
 			    		   	    	break;
 			    		   	    case eOpPlus:
-			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) + popRS(&xRPNStack)));
+			    		   	    	a = popRS(&xRPNStack);
+			    		   	    	b = popRS(&xRPNStack);
+			    	    			pushRS(&xRPNStack, (a + b));
 			    		   	    	break;
 			    		   	    case eOpMinus:
-			    	    			pushRS(&xRPNStack, (- popRS(&xRPNStack) + popRS(&xRPNStack)));
+			    		   	    	a = popRS(&xRPNStack);
+			    		   	    	b = popRS(&xRPNStack);
+			    	    			pushRS(&xRPNStack, (-a + b));
 			    		   	    	break;
 			    		   	    case eOpMul:
-			    	    			pushRS(&xRPNStack, (popRS(&xRPNStack) * popRS(&xRPNStack)));
+			    		   	    	a = popRS(&xRPNStack);
+			    		   	    	b = popRS(&xRPNStack);
+			    	    			pushRS(&xRPNStack, (a * b));
 			    		   	    	break;
 			    		   	    case eOpDiv:
-			    	    			pushRS(&xRPNStack, (1 / popRS(&xRPNStack) * popRS(&xRPNStack)));
+			    		   	    	a = popRS(&xRPNStack);
+			    		   	    	b = popRS(&xRPNStack);
+			    	    			pushRS(&xRPNStack, (1 / a * b));
 			    		   	    	break;
 			    		   	  }
 							break;
@@ -1223,7 +1252,8 @@ finishCalc:
 		*nCalcResult = popRS(&xRPNStack);
 	} else
 		res = pdFALSE;
-
+endCalc:
+	freeRS(&xRPNStack);
 	return res;
 }
 
