@@ -499,13 +499,15 @@ int main(void)
 //						}
 //					}
 				}
-				if (!res) {
+//				if (!res) {
 					//sendBaseOut("\n\rError of apply the configuration");
-					debugMsg("\n\rError of apply the configuration");
-				} else {
-					res = refreshActions2DeviceCash();
-				}
+					debugMsg("\n\rErrors in apply the configuration");
+//				} else {
+//					res = refreshActions2DeviceCash();
+//				}
 			}
+
+		res = refreshActions2DeviceCash();
 
 		vPortFree(xPrefsBuffer.buffer);
 		} else {
@@ -783,7 +785,14 @@ processLocalMessages:
 					xsprintf(cPassMessage, "\r\nFreeHeap=%d, StHWM=%d =PRCINI", xPortGetFreeHeapSize(), uxTaskGetStackHighWaterMark(0));
 					//sendBaseOut(cPassMessage);
 					debugMsg(cPassMessage);
+					xReturn = storePreferences(xInputMessage.pcMessage, strlen(xInputMessage.pcMessage));
+			    	debugMsg(cPassMessage);
+					vTaskDelay( 1000 / portTICK_PERIOD_MS );
+					xsprintf(cPassMessage, "\r\nConfig loaded from buffer (INI)");
+					main_reboot(); 	// reboot
+				    while (1);
 
+					/*
 				    sIniHandlerData xIniHandlerData;
 				    sSSNCommand xSSNCommand;
 				    xSSNCommand.nCmd = 0;
@@ -800,7 +809,8 @@ processLocalMessages:
 				    ctx.ptr = (char*) xInputMessage.pcMessage;
 				    ctx.bytes_left = strlen(ctx.ptr);
 
-				    xReturn = ini_parse_stream((ini_reader)ini_buffer_reader, &ctx, handler, &xIniHandlerData);
+
+					xReturn = ini_parse_stream((ini_reader)ini_buffer_reader, &ctx, handler, &xIniHandlerData);
 				    if (xReturn != 0) {
 				    	xsprintf(( portCHAR *) cPassMessage, "\r\nCan't parse INI format, line: %d, param: %s\n", xReturn, xIniHandlerData.sLastName);
 				    	//sendBaseOut(cPassMessage);
@@ -825,6 +835,7 @@ processLocalMessages:
 					    while (1);
 					}
 					vPortFree(xInputMessage.pcMessage);
+						*/
 					break;
 				}
 // ============= JSON format processing:

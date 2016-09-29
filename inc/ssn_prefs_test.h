@@ -24,6 +24,8 @@
  *      Author: eric
  */
 
+/* TEST: OLIMEX board */
+
 #ifndef INC_SSN_PREFS_TEST_H_
 #define INC_SSN_PREFS_TEST_H_
 
@@ -36,13 +38,13 @@
 #define M_DHT
 //#define M_GSM
 
-#define WATCHDOG
+//#define WATCHDOG
 
 #define WATCHDOG_PERIOD 10000	// period of watchdog timer (ms)
 
 //#define DEBUG_S	// debug task statistics
 
-#define MC_OBJECT	1
+#define MC_OBJECT	4
 
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
@@ -57,11 +59,22 @@
 #define mainMAX_DHT_DEVICES				(3) 	// default max number of dht devices
 #define mainMAX_ROUTES					(2)		// max number routing interfaces
 
+// memory type device saving period (sec)
+#define mainMEMORY_DEV_SAVE_PERIOD		36000
+// maximum quantity of memory devices. Usually enough 1 element
+#define mainMEMORY_DEV_MAX_QTY			2
+
+
+// skip preferences loading button:
+#define mainSKIP_PREF_PIN		8		//	PA08
+#define mainSKIP_PREF_PORT		GPIOA
+#define mainSKIP_PREF_VALUE		pdFALSE	// pin value for skip prefs actuate
+
 
 /* Persistence settings *
  * (select one) */
-#define PERSIST_EEPROM_I2C
-//#define PERSIST_STM32FLASH
+//#define PERSIST_EEPROM_I2C
+#define PERSIST_STM32FLASH
 
 
 /* EEPROM I2C ------------------------------------------------*/
@@ -70,6 +83,7 @@
 #define EEPROM_ADDRESS        	0xA0	// at24c32
 //#define DS1307_ADDRESS        0xD0	// rtc ds1307 address
 #define EEPROM_PAGE_SIZE      	32
+#define EEPROM_MAX_SIZE      	4096	//
 
 
 /* soft i2c hardware settings */
@@ -82,7 +96,7 @@
 #define SOFTI2C_1_MAXDEVS		( 2 )
 
 /* COM port and baud rate used by the base out task. */
-#define mainBAUD_RATE						( 38400 )
+#define mainBAUD_RATE						( 57600 )
 #define mainBASECOM							( mainCOM1 )
 //#define mainBASECOM_USE_RTS					( 1 ) // if 1, than we use hardware RTS ___ to do
 
@@ -95,8 +109,8 @@
 
 //#define mainDEFAULT_LOG_INTERFACE		main_IF_GSM 	// interface to routing log info
 
-#define configUSE_TRACE_FACILITY 1
-#define configUSE_STATS_FORMATTING_FUNCTIONS 1
+//#define configUSE_TRACE_FACILITY 1
+//#define configUSE_STATS_FORMATTING_FUNCTIONS 1
 
 extern void log_event (void* poldt, void* pnewt, uint32_t xTickCount);
 extern void log_event2 (char c, void* pt);
