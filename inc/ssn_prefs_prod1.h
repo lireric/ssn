@@ -39,8 +39,8 @@
 #define PERSIST_EEPROM_I2C
 //#define PERSIST_STM32FLASH
 
-//#define WATCHDOG
-#define WATCHDOG_PERIOD 10000	// period of watchdog timer (ms)
+#define WATCHDOG
+#define WATCHDOG_PERIOD 5000	// period of watchdog timer (ms)
 
 //#define DEBUG_S	// debug task statistics
 

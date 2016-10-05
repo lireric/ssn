@@ -162,7 +162,6 @@ void process_getowilist(cJSON *json_data)
 	{
 	res = owi_search_devices(owi_tmp, mainMAX_GRP_DEVICES, pGrpInfo, &pGrpInfo->iDevQty);
 	}
-	taskEXIT_CRITICAL();
 	if (!res) {
 	xsprintf((char *) cPassMessage, "{\"ssn\":{\"v\":1,\"ret\":\"getowilist\", \"data\":{ \"num\":%d, \"owiid\":[", pGrpInfo->iDevQty);
 	sendBaseOut((char *)cPassMessage);
@@ -176,6 +175,7 @@ void process_getowilist(cJSON *json_data)
 		}
 		sendBaseOut("]}}}");
 	}
+	taskEXIT_CRITICAL();
 	vPortFree(owi_tmp);
 }
 
@@ -194,6 +194,7 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 	if (MATCH("app", "logobj")) {
 		setLog_Object(conv2d(sValue));		// store object-logger
 	} else if (strcmp(sSection, "grp") == 0) {
+		// section "grp" --------------------------------------------
 		// check for new group
 		if (strcmp(pIniHandlerData->sLastSection, sSection) != 0) {
 			if (grp_counter++ > mainMAX_DEV_GROUPS) {
@@ -222,6 +223,7 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 			grpArray[grp_counter]->GrpDev.ucPin2 = conv2d(sValue);
 		}
 	} else if (strcmp(sSection, "dev") == 0) {
+		// section "dev" --------------------------------------------
 		// check for new device
 		if (strcmp(pIniHandlerData->sLastSection, sSection) != 0) {
 
@@ -247,6 +249,7 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 			devArray[all_devs_counter]->nId = conv2d(sValue);
 
 		} else if (strcmp(sName, "devtype") == 0) {
+			// section "dev:devtype" --------------------------------------------
 			devArray[all_devs_counter]->ucType = conv2d(sValue);
 
 			if (devArray[all_devs_counter]->ucType == device_TYPE_DS18B20) {
@@ -294,8 +297,13 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 					return pdFAIL;
 #endif
 
-			}
-		} else if (devArray[all_devs_counter]->ucType == device_TYPE_MEMORY) {
+			}  /* else if (devArray[all_devs_counter]->ucType == device_TYPE_BMP180) {
+					(BMP180_data_t*)devArray[all_devs_counter]->pDevStruct = bmp180_device_init(devArray[all_devs_counter]->pGroup->GrpDev);
+					if (!devArray[all_devs_counter]->pDevStruct) return pdFAIL;
+				} */
+		}
+		// ---- other dev attributes: -----------------------------------------
+		else if (devArray[all_devs_counter]->ucType == device_TYPE_MEMORY) {
 			// memory element pseudo device
 			if (strcmp(sName, "e") == 0) {
 				devArray[all_devs_counter]->pGroup->iDevQty = conv2d(sValue);
@@ -324,6 +332,17 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 					return pdFAIL;
 				}
 			}
+		} else if (devArray[all_devs_counter]->ucType == device_TYPE_BMP180) {
+#ifdef  M_BMP180
+			if (strcmp(sName, "addr") == 0) {
+				//(BMP180_data_t*)devArray[all_devs_counter]->pDevStruct =
+				bmp180_device_init(&devArray[all_devs_counter]->pGroup->GrpDev, conv2d(sValue));
+				if (!devArray[all_devs_counter]->pDevStruct) return pdFAIL;
+			} else if (strcmp(sName, "oss") == 0) {
+				if (devArray[all_devs_counter]->pDevStruct)
+					((BMP180_data_t*)devArray[all_devs_counter]->pDevStruct)->P_Oversampling = conv2d(sValue);
+			}
+#endif
 		} else if (strcmp(sName, "romid") == 0) {
 #ifdef  M_DS18B20
 			devArray[all_devs_counter]->pDevStruct = (void*) ds18b20_init(devArray[all_devs_counter]->pGroup, sValue);
@@ -394,6 +413,7 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 #endif
 
 	} else if (strcmp(sSection, "route") == 0) {
+		// section "route" --------------------------------------------
 		if (pIniHandlerData->pnPrevSectionNo != *pnSectionNo) {
 			route_counter++;
 		}
@@ -404,6 +424,7 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 		}
 
 	} else if (strcmp(sSection, "logic") == 0) {
+		// section "logic" --------------------------------------------
 		if ((pIniHandlerData->pnPrevSectionNo != *pnSectionNo) && pIniHandlerData->xTempAction.aid
 				&& (strlen(pIniHandlerData->xTempAction.astr) > 0))
 		{

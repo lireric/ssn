@@ -35,6 +35,8 @@
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
+#define SSN_VERSION "2016-10-04"
+
 /* Global variables 			========================================== */
 
 unsigned long ulIdleCycleCount;
@@ -158,7 +160,7 @@ static int handler(void* user, const char* section, const char* name,
 		{
 			if (MATCH("ssn", "v") && conv2d(value) != 1) {
 				xsprintf(msg, "\r\nWrong SSN protocol version: %s ", value);
-				sendBaseOut(msg);
+				debugMsg(msg);
 				nRes =  pdFAIL;
 			} else if (MATCH("ssn", "obj")) {
 				pIniHandlerData->iniSSNCommand->uiDevDest = conv2d(value);
@@ -339,7 +341,8 @@ int main(void)
  * to do: make init other UARTs if needed...
  */
 		//sendBaseOut("\r\n\r\nStart SSN");
-		debugMsg("\r\n\r\nStart SSN");
+	  	xsprintf(( portCHAR *) msg, "\r\n\r\nStart SSN. Version: %s\n", SSN_VERSION);
+		debugMsg(msg);
 
 // ------------------------------------------------------------------------------
 	  	sGrpInfo * pGrp;
@@ -367,7 +370,8 @@ int main(void)
 		pGrpDev->ucPin2 = SOFTI2C_1_PIN_SCL;
 		pGrpDev->pTimer = SOFTI2C_TIMER_1;
 //		grp_counter++;
-		owi_device_init_i2c(pGrpDev);
+//		owi_device_init_i2c(pGrpDev);
+		soft_i2c_init(pGrpDev);
 #endif
 
 #if defined (M_RTC_DS1307)
@@ -388,7 +392,6 @@ int main(void)
 
 			}
 			else {
-				//sendBaseOut("\n\rRTC DS1307 not responding");
 				debugMsg("\n\rRTC DS1307 not responding");
 			};
 #endif
@@ -458,7 +461,7 @@ int main(void)
 				    ctx.bytes_left = nBufSize;
 				    res = ini_parse_stream((ini_reader)ini_buffer_reader, &ctx, handler, &xIniHandlerData);
 				    if (res != 0) {
-				    	xsprintf(( portCHAR *) msg, "\r\nCan't parse INI format, line: %d, param: %s\n", res, xIniHandlerData.sLastName);
+				    	xsprintf(( portCHAR *) msg, "\r\nErrors was in INI parsing, last error line: %d\n", res);
 				    	//sendBaseOut((char *) &msg);
 				    	debugMsg((char *) &msg);
 				    } else {
@@ -474,49 +477,17 @@ int main(void)
 // JSON format
 // skip JSON format!!!
 					res = pdFAIL;
-//					cJSON *json_root, *json_ssn;
-//					json_root = cJSON_Parse(xPrefsBuffer.buffer);
-//					if (!json_root) {
-//						res = 1;
-//					} else {
-//						json_ssn = cJSON_GetObjectItem(json_root, "ssn");
-//						if (!json_ssn) {
-//							xsprintf(( portCHAR *) msg, "\n\rJSON error before: [%s]\n\r", cJSON_GetErrorPtr());
-//							//sendBaseOut((char *) &msg);
-//							debugMsg((char *) &msg);
-//						} else {
-//							int version =
-//									cJSON_GetObjectItem(json_ssn, "v")->valueint;
-//							if (version == 1) {
-//								cJSON *json_data = cJSON_GetObjectItem(json_ssn, "data");
-//								if (!json_data) {
-//									//sendBaseOut("\n\rError JSON data");
-//									debugMsg("\n\rError JSON data");
-//								} else {
-//									res = apply_preferences(json_data);	// res == 0 -> good!
-//								}
-//							}
-//						}
-//					}
 				}
-//				if (!res) {
-					//sendBaseOut("\n\rError of apply the configuration");
-					debugMsg("\n\rErrors in apply the configuration");
-//				} else {
-//					res = refreshActions2DeviceCash();
-//				}
 			}
 
 		res = refreshActions2DeviceCash();
 
 		vPortFree(xPrefsBuffer.buffer);
 		} else {
-			//sendBaseOut("\n\rError preferences size info (EEPROM or FLASH)");
 			debugMsg("\n\rError preferences size info (EEPROM or FLASH)");
 		}
 	} else {
 		//error
-		//sendBaseOut("\n\rError reading configuration from EEPROM or FLASH");
 		debugMsg("\n\rError reading configuration from EEPROM or FLASH");
 	}
 
@@ -992,17 +963,19 @@ static void prvCheckSensorMRTask( void *pvParameters )
 
 #ifdef  M_DS18B20
 							case device_TYPE_DS18B20:
+								if (devArray[j]->pDevStruct) {
 // check ds18b20 conversation status on this line (it's make only for one (first) device - if set for this group, than skip):
-								if (flag18b20_conv != devArray[j]->pGroup->uiGroup) {
-								    res = ds_start_convert_all(devArray[j]->pGroup, devArray, j);     // start temperature measuring
-								    flag18b20_conv = devArray[j]->pGroup->uiGroup;
-								}
+									if (flag18b20_conv != devArray[j]->pGroup->uiGroup) {
+										res = ds_start_convert_all(devArray[j]->pGroup, devArray, j);     // start temperature measuring
+										flag18b20_conv = devArray[j]->pGroup->uiGroup;
+									}
 // if value changed send message into Sensors queue for next processing:
-								if (((ds18b20_device*) devArray[j]->pDevStruct)->iDevValue != ((ds18b20_device*) devArray[j]->pDevStruct)->nDevPrevValue) {
-									res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
-									if (!res) {
+									if (((ds18b20_device*) devArray[j]->pDevStruct)->iDevValue != ((ds18b20_device*) devArray[j]->pDevStruct)->nDevPrevValue) {
+										res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
+										if (!res) {
 										//sendBaseOut("\r\nError sending into Sensors Queue!");
-										debugMsg("\r\nError sending into Sensors Queue!");
+											debugMsg("\r\nError sending into Sensors Queue!");
+										}
 									}
 								}
 								break;
@@ -1010,42 +983,55 @@ static void prvCheckSensorMRTask( void *pvParameters )
 
 #ifdef  M_DHT
 							case device_TYPE_DHT22:
-								taskENTER_CRITICAL(); {
-								res = dht_get_data (&devArray[j]->pGroup->GrpDev, (DHT_data_t*) devArray[j]->pDevStruct);
-								} taskEXIT_CRITICAL();
-								if (((DHT_data_t*) devArray[j]->pDevStruct)->humidity != ((DHT_data_t*) devArray[j]->pDevStruct)->nPrevHumidity
+								if (devArray[j]->pDevStruct) {
+									taskENTER_CRITICAL(); {
+										res = dht_get_data (&devArray[j]->pGroup->GrpDev, (DHT_data_t*) devArray[j]->pDevStruct);
+									} taskEXIT_CRITICAL();
+									if (((DHT_data_t*) devArray[j]->pDevStruct)->humidity != ((DHT_data_t*) devArray[j]->pDevStruct)->nPrevHumidity
 										|| ((DHT_data_t*) devArray[j]->pDevStruct)->temperature != ((DHT_data_t*) devArray[j]->pDevStruct)->nPrevTemperature) {
 									res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
+									}
+								}
+								break;
+#endif
+#ifdef  M_BMP180
+							case device_TYPE_BMP180:
+								if (devArray[j]->pDevStruct) {
+									res = bmp180_get_data (devArray[j]);
+									if (((BMP180_data_t*) devArray[j]->pDevStruct)->iTemperature != ((BMP180_data_t*) devArray[j]->pDevStruct)->iPrevTemperature
+										|| ((BMP180_data_t*) devArray[j]->pDevStruct)->uiPressure != ((BMP180_data_t*) devArray[j]->pDevStruct)->uiPrevPressure) {
+										res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
+									}
 								}
 								break;
 #endif
 							case device_TYPE_BB1BIT_IO_AI:
+								if (devArray[j]->pDevStruct) {
 								// ADC calculation:
-								//channel_array[0] = 0; // to do - take from prefs
-//								((sADC_data_t*)devArray[j]->pDevStruct)->nChannelArray[0]=0;
-								adc_set_regular_sequence(ADC1, devArray[j]->pGroup->iDevQty, ((sADC_data_t*)devArray[j]->pDevStruct)->nChannelArray);
-								adc_start_conversion_direct(ADC1);
+									adc_set_regular_sequence(ADC1, devArray[j]->pGroup->iDevQty, ((sADC_data_t*)devArray[j]->pDevStruct)->nChannelArray);
+									adc_start_conversion_direct(ADC1);
 //								adc_start_conversion_regular(ADC1);
 //								while (!adc_eoc(ADC1));
 //								nADCch_counter = 0;
-								devArray[j]->nFlag &= 0b11111110;
+									devArray[j]->nFlag &= 0b11111110;
 
-								for (uint8_t nch=0; nch < devArray[j]->pGroup->iDevQty; nch++) {
-									uint16_t nTmpValue;
-									adc_set_regular_sequence(ADC1, 1, ((((sADC_data_t*)devArray[j]->pDevStruct)->nChannelArray)+nch));
-									adc_start_conversion_direct(ADC1);
-									while (!adc_eoc(ADC1));
+									for (uint8_t nch=0; nch < devArray[j]->pGroup->iDevQty; nch++) {
+										uint16_t nTmpValue;
+										adc_set_regular_sequence(ADC1, 1, ((((sADC_data_t*)devArray[j]->pDevStruct)->nChannelArray)+nch));
+										adc_start_conversion_direct(ADC1);
+										while (!adc_eoc(ADC1));
 //									nADCch_counter = 0;
-									nTmpValue = ((sADC_data_t*)devArray[j]->pDevStruct)->nADCValueArray[nch];
-									((sADC_data_t*)devArray[j]->pDevStruct)->nADCValueArray[nch] = adc_read_regular(ADC1);
-									if (nTmpValue != ((sADC_data_t*)devArray[j]->pDevStruct)->nADCValueArray[nch]) {
-										devArray[j]->nFlag |= 0b00000001; // value is changed
-									}
+										nTmpValue = ((sADC_data_t*)devArray[j]->pDevStruct)->nADCValueArray[nch];
+										((sADC_data_t*)devArray[j]->pDevStruct)->nADCValueArray[nch] = adc_read_regular(ADC1);
+										if (nTmpValue != ((sADC_data_t*)devArray[j]->pDevStruct)->nADCValueArray[nch]) {
+											devArray[j]->nFlag |= 0b00000001; // value is changed
+										}
 									//((sADC_data_t*)devArray[j]->pDevStruct)->uiLastUpdate = rtc_get_counter_val();
-									devArray[j]->uiLastUpdate = rtc_get_counter_val();
-								}
-								if (devArray[j]->nFlag && 0b00000001) {
-									res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
+										devArray[j]->uiLastUpdate = rtc_get_counter_val();
+									}
+									if (devArray[j]->nFlag && 0b00000001) {
+										res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
+									}
 								}
 								break;
 //							case device_TYPE_BB1BIT_IO_PP:
@@ -1155,10 +1141,6 @@ static void prvCronFunc( void *pvParameters )
 static void prvProcSensorTask( void *pvParameters )
 {
 	sDevice* dev;
-//	char msg[mainMAX_MSG_LEN];
-//	char msg2[mainMAX_MSG_LEN] = {0};
-//	uint8_t i;
-//	uint32_t res;
 	( void ) pvParameters;
 
 	while (1)
@@ -1166,38 +1148,41 @@ static void prvProcSensorTask( void *pvParameters )
 		/* Wait for a message from Sensors queue */
 		while ( xQueueReceive(xSensorsQueue, &dev, portMAX_DELAY)	!= pdPASS) ;
 		if (dev) {
-//			xsprintf(msg, "\n\rDevice [%d]: ", dev->nId );
-//			sendBaseOut(msg);
 				switch (dev->ucType) {
 #ifdef  M_DS18B20
 				case device_TYPE_DS18B20:
-//					xsprintf(msg, "temperature = %d lastupdate = %ld", ((ds18b20_device*) dev->pDevStruct)->iDevValue, ((ds18b20_device*) dev->pDevStruct)->uiLastUpdate );
-					logAction(0, dev->nId, 0, ((ds18b20_device*) dev->pDevStruct)->iDevValue);
+					if (dev->pDevStruct) {
+						logAction(0, dev->nId, 0, ((ds18b20_device*) dev->pDevStruct)->iDevValue);
+					}
 					break;
 #endif
 #ifdef  M_DHT
 				case device_TYPE_DHT22:
-//					xsprintf(msg, "temperature = %d humidity = %d lastupdate = %ld", ((DHT_data_t*) dev->pDevStruct)->temperature,
-//							((DHT_data_t*) dev->pDevStruct)->humidity, ((DHT_data_t*) dev->pDevStruct)->uiLastUpdate );
-					logAction(0, dev->nId, 0, ((DHT_data_t*) dev->pDevStruct)->temperature);
-					logAction(0, dev->nId, 1, ((DHT_data_t*) dev->pDevStruct)->humidity);
+					if (dev->pDevStruct) {
+						logAction(0, dev->nId, 0, ((DHT_data_t*) dev->pDevStruct)->temperature);
+						logAction(0, dev->nId, 1, ((DHT_data_t*) dev->pDevStruct)->humidity);
+					}
+					break;
+#endif
+#ifdef  M_BMP180
+				case device_TYPE_BMP180:
+					if (dev->pDevStruct) {
+						logAction(0, dev->nId, 0, ((BMP180_data_t*) dev->pDevStruct)->iTemperature);
+						logAction(0, dev->nId, 1, ((BMP180_data_t*) dev->pDevStruct)->uiPressure);
+					}
 					break;
 #endif
 				case device_TYPE_BB1BIT_IO_AI:
-					for (uint8_t ch=0; ch < dev->pGroup->iDevQty; ch++) {
-//						xsprintf(msg2, "%s [%d]=%d", msg2, ((sADC_data_t*)dev->pDevStruct)->nChannelArray[ch], ((sADC_data_t*)dev->pDevStruct)->nADCValueArray[ch]);
-						logAction(0, dev->nId, ch, ((sADC_data_t*)dev->pDevStruct)->nADCValueArray[ch]);
+					if (dev->pDevStruct) {
+						for (uint8_t ch=0; ch < dev->pGroup->iDevQty; ch++) {
+							logAction(0, dev->nId, ch, ((sADC_data_t*)dev->pDevStruct)->nADCValueArray[ch]);
+						}
 					}
-//					xsprintf(msg, "voltage: %s mv, lastupdate = %ld", msg2, dev->uiLastUpdate);
-//					msg2[0] = 0;
 					break;
 				case device_TYPE_BB1BIT_IO_INPUT:
-//					xsprintf(msg, "digital input = %d, lastupdate = %ld", dev->nLastPinValue, dev->uiLastUpdate);
 					logAction(0, dev->nId, 0, dev->nLastPinValue);
 					break;
 				}
-//				sendBaseOut(msg);
-
 				// scan thru actions linked with this device:
 				scanDevActions (dev);
 
@@ -1295,7 +1280,7 @@ uint16_t calcCRC;
 							}
 							if (!xSSNPDU.buffer) {
 								xSSNPDU.state = SSN_STATE_ERROR;
-								sendBaseOut("\r\nSSN buffer allocation error!");
+								debugMsg("\r\nSSN buffer allocation error!");
 								nScanCnt = 0;
 								break;
 							} else {

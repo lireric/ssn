@@ -63,26 +63,20 @@ void 	delay_ms(sGrpDev* pGrpDev, uint32_t nCount);	// nCount 16 bit!!!
 uint8_t bb_read_wire_data_bit(sGrpDev* pGrpDev);
 void 	bb_wire_in (sGrpDev* pGrpDev);
 void 	bb_wire_out(sGrpDev* pGrpDev);
-void	 bb_clear_wire(sGrpDev* pGrpDev);
+void	bb_clear_wire(sGrpDev* pGrpDev);
 void 	bb_set_wire(sGrpDev* pGrpDev);
-
-//  -- for soft i2c:
-void 	bb_wire_in_SCL(sGrpDev* pGrpDev);
-void 	bb_wire_out_SCL(sGrpDev* pGrpDev);
-uint8_t bb_read_wire_data_bit_SCL(sGrpDev* pGrpDev);
-void 	bb_clear_wire_SCL(sGrpDev* pGrpDev);
-void	bb_set_wire_SCL(sGrpDev* pGrpDev);
-void 	owi_device_init_i2c(sGrpDev* pGrpDev);
+void 	bb_clear_wire2(sGrpDev* pGrpDev);
+void 	bb_set_wire2(sGrpDev* pGrpDev);
 
 // -- for owi devices:
 OWI_device* owi_device_init(sGrpDev* pGrpDev);
 void 	owi_device_delete (OWI_device* pOWIDev);
 
-uint8_t owi_reset_pulse(sGrpDev* pGrpDev);
-void 	owi_write_bit(volatile uint8_t bit,sGrpDev* pGrpDev);
-uint16_t owi_read_bit(sGrpDev* pGrpDev);
-void 	owi_write_byte(volatile uint8_t byte, sGrpDev* pGrpDev);
-uint8_t owi_read_byte(sGrpDev* pGrpDev);
+uint8_t 	owi_reset_pulse(sGrpDev* pGrpDev);
+void 		owi_write_bit(volatile uint8_t bit,sGrpDev* pGrpDev);
+uint16_t 	owi_read_bit(sGrpDev* pGrpDev);
+void 		owi_write_byte(volatile uint8_t byte, sGrpDev* pGrpDev);
+uint8_t 	owi_read_byte(sGrpDev* pGrpDev);
 unsigned char owi_search_rom(unsigned char * bitPattern, unsigned char lastDeviation, sGrpDev* pGrpDev);
 unsigned char owi_search_devices(OWI_device * devices, uint8_t numDevices, sGrpInfo* pGroup, uint8_t *num);
 unsigned char owi_ComputeCRC8(unsigned char inData, unsigned char seed);

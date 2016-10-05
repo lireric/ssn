@@ -69,6 +69,7 @@
 #define device_TYPE_ETH					( 12 )	// ethernet	/* to do */
 #define device_TYPE_MEMORY				( 13 )	// pseudo device - memory store variable
 #define device_TYPE_PWM					( 14 )	// PWM
+#define device_TYPE_BMP180				( 15 )	// BMP180 atmosphere pressure and temperature sensor
 
 
 #ifndef NULL

@@ -117,7 +117,7 @@ void gsm_delay_ms(uint16_t uiDelay)
 
 void print_gsm_debug (char *str)
 {
-	sendBaseOut(str);
+	debugMsg(str);
 }
 
 char* make_token (uint16_t nCmd, uint32_t nData1, uint16_t nData2)

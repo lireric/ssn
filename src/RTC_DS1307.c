@@ -44,17 +44,21 @@ static uint8_t bin2bcd (uint8_t val) { return val + 6 * (val / 10); }
 ////////////////////////////////////////////////////////////////////////////////
 // RTC_DS1307 implementation
 
-uint8_t RTC_DS1307_now(sGrpDev* pGrpDev) {
+int32_t RTC_DS1307_now(sGrpDev* pGrpDev) {
 
 	uint8_t rxbuf[RTC_DS1307_RX_DEPTH];
 	uint8_t txbuf[1];
 	uint8_t addr = 0;
 	txbuf[0]= 0x00;
-	uint8_t rc = 0;
-	rc = soft_i2c_send_ex(pGrpDev, DS1307_ADDRESS, (uint8_t*)&addr, sizeof(addr), txbuf, 1);
-	rc = soft_i2c_read_ex(pGrpDev, DS1307_ADDRESS, (uint8_t*)&addr, sizeof(addr), rxbuf, 7);
+//	uint8_t rc = 0;
+	int32_t nRes;
 
-	if (rc) {
+//	rc = soft_i2c_send_ex(pGrpDev, DS1307_ADDRESS, (uint8_t*)&addr, sizeof(addr), txbuf, 1);
+//	rc = soft_i2c_read_ex(pGrpDev, DS1307_ADDRESS, (uint8_t*)&addr, sizeof(addr), rxbuf, 7);
+	nRes = soft_i2c_WriteBufferAddress(pGrpDev, DS1307_ADDRESS, addr, txbuf, 1);
+	nRes = soft_i2c_ReadBufferAddress(pGrpDev, DS1307_ADDRESS, addr, rxbuf, 7);
+
+	if (nRes) {
 		DS1307_time.sec = bcd2bin(rxbuf[0] & 0x7F);
 		DS1307_time.min = bcd2bin(rxbuf[1]);
 		DS1307_time.hour = bcd2bin(rxbuf[2]);
@@ -63,16 +67,15 @@ uint8_t RTC_DS1307_now(sGrpDev* pGrpDev) {
 		DS1307_time.year  = bcd2bin(rxbuf[6]);
 	}
 
-	return rc;
+	return nRes;
 }
 
 
+int32_t RTC_DS1307_adjust(sGrpDev* pGrpDev) {
 
-uint8_t RTC_DS1307_adjust(sGrpDev* pGrpDev) {
-
-	//uint8_t rxbuf;
 	uint8_t txbuf[8];
 	uint8_t addr = 0;
+	int32_t nRes;
 
 	txbuf[0]=bin2bcd(DS1307_time.sec);
 	txbuf[1]=bin2bcd(DS1307_time.min);
@@ -83,16 +86,18 @@ uint8_t RTC_DS1307_adjust(sGrpDev* pGrpDev) {
 	txbuf[6]=bin2bcd(DS1307_time.year);
 	txbuf[7]=0;
 
-	uint8_t rc = 0;
-	rc = soft_i2c_send_ex(pGrpDev, DS1307_ADDRESS, (uint8_t*)&addr, sizeof(addr), txbuf, 8);
+//	uint8_t rc = 0;
+//	rc = soft_i2c_send_ex(pGrpDev, DS1307_ADDRESS, (uint8_t*)&addr, sizeof(addr), txbuf, 8);
+	nRes = soft_i2c_WriteBufferAddress(pGrpDev, DS1307_ADDRESS, addr, txbuf, 7);
 
-	return rc;
+	return nRes;
 }
 
-uint8_t RTC_DS1307_SetOutput(sGrpDev* pGrpDev, uint8_t c) {
+int32_t RTC_DS1307_SetOutput(sGrpDev* pGrpDev, uint8_t c) {
+	int32_t nRes;
 	uint8_t out;
-	uint8_t txbuf[2]; //, rxbuf;
-	uint8_t rc = 0;
+	uint8_t txbuf[1];
+//	uint8_t rc = 0;
 	uint8_t addr = 0x07;
 	switch(c)
 	{
@@ -121,25 +126,8 @@ uint8_t RTC_DS1307_SetOutput(sGrpDev* pGrpDev, uint8_t c) {
 //	txbuf[0]=0x07;
 	txbuf[0]=out;
 //	RTC_DS1307_status = i2cMasterTransmitTimeout(&I2CD1, DS1307_ADDRESS, txbuf, 2, rxbuf, 0, TMO);
-	rc = soft_i2c_send_ex(pGrpDev, DS1307_ADDRESS, (uint8_t*)&addr, sizeof(addr), txbuf, 1);
-	return rc;
+//	rc = soft_i2c_send_ex(pGrpDev, DS1307_ADDRESS, (uint8_t*)&addr, sizeof(addr), txbuf, 1);
+	nRes = soft_i2c_WriteBufferAddress(pGrpDev, DS1307_ADDRESS, addr, txbuf, 1);
+	return nRes;
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// RTC_Millis implementation
-//
-//void RTC_Millis_adjust(void) {
-//
-//	uint32_t chtime,dstime;
-//
-//	chtime = chTimeNow();
-//	dstime = RTC_DS1307_unixtime();
-//	RTC_Millis_offset= dstime - (chtime/1000);
-//}
-//
-//uint32_t RTC_Millis_now(void) {
-//	return (uint32_t)(RTC_Millis_offset + (chTimeNow() / 1000));
-//}
-
-////////////////////////////////////////////////////////////////////////////////
 

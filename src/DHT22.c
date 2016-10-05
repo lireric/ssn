@@ -37,7 +37,7 @@ uint32_t measure_period_nus(sGrpDev* pGrpDev, uint32_t nTimeout) {
 	// Fix start pin value
 	pinStartValue = (GPIO_IDR(pGrpDev->pPort) & (1 << pGrpDev->ucPin)) ? 1 : 0;
 
-bb_set_wire_SCL (pGrpDev);	// SETSCL
+	bb_set_wire2 (pGrpDev);	// SETSCL
 	/* Counter enable. */
 	timer_direction_up(pGrpDev->pTimer);
 	timer_enable_counter(pGrpDev->pTimer);
@@ -49,7 +49,7 @@ bb_set_wire_SCL (pGrpDev);	// SETSCL
 		TIMCounter = timer_get_counter(pGrpDev->pTimer);
 	}
 	timer_disable_counter(pGrpDev->pTimer);
-bb_clear_wire_SCL (pGrpDev); //  SCL_LOW
+	bb_clear_wire2 (pGrpDev); //  SCL_LOW
 	return TIMCounter;
 }
 
@@ -82,6 +82,8 @@ DHT_data_t* dht_device_init(sGrpDev* pGrpDev) {
 
 	gpio_set_mode(pGrpDev->pPort, GPIO_MODE_INPUT,
 			GPIO_CNF_INPUT_FLOAT, 1 << pGrpDev->ucPin);
+	gpio_set_mode(pGrpDev->pPort, GPIO_MODE_OUTPUT_50_MHZ,
+			GPIO_CNF_OUTPUT_OPENDRAIN, 1 << pGrpDev->ucPin2);
 
 	/* Reset timer peripheral. */
 	timer_reset(pGrpDev->pTimer);

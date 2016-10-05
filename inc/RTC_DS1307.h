@@ -68,9 +68,9 @@ typedef struct{
 //uint8_t RTC_DS1307_dayOfWeek(void);
 //uint32_t RTC_DS1307_unixtime(void);
 //uint8_t RTC_DS1307_isrunning(void);
-uint8_t RTC_DS1307_adjust(sGrpDev* pGrpDev);
-uint8_t RTC_DS1307_now(sGrpDev* pGrpDev);
-uint8_t RTC_DS1307_SetOutput(sGrpDev* pGrpDev, uint8_t c);
+int32_t RTC_DS1307_adjust(sGrpDev* pGrpDev);
+int32_t RTC_DS1307_now(sGrpDev* pGrpDev);
+int32_t RTC_DS1307_SetOutput(sGrpDev* pGrpDev, uint8_t c);
 
 //void RTC_Millis_adjust(void);
 //uint32_t RTC_Millis_now(void);

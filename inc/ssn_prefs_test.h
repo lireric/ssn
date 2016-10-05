@@ -37,6 +37,7 @@
 #define M_DS18B20
 #define M_DHT
 //#define M_GSM
+#define M_BMP180
 
 //#define WATCHDOG
 

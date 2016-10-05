@@ -34,19 +34,20 @@
 
 void delay_nus(sGrpDev* pGrpDev, uint32_t nCount) {
 	volatile uint16_t TIMCounter = nCount;
-	/* Counter enable. */
-	/* Reset prescaler value. */
-	timer_set_prescaler(pGrpDev->pTimer, 72);
-	timer_direction_down(pGrpDev->pTimer);
-	timer_enable_counter(pGrpDev->pTimer);
-	timer_set_counter(pGrpDev->pTimer, TIMCounter);
-	/* Start timer. */
-	TIM_CR1(pGrpDev->pTimer) |= TIM_CR1_CEN;
-	while (TIMCounter > 1) {
-		TIMCounter = timer_get_counter(pGrpDev->pTimer);
+	if (pGrpDev->pTimer) {
+		/* Counter enable. */
+		/* Reset prescaler value. */
+		timer_set_prescaler(pGrpDev->pTimer, 72);
+		timer_direction_down(pGrpDev->pTimer);
+		timer_enable_counter(pGrpDev->pTimer);
+		timer_set_counter(pGrpDev->pTimer, TIMCounter);
+		/* Start timer. */
+		TIM_CR1(pGrpDev->pTimer) |= TIM_CR1_CEN;
+		while (TIMCounter > 1) {
+			TIMCounter = timer_get_counter(pGrpDev->pTimer);
+		}
+		timer_disable_counter(pGrpDev->pTimer);
 	}
-	timer_disable_counter(pGrpDev->pTimer);
-
 }
 
 void delay_ms(sGrpDev* pGrpDev, uint32_t nCount) {
@@ -74,23 +75,6 @@ uint8_t bb_read_wire_data_bit(sGrpDev* pGrpDev)
 {
 	volatile uint8_t result = 0;
 	result = GPIO_IDR(pGrpDev->pPort) & (1 << pGrpDev->ucPin);
-
-	if (result != 0)
-	  {
-		result = 1;
-	  }
-	  else
-	  {
-		 result = 0;
-	  }
-	return result;
-}
-
-// Read input data bit from pGrpDev->ucPin2
-uint8_t bb_read_wire_data_bit_SCL(sGrpDev* pGrpDev)
-{
-	volatile uint8_t result = 0;
-	result = GPIO_IDR(pGrpDev->pPort) & (1 << pGrpDev->ucPin2);
 
 	if (result != 0)
 	  {
@@ -137,36 +121,18 @@ void bb_set_wire(sGrpDev* pGrpDev)
 	gpio_set(pGrpDev->pPort, 1<<pGrpDev->ucPin);
 }
 
-/* set pGrpDev->ucPin2 to input mode
-* In soft i2c implementation it wire connect to SCL line
-*/
-void bb_wire_in_SCL(sGrpDev* pGrpDev)
-{
-	gpio_set_mode(pGrpDev->pPort, GPIO_MODE_INPUT,
-	GPIO_CNF_INPUT_FLOAT, 1 << pGrpDev->ucPin2);
-}
-
-/* set pGrpDev->ucPin2 to output mode
+/* clear pGrpDev->ucPin
 *
 */
-void bb_wire_out_SCL(sGrpDev* pGrpDev)
-{
-	gpio_set_mode(pGrpDev->pPort, GPIO_MODE_OUTPUT_50_MHZ,
-			GPIO_CNF_OUTPUT_OPENDRAIN, 1 << pGrpDev->ucPin2);
-}
-
-/* clear pGrpDev->ucPin2
-*
-*/
-void bb_clear_wire_SCL(sGrpDev* pGrpDev)
+void bb_clear_wire2(sGrpDev* pGrpDev)
 {
 	gpio_clear(pGrpDev->pPort, 1<<pGrpDev->ucPin2);
 }
 
-/* set pGrpDev->ucPin2
+/* set pGrpDev->ucPin
 *
 */
-void bb_set_wire_SCL(sGrpDev* pGrpDev)
+void bb_set_wire2(sGrpDev* pGrpDev)
 {
 	gpio_set(pGrpDev->pPort, 1<<pGrpDev->ucPin2);
 }
@@ -175,7 +141,7 @@ void bb_set_wire_SCL(sGrpDev* pGrpDev)
 //*********************************************************************************************
 //function  reset pulse for OWI device				                                          //
 //argument  device group                                                                      //
-//return    0 - устройство обнаружен, 1 - не обнаружено, 2 - к.з. на линии                   //
+//return    0 - устройство обнаружено, 1 - не обнаружено, 2 - к.з. на линии                   //
 //*********************************************************************************************
 uint8_t owi_reset_pulse(sGrpDev* pGrpDev)
 {
@@ -316,48 +282,6 @@ void owi_device_delete (OWI_device* pOWIDev)
 	vPortFree((void*)pOWIDev);
 }
 
-// --------------------------------------------
-
-void owi_device_init_i2c(sGrpDev* pGrpDev) {
-	rcc_periph_clock_enable(pGrpDev->pPort);
-	switch (pGrpDev->pTimer) {
-	case TIM1:
-		rcc_periph_clock_enable(RCC_TIM1);
-		break;
-	case TIM2:
-		rcc_periph_clock_enable(RCC_TIM2);
-		break;
-	case TIM3:
-		rcc_periph_clock_enable(RCC_TIM3);
-		break;
-	case TIM4:
-		rcc_periph_clock_enable(RCC_TIM4);
-		break;
-	case TIM5:
-		rcc_periph_clock_enable(RCC_TIM5);
-		break;
-	}
-
-	gpio_set_mode(pGrpDev->pPort, GPIO_MODE_OUTPUT_50_MHZ,
-			GPIO_CNF_OUTPUT_OPENDRAIN, 1 << pGrpDev->ucPin);
-	gpio_set_mode(pGrpDev->pPort, GPIO_MODE_OUTPUT_50_MHZ,
-			GPIO_CNF_OUTPUT_OPENDRAIN, 1 << pGrpDev->ucPin2);
-
-/* Reset timer peripheral. */
-	timer_reset(pGrpDev->pTimer);
-	timer_set_mode(pGrpDev->pTimer, TIM_CR1_CKD_CK_INT,
-		       TIM_CR1_CMS_EDGE, TIM_CR1_DIR_DOWN);
-/* Reset prescaler value. */
-	timer_set_prescaler(pGrpDev->pTimer, 72);
-/* Enable preload. */
-	timer_disable_preload(pGrpDev->pTimer);
-/* Timer mode. */
-	timer_one_shot_mode(pGrpDev->pTimer);
-/* Period */
-	timer_set_period(pGrpDev->pTimer, 1);
-	bb_set_wire(pGrpDev);		// SETSDA
-	bb_set_wire_SCL(pGrpDev);	// SETSCL
-}
 
 /*! \brief  Compute the CRC8 value of a data set.
  *

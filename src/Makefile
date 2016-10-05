@@ -30,6 +30,7 @@ OBJS+=crc16.o
 OBJS+=stack.o
 OBJS+=ini.o
 OBJS+=processor.o
+OBJS+=bmp180.o
 
 all: src
 

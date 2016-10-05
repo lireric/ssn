@@ -80,7 +80,9 @@
 #ifdef  M_GSM
 	#include "gsm.h"
 #endif
-
+#ifdef  M_BMP180
+	#include "bmp180.h"
+#endif
 
 #define BUFFER1_SIZE             ( 80 ) // (countof(Tx1Buffer)-1)
 
@@ -98,10 +100,10 @@ uint8_t Rx1Buffer[BUFFER1_SIZE];
 #define mainSENSORS_QUEUE_SIZE	35
 #endif
 #ifndef  mainDEBUG_QUEUE_SIZE
-#define mainDEBUG_QUEUE_SIZE	20
+#define mainDEBUG_QUEUE_SIZE	70
 #endif
 #ifndef  mainBASEOUT_QUEUE_SIZE
-#define mainBASEOUT_QUEUE_SIZE	70
+#define mainBASEOUT_QUEUE_SIZE	30
 #endif
 
 

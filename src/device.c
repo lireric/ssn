@@ -36,6 +36,7 @@
 #define M_LCD
 #define M_DHT
 //#define M_GSM
+#define M_BMP180
 
 #include "device.h"
 #ifdef  M_DS18B20
@@ -47,6 +48,9 @@
 #endif
 #ifdef  M_DHT
 	#include "DHT22.h"
+#endif
+#ifdef  M_BMP180
+	#include "bmp180.h"
 #endif
 #ifdef  M_GSM
 	#include "gsm.h"
@@ -344,8 +348,8 @@ uint32_t getDevLastUpdate(uint8_t nValCode, sDevice* dev)
 	return nDevLastUpdate;
 }
 
-int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue, uint32_t* nDevLastUpdate)
-{
+int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue,
+		uint32_t* nDevLastUpdate) {
 	int32_t nValue;
 	uint32_t nLastUpdate = 0;
 	int32_t *e;
@@ -360,13 +364,32 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue, uint32_t*
 
 	switch (dev->ucType) {
 	case device_TYPE_DS18B20:
-		nValue = (int32_t)((ds18b20_device*) dev->pDevStruct)->iDevValue;
-		nLastUpdate = ((ds18b20_device*) dev->pDevStruct)->uiLastUpdate;
+		if (dev->pDevStruct) {
+			nValue = (int32_t) ((ds18b20_device*) dev->pDevStruct)->iDevValue;
+			nLastUpdate = ((ds18b20_device*) dev->pDevStruct)->uiLastUpdate;
+		}
 		break;
 	case device_TYPE_DHT22:
+		if (dev->pDevStruct) {
 // if nValCode==0 return temperature, else - humidity:
-		nValue = (nValCode==0)?(int32_t)(((DHT_data_t*) dev->pDevStruct)->temperature):((int32_t)((DHT_data_t*) dev->pDevStruct)->humidity);
-		nLastUpdate = ((DHT_data_t*) dev->pDevStruct)->uiLastUpdate;
+			nValue =
+				(nValCode == 0) ?
+						(int32_t) (((DHT_data_t*) dev->pDevStruct)->temperature) :
+						((int32_t) ((DHT_data_t*) dev->pDevStruct)->humidity);
+			nLastUpdate = ((DHT_data_t*) dev->pDevStruct)->uiLastUpdate;
+		}
+		break;
+	case device_TYPE_BMP180:
+#ifdef  M_BMP180
+		if (dev->pDevStruct) {
+// if nValCode==0 return temperature, else - pressure:
+			nValue =
+				(nValCode == 0) ?
+						(int32_t) (((BMP180_data_t*) dev->pDevStruct)->iTemperature) :
+						((int32_t) ((BMP180_data_t*) dev->pDevStruct)->uiPressure);
+			nLastUpdate = ((BMP180_data_t*) dev->pDevStruct)->uiLastUpdate;
+		}
+#endif
 		break;
 	case device_TYPE_BB1BIT_IO_PP:
 	case device_TYPE_BB1BIT_IO_OD:
@@ -377,26 +400,29 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue, uint32_t*
 		//nLastUpdate = dev->uiLastUpdate;
 		break;
 	case device_TYPE_MEMORY:
-		e = (int32_t*)dev->pDevStruct;
-		if (nValCode < dev->pGroup->iDevQty)
-			nValue = e[nValCode];
-		else {
-			res = pdFALSE;
-			goto finishGetDevData;
+		if (dev->pDevStruct) {
+			e = (int32_t*) dev->pDevStruct;
+			if (nValCode < dev->pGroup->iDevQty)
+				nValue = e[nValCode];
+			else {
+				res = pdFALSE;
+				goto finishGetDevData;
+			}
 		}
 		break;
 	case device_TYPE_BB1BIT_IO_AI:
-		nValue = ((sADC_data_t*)dev->pDevStruct)->nADCValueArray[nValCode];
+		if (dev->pDevStruct) {
+			nValue = ((sADC_data_t*) dev->pDevStruct)->nADCValueArray[nValCode];
 		//nLastUpdate = ((sADC_data_t*)dev->pDevStruct)->uiLastUpdate;
 		//nLastUpdate = dev->uiLastUpdate;
+		}
 		break;
 	}
 
 	*nDevValue = nValue;
 	*nDevLastUpdate = nLastUpdate;
 
-	finishGetDevData:
-	return res;
+	finishGetDevData: return res;
 }
 /* return number available value codes for device type */
 uint8_t getNumDevValCodes(uint8_t ucType)
@@ -404,6 +430,7 @@ uint8_t getNumDevValCodes(uint8_t ucType)
 	uint8_t n;
 	switch (ucType) {
 	case device_TYPE_DHT22:
+	case device_TYPE_BMP180:
 		n = 2;
 		break;
 	case device_TYPE_DS18B20:
@@ -479,15 +506,19 @@ void setDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nDataTyp
 		}
 		break;
 	case device_TYPE_MEMORY:
-		e = (int32_t*)dev->pDevStruct;
-		if (e && (nDevCmd < dev->pGroup->iDevQty)) {
-			e[nDevCmd] = nValue;
-			dev->uiLastUpdate = rtc_get_counter_val();
-		//= nValue;
+		if (dev->pDevStruct) {
+			e = (int32_t*)dev->pDevStruct;
+			if (e && (nDevCmd < dev->pGroup->iDevQty)) {
+				e[nDevCmd] = nValue;
+				dev->uiLastUpdate = rtc_get_counter_val();
+				//= nValue;
+			}
 		}
 		break;
 	case device_TYPE_PWM:
-		timer_set_oc_value(dev->pGroup->GrpDev.pTimer, getTIM_OC(nDevCmd), nValue); // channel = nDevCmd, % = nValue
+		if (dev->pDevStruct) {
+			timer_set_oc_value(dev->pGroup->GrpDev.pTimer, getTIM_OC(nDevCmd), nValue); // channel = nDevCmd, % = nValue
+		}
 		break;
 	case device_TYPE_GSM:
 #ifdef  M_GSM
