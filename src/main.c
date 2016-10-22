@@ -35,7 +35,7 @@
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2016-10-04"
+#define SSN_VERSION "2016-10-20"
 
 /* Global variables 			========================================== */
 
@@ -49,6 +49,17 @@ void* xBaseOutTaskHnd;
 	#include "gsm.h"
 #endif
 
+#ifdef  M_STEPMOTOR
+//	#include "stepmotor.h"
+//	extern static void 	StepMotorTimerFunction(void* pParam);
+/*
+static void StepMotorTimerFunction(void* pParam)
+{
+	sDevice* dev = (sDevice*) pvTimerGetTimerID(pParam);
+	StepMotorNextStep(dev);
+}
+*/
+#endif
 
 sGrpInfo *grpArray[mainMAX_DEV_GROUPS];
 uint8_t 	grp_counter = 0;
@@ -89,6 +100,8 @@ static uint32_t uiMainTick = 0;
 
 xTaskHandle pCheckSensorHRTaskHnd;
 xTaskHandle pCheckSensorMRTaskHnd;
+
+xTaskHandle pDevInitTask;
 
 /* Private function prototypes ========================================== */
 void RCC_Configuration(void);
@@ -131,6 +144,10 @@ static void prvLogOutTask( void *pvParameters );
 
 #ifdef  M_GSM
 //static void prvStartGSMTask( void *pvParameters );
+#endif
+
+#ifdef  M_STEPMOTOR
+//static void 	StepMotorTimerFunction(void* pParam);
 #endif
 
 void vApplicationIdleHook( void );
@@ -321,6 +338,7 @@ int main(void)
 
   xBaseOutQueue = xQueueCreate( mainBASEOUT_QUEUE_SIZE, mainMAX_MSG_LEN);
   xLogOutQueue = xQueueCreate( mainDEBUG_QUEUE_SIZE, mainMAX_MSG_LEN);
+  xDevInitQueue = xQueueCreate( mainDEVINIT_QUEUE_SIZE, sizeof(uint16_t));
 
 /* System Clocks Configuration **********************************************/
 	RCC_Configuration();
@@ -416,7 +434,9 @@ int main(void)
 	res = eeprom_read(pGrpDev, EEPROM_ADDRESS, 0, (uint8_t*)&Rx1Buffer, 2);
 #endif
 #ifdef PERSIST_STM32FLASH
-	memcpy(&Rx1Buffer, (void*)STM32FLASH_BEGIN_ADDR, 2);
+	uint32_t i = STM32FLASH_BEGIN_ADDR;
+	memcpy(&Rx1Buffer, (void*)i, 2);
+//	memcpy(&Rx1Buffer, (void*)STM32FLASH_BEGIN_ADDR, 2);
 	res = pdTRUE;
 #endif
 
@@ -432,7 +452,8 @@ int main(void)
 #endif
 #ifdef PERSIST_STM32FLASH
 			// simply copy into buffer data from flash memory where stored preferences
-			memcpy((void*)xPrefsBuffer.buffer, (void*)(STM32FLASH_BEGIN_ADDR+4), nBufSize);
+			memcpy((void*)xPrefsBuffer.buffer, (void*)(i+4), nBufSize);
+//			memcpy((void*)xPrefsBuffer.buffer, (void*)(STM32FLASH_BEGIN_ADDR+4), nBufSize);
 			res = pdPASS;
 #endif
 			if (res) {
@@ -524,6 +545,7 @@ skipLoadPrefs:
 
 	xReturn = xTaskCreate( prvProcSensorTask, ( char * ) "ProcSensorTask", mainPROCSENSORS_TASK_STACK, devArray, mainPROC_SENSOR_TASK_PRIORITY, &pTmpTask );
 
+	completeAllInit(); // complete delayed device init procedures
 
 	( void ) xReturn;
 
@@ -757,9 +779,9 @@ processLocalMessages:
 					//sendBaseOut(cPassMessage);
 					debugMsg(cPassMessage);
 					xReturn = storePreferences(xInputMessage.pcMessage, strlen(xInputMessage.pcMessage));
+					xsprintf(cPassMessage, "\r\nPreferences saved: %d", xReturn);
 			    	debugMsg(cPassMessage);
 					vTaskDelay( 1000 / portTICK_PERIOD_MS );
-					xsprintf(cPassMessage, "\r\nConfig loaded from buffer (INI)");
 					main_reboot(); 	// reboot
 				    while (1);
 
@@ -841,7 +863,7 @@ processLocalMessages:
 										if (version==1) {
 											char* cmd = (char*)cJSON_GetObjectItem(json_ssn,"cmd")->valuestring;
 											uint16_t nObjDest = (uint16_t) cJSON_GetObjectItem(json_ssn,"obj")->valueint;
-											uint16_t nObjSrc  = (uint16_t) cJSON_GetObjectItem(json_ssn,"obj_src")->valueint;
+//											uint16_t nObjSrc  = (uint16_t) cJSON_GetObjectItem(json_ssn,"obj_src")->valueint;
 
 											xsprintf(cPassMessage, "\n\rProcess JSON command: %s", cmd );
 											//sendBaseOut(cPassMessage);
@@ -873,12 +895,12 @@ processLocalMessages:
 													debugMsg(cPassMessage);
 													// to do: process string data type
 													// send notification about command executing:
-													xsprintf(cPassMessage, "{\"status\":\"0\", \"comment\":\"set dev[%d]=(%d)%d\"}", dev_id, dev_cmd, dev_val);
-													char* pResp = pvPortMalloc(strlen(cPassMessage));
-													memcpy(pResp,cPassMessage,strlen(cPassMessage));
-													pResp[strlen(cPassMessage)]=0;
+//													xsprintf(cPassMessage, "{\"status\":\"0\", \"comment\":\"set dev[%d](%d)=%d\"}", dev_id, dev_cmd, dev_val);
+//													char* pResp = pvPortMalloc(strlen(cPassMessage));
+//													memcpy(pResp,cPassMessage,strlen(cPassMessage));
+//													pResp[strlen(cPassMessage)]=0;
 
-													vSendInputMessage (1, nObjSrc, mainJSON_MESSAGE, xInputMessage.uiSrcObject, dev_id, main_IF_PROGRAM, pResp, strlen(cPassMessage), 0);
+//													vSendInputMessage (1, nObjSrc, mainJSON_MESSAGE, xInputMessage.uiSrcObject, dev_id, main_IF_PROGRAM, pResp, strlen(cPassMessage), 0);
 												}
 											}
 #ifdef  M_GSM
@@ -898,11 +920,14 @@ processLocalMessages:
 											} else
 											if (strcmp(cmd, "getdevvals") == 0) {
 												//nCmd = mainCOMMAND_GETDEVVALS;
-												char * pcTeleData;
-												pcTeleData = process_getdevvals(devArray, all_devs_counter);
-												if (pcTeleData) {
-													vSendInputMessage(1, xInputMessage.uiSrcObject, mainTELEMETRY_MESSAGE, getMC_Object(), 0,
+												if (json_data) {
+													uint16_t dev_id = (uint16_t) cJSON_GetObjectItem(json_data,"d")->valueint;
+													char * pcTeleData;
+													pcTeleData = process_getdevvals(devArray, all_devs_counter, dev_id);
+													if (pcTeleData) {
+														vSendInputMessage(1, xInputMessage.uiSrcObject, mainTELEMETRY_MESSAGE, getMC_Object(), 0,
 															0, (void*) pcTeleData, strlen(pcTeleData), 0);
+													}
 												}
 												// vSendInputMessage (1, nObjDest, mainCOMMAND_MESSAGE, xInputMessage.uiSrcObject, 0, xInputMessage.xSourceDevice, pData, 0, nCmd);
 											} else
@@ -1073,13 +1098,21 @@ static void prvCheckSensorHRTask( void *pvParameters )
 									xQueueSendToFront(xSensorsQueue, &devArray[j], 0); // send to head of queue!
 								}
 								break;
+								/*
+							case device_TYPE_STEPMOTOR:
+								if (getMainTimerTick() > (((stepmotor_data_t*) (devArray[j]->pDevStruct))->uiLastTick) +
+										((stepmotor_data_t*) (devArray[j]->pDevStruct))->uiStepTime) {
+									StepMotorNextStep(devArray[j]);
+								}
+								break;
+								*/
 							case device_TYPE_BB1BIT_IO_PP:
 							case device_TYPE_BB1BIT_IO_OD:
 								break;
 							}
 //					}
 					}
-		taskYIELD();
+//		taskYIELD();
 		vTaskDelay(mainSensorRateHR );
 	}
 }
@@ -1558,16 +1591,9 @@ static void vMainTimerFunctionInterval1(void* pParam) {
 				if (res) {
 					if (!(pAction->nFlags & devACTION_FLAG_NOLOG)) {
 						if (pActElm->nElmDataType != eElmString) {
-//							logAction(pAction->nActId, pActElm->nDevId, pActElm->nActCmdIn, pActElm->nElmDataIn);
 							logAction(pAction->nActId, pActElm->nDevId, pActElm->nActCmdIn, nSetDevValue);
 						}
-//						if (pActElm->nElmDataType == eElmString)
-//							xsprintf( cPassMessage, "\n\rTimer set dev[%d] = (%d, %s) ", pActElm->nDevId, pActElm->nActCmdIn, (char*)pActElm->nElmDataIn);
-//						else
-//							xsprintf( cPassMessage, "\n\rTimer set dev[%d] = (%d, %d) ", pActElm->nDevId, pActElm->nActCmdIn, pActElm->nElmDataIn);
-//						sendBaseOut(cPassMessage);
 					}
-//					setDevValueByID(pActElm->nElmDataIn, pActElm->nActCmdIn, pActElm->nDevId, pActElm->nElmDataType);
 					setDevValueByID(nSetDevValue, pActElm->nActCmdIn, pActElm->nDevId, pActElm->nElmDataType);
 
 					if (pAction->xActTimerOneShot) {
@@ -1599,16 +1625,9 @@ static void vMainTimerFunctionInterval2(void* pParam) {
 					if (!(pAction->nFlags && devACTION_FLAG_NOLOG)) {
 
 						if (pActElm->nElmDataType != eElmString) {
-//							logAction(pAction->nActId, pActElm->nDevId, pActElm->nActCmdOut, pActElm->nElmDataOut);
 							logAction(pAction->nActId, pActElm->nDevId, pActElm->nActCmdOut, nSetDevValue);
 						}
-//						if (pActElm->nElmDataType == eElmString)
-//							xsprintf(cPassMessage, "\n\rOne shot timer set dev[%d] = (%d, %s) ", pActElm->nDevId, pActElm->nActCmdOut, (char*)pActElm->nElmDataOut);
-//						else
-//							xsprintf(cPassMessage, "\n\rOne shot timer set dev[%d] = (%d, %d) ", pActElm->nDevId, pActElm->nActCmdOut, pActElm->nElmDataOut);
-//						sendBaseOut(cPassMessage);
 					}
-//					setDevValueByID(pActElm->nElmDataOut, pActElm->nActCmdOut, pActElm->nDevId, pActElm->nElmDataType);
 					setDevValueByID(nSetDevValue, pActElm->nActCmdOut, pActElm->nDevId, pActElm->nElmDataType);
 				}
 			}

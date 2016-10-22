@@ -159,7 +159,7 @@ typedef struct{
 	uint32_t UP;
 } BMP180_data_t;
 
-BMP180_data_t* 	bmp180_device_init(sGrpDev* pGrpDev, uint8_t nAddr);
+BMP180_data_t* 	bmp180_device_init(sDevice *pDev, uint8_t nAddr);
 void 			bmp180_device_delete(sDevice *pDev);
 int32_t 		bmp180_get_data(sDevice *pDev);
 int32_t 		bmp180_read_raw_temperature(sDevice *pDev);

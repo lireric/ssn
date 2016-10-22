@@ -58,7 +58,7 @@
 /* periodic task rates */
 #define mainSensorRateLR			( ( portTickType ) 40000 / portTICK_RATE_MS )
 #define mainSensorRateMR			( ( portTickType ) 6000 / portTICK_RATE_MS )
-#define mainSensorRateHR			( ( portTickType ) 500 / portTICK_RATE_MS )
+#define mainSensorRateHR			( ( portTickType ) 100 / portTICK_RATE_MS )
 #define mainCronRate				( ( portTickType ) 100 / portTICK_RATE_MS )
 #define mainDEBUG_STAT_RATE			( ( portTickType ) 10000 / portTICK_RATE_MS )
 
@@ -110,7 +110,7 @@
 #define mainINPUT_TASK_STACK	800
 #endif
 #ifndef mainPROCSENSORS_TASK_STACK
-#define mainPROCSENSORS_TASK_STACK	300
+#define mainPROCSENSORS_TASK_STACK	400
 #endif
 
 

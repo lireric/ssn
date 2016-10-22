@@ -38,6 +38,7 @@
 #define M_DHT
 //#define M_GSM
 #define M_BMP180
+#define M_STEPMOTOR
 
 //#define WATCHDOG
 
@@ -50,7 +51,7 @@
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
 #define configTICK_RATE_HZ			( ( portTickType ) 50 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 50 * 1024 ) )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 45 * 1024 ) )
 
 /*-----------------------------------------------------------*/
 /* Hardware application settings */

@@ -231,6 +231,7 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 				return pdFAIL;
 			}
 			devArray[all_devs_counter] = (sDevice*) pvPortMalloc(sizeof(sDevice));
+			memset (devArray[all_devs_counter],0,sizeof(sDevice)); // reset all device attributes
 
 			if (!devArray[all_devs_counter]) {
 				return pdFAIL;
@@ -262,6 +263,7 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_OD) {
 				gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_OUTPUT_50_MHZ,
 						GPIO_CNF_OUTPUT_OPENDRAIN, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
+				gpio_set(devArray[all_devs_counter]->pGroup->GrpDev.pPort, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin); // set high value line
 
 			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_PP) {
 				gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_OUTPUT_50_MHZ,
@@ -297,10 +299,16 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 					return pdFAIL;
 #endif
 
-			}  /* else if (devArray[all_devs_counter]->ucType == device_TYPE_BMP180) {
-					(BMP180_data_t*)devArray[all_devs_counter]->pDevStruct = bmp180_device_init(devArray[all_devs_counter]->pGroup->GrpDev);
+			}
+			// ***************** step motor init structure:
+#ifdef  M_STEPMOTOR
+			else if (devArray[all_devs_counter]->ucType == device_TYPE_STEPMOTOR) {
+					StepMotorInitStruct(devArray[all_devs_counter]);
 					if (!devArray[all_devs_counter]->pDevStruct) return pdFAIL;
-				} */
+					devArray[all_devs_counter]->nFlag |= 0x80; // set device disable flag
+					if (!addInitDevRequest(devArray[all_devs_counter]->nId)) return pdFAIL; // add request for delayed initialization
+				}
+#endif
 		}
 		// ---- other dev attributes: -----------------------------------------
 		else if (devArray[all_devs_counter]->ucType == device_TYPE_MEMORY) {
@@ -332,15 +340,56 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 					return pdFAIL;
 				}
 			}
-		} else if (devArray[all_devs_counter]->ucType == device_TYPE_BMP180) {
+		}
+		// ***************** BMP180 sensor
+		else if (devArray[all_devs_counter]->ucType == device_TYPE_BMP180) {
 #ifdef  M_BMP180
 			if (strcmp(sName, "addr") == 0) {
 				//(BMP180_data_t*)devArray[all_devs_counter]->pDevStruct =
-				bmp180_device_init(&devArray[all_devs_counter]->pGroup->GrpDev, conv2d(sValue));
+				bmp180_device_init(devArray[all_devs_counter], conv2d(sValue));
 				if (!devArray[all_devs_counter]->pDevStruct) return pdFAIL;
 			} else if (strcmp(sName, "oss") == 0) {
 				if (devArray[all_devs_counter]->pDevStruct)
 					((BMP180_data_t*)devArray[all_devs_counter]->pDevStruct)->P_Oversampling = conv2d(sValue);
+			}
+#endif
+		}
+		// ***************** step motor
+		else if (devArray[all_devs_counter]->ucType == device_TYPE_STEPMOTOR) {
+#ifdef  M_STEPMOTOR
+			if (devArray[all_devs_counter]->pDevStruct) {
+				// step period (ms):
+				if (strcmp(sName, "st") == 0) {
+					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->uiStepTime = conv2d(sValue);
+				}
+				// step motor type:
+				else if (strcmp(sName, "smtype") == 0) {
+					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->sm_type = conv2d(sValue);
+				}
+				// step motor pin phase A:
+				else if (strcmp(sName, "pina") == 0) {
+					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->ucPinPhase[0] = conv2d(sValue);
+				}
+				// step motor pin phase B:
+				else if (strcmp(sName, "pinb") == 0) {
+					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->ucPinPhase[1] = conv2d(sValue);
+				}
+				// step motor pin phase C:
+				else if (strcmp(sName, "pinc") == 0) {
+					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->ucPinPhase[2] = conv2d(sValue);
+				}
+				// step motor pin phase D:
+				else if (strcmp(sName, "pind") == 0) {
+					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->ucPinPhase[3] = conv2d(sValue);
+				}
+				// Flag:
+				else if (strcmp(sName, "f") == 0) {
+					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->uiFlag = conv2d(sValue);
+				}
+				// manual max position:
+				else if (strcmp(sName, "pmax") == 0) {
+					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->iPositionPrefMax = conv2d(sValue);
+				}
 			}
 #endif
 		} else if (strcmp(sName, "romid") == 0) {
@@ -696,7 +745,7 @@ void process_loadprefs(cJSON *json_data, char * jsonMsg, sGrpInfo*  grpArray[])
 	xTaskResumeAll();
 }
 
-char* process_getdevvals(sDevice* devArray[], uint16_t all_devs_counter)
+char* process_getdevvals(sDevice* devArray[], uint16_t all_devs_counter, uint16_t nDevId)
 {
 	uint16_t j;
 	uint8_t ut;
@@ -721,8 +770,10 @@ char* process_getdevvals(sDevice* devArray[], uint16_t all_devs_counter)
 		memcpy(tele_data, buf, uiBufLen);
 		nStrCounter+=uiBufLen;
 
-		for (j = 0; j <= all_devs_counter; j++) {
-// select hi rate group:
+		for (j = 0; j < all_devs_counter; j++) {
+			if ((nDevId > 0) && (devArray[j]->nId != nDevId)) {
+				continue;
+			}
 				ut = devArray[j]->ucType;
 				buf[0]=0;
 				if ((ut == device_TYPE_MEMORY) || (ut == device_TYPE_BB1BIT_IO_AI)) {
@@ -747,7 +798,6 @@ char* process_getdevvals(sDevice* devArray[], uint16_t all_devs_counter)
 							tele_data[nStrCounter] = 0;
 					}
 				}
-
 		}
 		const char* pcTeleFooter = "{}]}}}";
 		uiBufLen = strlen(pcTeleFooter);
@@ -896,7 +946,7 @@ void vCommandSelector(sSSNCommand* xSSNCommand)
 			}
 			case mainCOMMAND_GETDEVVALS: {
 				char * pcTeleData;
-				pcTeleData = process_getdevvals(devArray, all_devs_counter);
+				pcTeleData = process_getdevvals(devArray, all_devs_counter, 0);
 				if (pcTeleData) {
 					vSendInputMessage(1, xSSNCommand->uiObjSrc, mainTELEMETRY_MESSAGE, getMC_Object(), 0,
 							xSSNCommand->uiDevDest, (void*) pcTeleData, strlen(pcTeleData), 0);

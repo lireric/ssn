@@ -70,6 +70,7 @@
 #define device_TYPE_MEMORY				( 13 )	// pseudo device - memory store variable
 #define device_TYPE_PWM					( 14 )	// PWM
 #define device_TYPE_BMP180				( 15 )	// BMP180 atmosphere pressure and temperature sensor
+#define device_TYPE_STEPMOTOR			( 16 )	// stepping motor device
 
 
 #ifndef NULL
@@ -103,7 +104,7 @@ typedef struct
 	uint8_t 	ucType;			// device type
 	uint8_t		nLastPinValue;	// previous device value (only for 1 pin i/o devices)
 	uint8_t 	nActionsCashSize;	// number of actions in array
-	uint8_t 	nFlag;			//	1-st bit - one of the device channels values is changed
+	uint8_t 	nFlag;			//	1-st bit - one of the device channels values is changed; 8 bit - 1: device disabled, 0: device enabled;
     uint32_t 	uiLastUpdate;	// last update device value
 	uint32_t	nEventTime;		// number of sec/10 from event (setDevEvent)
     sGrpInfo * 	pGroup;			// pointer to the device group
@@ -130,6 +131,8 @@ extern uint16_t 	all_devs_counter;
 extern sGrpInfo* 	grpArray[];
 extern uint8_t 		grp_counter;
 
+//xTaskHandle pDevInitTask;
+
 extern void 		vMainStartTimer(sAction* pAct);
 extern void 		debugMsg (char *str);
 
@@ -150,6 +153,10 @@ int32_t 			pwm_setup(sDevice* pDev, char* psChannels);
 int32_t				refreshActions2DeviceCash ();
 void				clearActionsDeviceCash (sDevice* pDev);
 int32_t				scanDevActions (sDevice* dev);
+
+int32_t 			addInitDevRequest(uint16_t 	nDevId);
+void 				completeAllInit();
+void 				deviceInit(sDevice* dev);
 
 #ifdef __cplusplus
 }

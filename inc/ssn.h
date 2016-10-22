@@ -84,6 +84,10 @@
 	#include "bmp180.h"
 #endif
 
+#ifdef  M_STEPMOTOR
+#include "stepmotor.h"
+#endif
+
 #define BUFFER1_SIZE             ( 80 ) // (countof(Tx1Buffer)-1)
 
 #define INI_USE_STACK 0
@@ -104,6 +108,9 @@ uint8_t Rx1Buffer[BUFFER1_SIZE];
 #endif
 #ifndef  mainBASEOUT_QUEUE_SIZE
 #define mainBASEOUT_QUEUE_SIZE	30
+#endif
+#ifndef  mainDEVINIT_QUEUE_SIZE
+#define mainDEVINIT_QUEUE_SIZE	20
 #endif
 
 
@@ -126,6 +133,8 @@ xQueueHandle xSensorsQueue;
 xQueueHandle xBaseOutQueue;
 // Queue for logging messages.
 xQueueHandle xLogOutQueue;
+/* The queue used to collect devices initialization requests. */
+xQueueHandle xDevInitQueue;
 
 
 #endif /* __MAIN_H */

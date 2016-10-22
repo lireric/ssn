@@ -1372,7 +1372,7 @@ void setGSMDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nData
 		vSendInputMessage (1, 0, mainGSM_MESSAGE_OUT, 0, main_IF_PROGRAM, dev->nId, (void*) 0, 0, (int16_t) nValue);
 		break;
 	case gsmCmdSendTelemetry:
-		pcTeleData = process_getdevvals(devArray, all_devs_counter);
+		pcTeleData = process_getdevvals(devArray, all_devs_counter, 0);
 		uint16_t nSizeTeledata = strlen(pcTeleData);
 		uint16_t nSize = nSizeTeledata;
 		buffer = pcTeleData;

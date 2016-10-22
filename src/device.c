@@ -55,6 +55,89 @@
 #ifdef  M_GSM
 	#include "gsm.h"
 #endif
+#ifdef  M_STEPMOTOR
+	#include "stepmotor.h"
+#endif
+
+/* The devices initialization task */
+static void pDevInitTask( void *pvParameters ) {
+	uint16_t nDevId;
+	/* Process all requests from queue */
+	while(xQueueReceive( xDevInitQueue, &nDevId, 0 ) == pdPASS) {
+		deviceInit(getDeviceByID(nDevId));
+	}
+	vTaskDelete( NULL ); // destroy it task after complete
+}
+
+/*
+ * Add request to init device
+ */
+int32_t addInitDevRequest(uint16_t 	nDevId) {
+
+	return xQueueSend( xDevInitQueue, &nDevId, 0 );
+}
+
+/*
+ * Start initialization task for some devices:
+ * task processes xDevInitQueue queue and perform special init method
+ */
+void completeAllInit() {
+	int32_t nRet;
+
+	nRet = xTaskCreate( pDevInitTask, ( char * ) "DevInitTask", 200, NULL, tskIDLE_PRIORITY + 1, NULL );
+	(void) nRet;
+}
+
+/*
+ * Perform device initialization procedure.
+ * Usually it long time or complex and cannot be completed at apply preferences time
+ */
+void deviceInit(sDevice* dev) {
+
+	if (dev) {
+		switch (dev->ucType) {
+		case device_TYPE_DS18B20:
+			if (dev->pDevStruct) {
+// to do...
+			}
+			break;
+		case device_TYPE_DHT22:
+			if (dev->pDevStruct) {
+// to do...
+			}
+			break;
+		case device_TYPE_BMP180:
+#ifdef  M_BMP180
+			if (dev->pDevStruct) {
+// to do...
+			}
+#endif
+			break;
+		case device_TYPE_BB1BIT_IO_PP:
+		case device_TYPE_BB1BIT_IO_OD:
+		case device_TYPE_BB1BIT_IO_INPUT:
+// not need
+			break;
+		case device_TYPE_MEMORY:
+			if (dev->pDevStruct) {
+// to do ...
+			}
+			break;
+		case device_TYPE_BB1BIT_IO_AI:
+			if (dev->pDevStruct) {
+// to do...
+			}
+			break;
+		case device_TYPE_STEPMOTOR:
+#ifdef  M_STEPMOTOR
+			if (dev->pDevStruct) {
+				StepMotorInitHW(dev);
+			}
+#endif
+		}
+		dev->nFlag &= 0x7F; // reset device disable flag
+	}
+}
 
 int8_t  getTIM_OC(int8_t nChannel)
 {
@@ -391,6 +474,28 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue,
 		}
 #endif
 		break;
+	case device_TYPE_STEPMOTOR:
+#ifdef  M_STEPMOTOR
+		if (dev->pDevStruct) {
+// if nValCode==0 return absolute position, 1: return relative position (%), 2: return target position, 3: return current state:
+			switch (nValCode) {
+			case 0:
+			default:
+				nValue = StepMotorGetPosition(dev);
+				break;
+			case 1:
+				nValue = StepMotorGetRelativePosition(dev);
+				break;
+			case 2:
+				nValue = StepMotorGetTargetPosition(dev);
+				break;
+			case 3:
+				nValue = StepMotorGetCurrentState(dev);
+				break;
+			}
+		}
+#endif
+		break;
 	case device_TYPE_BB1BIT_IO_PP:
 	case device_TYPE_BB1BIT_IO_OD:
 	case device_TYPE_BB1BIT_IO_INPUT:
@@ -439,6 +544,9 @@ uint8_t getNumDevValCodes(uint8_t ucType)
 	case device_TYPE_BB1BIT_IO_INPUT:
 		n = 1;
 		break;
+	case device_TYPE_STEPMOTOR:
+		n = 4;
+		break;
 	default:
 		n = 0;
 	}
@@ -458,7 +566,7 @@ void setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t n
 			}
 		}
 	} else {
-		for (i = 0; i <= all_devs_counter; i++) {
+		for (i = 0; i < all_devs_counter; i++) {
 			if (devArray[i]->nId == nDevID) {
 				if (nDataType == eElmDevValue) {
 					nValue = getDevValueByID(nDevCmd, (uint16_t) nValue); // for eElmDevValue datatype nValue = devID
@@ -469,7 +577,7 @@ void setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t n
 			}
 		}
 		// if local device array not contain this device, send to input queue for routing
-		if (i > all_devs_counter)
+		if (i >= all_devs_counter)
 		{
 			char msg[mainMAX_MSG_LEN];
 			if (nDataType == eElmString) {
@@ -524,6 +632,31 @@ void setDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nDataTyp
 #ifdef  M_GSM
 		setGSMDevValue(nValue, nDevCmd, dev, nDataType);
 #endif
+		break;
+// *********************  Step Motor:
+// cmd = 0 - set position (absolutely value in steps)
+// cmd = 1 - set position in percents
+// cmd = 2 - perform calibrate
+// cmd = 3 - make step (if value > 0 than forward, else backward)
+	case device_TYPE_STEPMOTOR:
+		// check enable device flag
+		if (!(dev->nFlag & 0x80)) {
+			switch (nDevCmd) {
+				case 0:
+					StepMotorSetTargetPosition(dev, nValue);
+					break;
+				case 1:
+					StepMotorSetTargetPositionPercents(dev, nValue);
+					break;
+				case 2:
+					StepMotorCalibrate(dev);
+					break;
+				case 3:
+					StepMotorOneStep(dev, nValue);
+					break;
+			}
+
+		}
 		break;
 	}
 	// log device value changing for local device:

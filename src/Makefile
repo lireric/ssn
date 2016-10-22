@@ -31,6 +31,7 @@ OBJS+=stack.o
 OBJS+=ini.o
 OBJS+=processor.o
 OBJS+=bmp180.o
+OBJS+=stepmotor.o
 
 all: src
 

@@ -31,8 +31,9 @@
 #include "FreeRTOS.h"
 #include "../inc/ssn.h"
 
-BMP180_data_t* bmp180_device_init(sGrpDev* pGrpDev, uint8_t nAddr) {
+BMP180_data_t* bmp180_device_init(sDevice *pDev, uint8_t nAddr) {
 	BMP180_data_t* pBMP180Dev = NULL;
+	sGrpDev* pGrpDev = &pDev->pGroup->GrpDev;
 	int32_t nRes;
 	uint8_t buf[22];
 
@@ -51,11 +52,10 @@ BMP180_data_t* bmp180_device_init(sGrpDev* pGrpDev, uint8_t nAddr) {
 
 		if (nRes) {
 			pBMP180Dev = (BMP180_data_t*) pvPortMalloc(sizeof(BMP180_data_t));
-			devArray[all_devs_counter]->pDevStruct = (void*) pBMP180Dev;
+			pDev->pDevStruct = (void*) pBMP180Dev;
 			if (pBMP180Dev) {
 
-				((BMP180_data_t*) devArray[all_devs_counter]->pDevStruct)->I2C_Addr =
-						nAddr;
+				((BMP180_data_t*) pDev->pDevStruct)->I2C_Addr =	nAddr;
 
 				pBMP180Dev->AC1 = (buf[0] << 8) | buf[1];
 				pBMP180Dev->AC2 = (buf[2] << 8) | buf[3];
@@ -203,11 +203,11 @@ int32_t bmp180_read_raw_pressure(sDevice *pDev) {
 	nRes = soft_i2c_WriteBufferAddress(&pDev->pGroup->GrpDev, pBMP180Dev->I2C_Addr, BMP180_CTRL, buf, 1);
 
 //	delay_nus(&pDev->pGroup->GrpDev, wait);
-	delay_ms(&pDev->pGroup->GrpDev, wait/100);
+	delay_ms(&pDev->pGroup->GrpDev, wait/1000);
 
 //	int32_t msb, lsb, xlsb, data;
 	nRes = soft_i2c_ReadBufferAddress(&pDev->pGroup->GrpDev, pBMP180Dev->I2C_Addr, BMP180_REG_PRE, buf, 3);
-	pBMP180Dev->UP = ((buf[0] << 16)  + (buf[1] << 8)  + buf[3]) >> (8 - pBMP180Dev->P_Oversampling);
+	pBMP180Dev->UP = ((buf[0] << 16)  + (buf[1] << 8)  + buf[2]) >> (8 - pBMP180Dev->P_Oversampling);
 
 	return nRes;
 }
