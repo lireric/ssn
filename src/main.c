@@ -35,7 +35,7 @@
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2016-10-20"
+#define SSN_VERSION "2016-10-25"
 
 /* Global variables 			========================================== */
 
@@ -50,15 +50,7 @@ void* xBaseOutTaskHnd;
 #endif
 
 #ifdef  M_STEPMOTOR
-//	#include "stepmotor.h"
-//	extern static void 	StepMotorTimerFunction(void* pParam);
-/*
-static void StepMotorTimerFunction(void* pParam)
-{
-	sDevice* dev = (sDevice*) pvTimerGetTimerID(pParam);
-	StepMotorNextStep(dev);
-}
-*/
+
 #endif
 
 sGrpInfo *grpArray[mainMAX_DEV_GROUPS];
@@ -885,15 +877,22 @@ processLocalMessages:
 											}
 											if (strcmp(cmd, "sdv") == 0) {
 												if (json_data) {
+													char* strVal 	= (char*) cJSON_GetObjectItem(json_data,"aval")->valuestring;
 													uint32_t dev_val = (uint32_t) cJSON_GetObjectItem(json_data,"aval")->valueint;
 													uint16_t dev_id = (uint16_t) cJSON_GetObjectItem(json_data,"adev")->valueint;
 													uint8_t  dev_cmd = (uint8_t) cJSON_GetObjectItem(json_data,"acmd")->valueint;
-													setDevValueByID(dev_val, dev_cmd, dev_id, eElmInteger);
-													logAction(0, dev_id, dev_cmd, dev_val);
-													xsprintf(cPassMessage, "\n\rSet dev[%d]=(%d)%d", dev_id, dev_cmd, dev_val);
-													//sendBaseOut(cPassMessage);
+													if (strVal) {
+														// process string data type:
+														setDevValueByID((int32_t)strVal, dev_cmd, dev_id, eElmString);
+														logAction(0, dev_id, dev_cmd, dev_val);
+														xsprintf(cPassMessage, "\n\rSet dev[%d](%d)=%s", dev_id, dev_cmd, strVal);
+													} else {
+														// process numeric data type:
+														setDevValueByID(dev_val, dev_cmd, dev_id, eElmInteger);
+														logAction(0, dev_id, dev_cmd, dev_val);
+														xsprintf(cPassMessage, "\n\rSet dev[%d]=(%d)%d", dev_id, dev_cmd, dev_val);
+													}
 													debugMsg(cPassMessage);
-													// to do: process string data type
 													// send notification about command executing:
 //													xsprintf(cPassMessage, "{\"status\":\"0\", \"comment\":\"set dev[%d](%d)=%d\"}", dev_id, dev_cmd, dev_val);
 //													char* pResp = pvPortMalloc(strlen(cPassMessage));
