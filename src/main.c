@@ -35,7 +35,7 @@
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2016-10-25"
+#define SSN_VERSION "2016-11-01"
 
 /* Global variables 			========================================== */
 

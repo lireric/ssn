@@ -101,20 +101,20 @@ void StepMotorInitHW(sDevice* dev)
 			case eSMAlg_WD:
 			default:
 				pSMDev->phases[0] = 0b10001000;
-				pSMDev->phases[1] = 0b00100010;
-				pSMDev->phases[2] = 0b01000100;
+				pSMDev->phases[1] = 0b01000100;
+				pSMDev->phases[2] = 0b00100010;
 				pSMDev->phases[3] = 0b00010001;
 				break;
 			case eSMAlg_FS:
 				pSMDev->phases[0] = 0b10011001;
-				pSMDev->phases[1] = 0b01100110;
-				pSMDev->phases[2] = 0b11001100;
+				pSMDev->phases[1] = 0b11001100;
+				pSMDev->phases[2] = 0b01100110;
 				pSMDev->phases[3] = 0b00110011;
 				break;
 			case eSMAlg_HS:
 				pSMDev->phases[0] = 0b11000001;
-				pSMDev->phases[1] = 0b00011100;
-				pSMDev->phases[2] = 0b01110000;
+				pSMDev->phases[1] = 0b01110000;
+				pSMDev->phases[2] = 0b00011100;
 				pSMDev->phases[3] = 0b00000111;
 				break;
 			}
@@ -133,6 +133,9 @@ void StepMotorInitHW(sDevice* dev)
 //		pSMDev->pStepMotorTimerHandle = xTimerCreateStatic("StepMotorTimer", pSMDev->uiStepTime / portTICK_RATE_MS, pdTRUE, (void*)dev, StepMotorTimerFunction, &(xTimerBuffer));
 		if (pSMDev->pStepMotorTimerHandle)
 			xTimerStart(pSMDev->pStepMotorTimerHandle, 0);
+
+		if (!(pSMDev->uiFlag & SM_FLAG_CURR_ON))
+			StepMotorOffAllPhases(dev);
 
 		pSMDev->uiState = eSMReady; // device ready to next steps
 		xsprintf(( portCHAR *) msg, "\r\nStep motor device initialized: %d ", dev->nId);
@@ -296,7 +299,7 @@ void StepMotorNextStep(sDevice* dev)
 						((stepmotor_data_t*) (dev->pDevStruct))->uiState = eSMCalibratingMax;
 						((stepmotor_data_t*) (dev->pDevStruct))->iDirection = 1;
 					} else {
-						if (((stepmotor_data_t*)(dev->pDevStruct))->uiFlag & SM_FLAG_CURR_ON)
+						if (!(((stepmotor_data_t*)(dev->pDevStruct))->uiFlag & SM_FLAG_CURR_ON))
 							StepMotorOffAllPhases(dev);
 						((stepmotor_data_t*) (dev->pDevStruct))->uiState = eSMReady;
 					}
@@ -309,7 +312,7 @@ void StepMotorNextStep(sDevice* dev)
 			case eSMCalibratingMax:
 				if (StepMotorCheckPositionMax(dev)) {
 					((stepmotor_data_t*) (dev->pDevStruct))->iPositionMax = ((stepmotor_data_t*) (dev->pDevStruct))->iCurrentStep;
-					if (((stepmotor_data_t*)(dev->pDevStruct))->uiFlag & SM_FLAG_CURR_ON)
+					if (!(((stepmotor_data_t*)(dev->pDevStruct))->uiFlag & SM_FLAG_CURR_ON))
 						StepMotorOffAllPhases(dev);
 					((stepmotor_data_t*) (dev->pDevStruct))->uiState = eSMReady;
 				} else {
@@ -338,7 +341,7 @@ void StepMotorNextStep(sDevice* dev)
 					}
 
 				} else {
-					if (((stepmotor_data_t*)(dev->pDevStruct))->uiFlag & SM_FLAG_CURR_ON)
+					if (!(((stepmotor_data_t*)(dev->pDevStruct))->uiFlag & SM_FLAG_CURR_ON))
 						StepMotorOffAllPhases(dev);
 					((stepmotor_data_t*)(dev->pDevStruct))->uiState = eSMReady;
 				}
