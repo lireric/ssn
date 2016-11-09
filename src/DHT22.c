@@ -58,6 +58,7 @@ DHT_data_t* dht_device_init(sGrpDev* pGrpDev) {
 
 	pDHTDev = (DHT_data_t*) pvPortMalloc(sizeof(DHT_data_t));
 	if (!pDHTDev) return pdFAIL;
+	if (!pGrpDev->pTimer) return pdFAIL;
 
 	pDHTDev->uiLastUpdate = 0;
 

@@ -21,9 +21,11 @@
  * ssn_prefs_prod2.h
  *
  *  Created on: 2015-10-13 г.
+ *  Udpated: 2016-11-05
  *      Author: eric
  *
  *      Config for Waveshare development board
+ *      Pushgory object
  */
 
 #ifndef INC_SSN_PREFS_PROD2_H_
@@ -37,13 +39,15 @@
 #define M_DS18B20
 #define M_DHT
 #define M_GSM
+#define M_BMP180
+#define M_STEPMOTOR
 
 /* Persistence settings *
  * (select one) */
-#define PERSIST_EEPROM_I2C
-//#define PERSIST_STM32FLASH
+//#define PERSIST_EEPROM_I2C
+#define PERSIST_STM32FLASH
 
-//#define WATCHDOG
+#define WATCHDOG
 #define WATCHDOG_PERIOD 10000	// period of watchdog timer (ms)
 
 #define MC_OBJECT	1
@@ -51,7 +55,7 @@
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
 #define configTICK_RATE_HZ			( ( portTickType ) 300 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 53 * 1024 ) )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 46 * 1024 ) )
 
 /*-----------------------------------------------------------*/
 /* Hardware application settings */
@@ -61,21 +65,33 @@
 #define mainMAX_DHT_DEVICES				(3) 	// default max number of dht devices
 #define mainMAX_ROUTES					(2)		// max number routing interfaces
 
+// memory type device saving period (sec)
+#define mainMEMORY_DEV_SAVE_PERIOD		36000
+// maximum quantity of memory devices. Usually enough 1 element
+#define mainMEMORY_DEV_MAX_QTY			2
+
+// skip preferences loading button:
+#define mainSKIP_PREF_PIN		13		//	PB13
+#define mainSKIP_PREF_PORT		GPIOB
+#define mainSKIP_PREF_VALUE		pdFALSE	// pin value for skip prefs actuate
+
 ///#define I2C 	I2C1
 #define EEPROM_ADDRESS        	0xA0	// at24c32
 #define DS1307_ADDRESS        	0xD0	// rtc ds1307 address
 
 #define EEPROM_PAGE_SIZE      	32
+#define EEPROM_MAX_SIZE      	4096
+
 /* soft i2c hardware settings */
-/* Группа soft i2c номер 0 */
 #define SOFTI2C_1_PIN_SDA       2	//	PC2
 #define SOFTI2C_1_PIN_SCL       3	//	PC3
 #define SOFTI2C_1_PORT       	GPIOC
-#define SOFTI2C_TIMER_1 		TIM3    //задаем таймер, используемый для формирования задержек
-#define SOFTI2C_1_GRP			( 0 )	// группа датчиков soft i2c
-#define SOFTI2C_1_MAXDEVS		( 2 )	// максимальное количество датчиков на линии
+#define SOFTI2C_TIMER_1 		TIM3
+#define SOFTI2C_1_GRP			( 0 )
+#define SOFTI2C_1_MAXDEVS		( 2 )
 
-#define mainBAUD_RATE						( 57600 )
+#define mainBAUD_RATE						( 19200 )
+//#define mainBAUD_RATE						( 57600 )
 #define mainBASECOM							( mainCOM0 )
 
 /* Maximum elements number in parsed action formula string */

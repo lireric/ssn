@@ -206,6 +206,7 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 			}
 			grpArray[grp_counter]->uiObj = getMC_Object();
 			grpArray[grp_counter]->iDevQty = 0;
+			grpArray[grp_counter]->GrpDev.pTimer = 0;
 		}
 		if (strcmp(sName, "grpnum") == 0) {
 			grpArray[grp_counter]->uiGroup = conv2d(sValue);
