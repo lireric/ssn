@@ -62,12 +62,15 @@ typedef struct{
 	uint16_t	humidity;
 	int16_t 	nPrevTemperature;
 	uint16_t	nPrevHumidity;
-    uint32_t 	uiLastUpdate;	// last update device value
+    uint32_t 	uiLastUpdate;		// last update device value
+    uint16_t 	uiDeltaHumidity;	// Humidity delta for change value tolerance
+    uint16_t 	uiFlag;				// reserved
 } DHT_data_t;
 
-DHT_data_t* 	dht_device_init(sGrpDev* pGrpDev);
+DHT_data_t* 	DHTInitStruct();
+void		 	dht_device_init(sDevice* dev);
 void 			dht_device_delete(DHT_data_t* pDHTDev);
 uint32_t 		measure_period_nus(sGrpDev* pGrpDev, uint32_t nTimeout);
-uint8_t 		dht_get_data(sGrpDev* pGrpDev, DHT_data_t* dht_data);
+uint32_t 		dht_get_data(sDevice* dev);
 
 #endif /* DHT22_H_ */

@@ -107,7 +107,8 @@ uint8_t ds_start_convert_all(sGrpInfo* pGrpInfo, sDevice* devArray[], uint16_t d
   owi_write_byte(OWI_CONVERT,pGrpDev);     // conversation
 //} taskEXIT_CRITICAL();
 
-  delay_nus(pGrpDev, 100000);				// wait end of the conversation
+//  delay_nus(pGrpDev, 100000);				// wait end of the conversation
+  delay_ms(pGrpDev, 100);				// wait end of the conversation
 
 // record temperature values into the devices array:
   for (i = devIndex; i < (pGrpInfo->iDevQty+devIndex); i++) {

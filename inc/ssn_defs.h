@@ -24,6 +24,7 @@
 #define INC_SSN_DEFS_H_
 
 #include "ini.h"
+#include "device.h"
 
 typedef enum {FAILED = 0, PASSED = !FAILED} TestStatus;
 
@@ -122,6 +123,13 @@ typedef struct
 #define main_IF_SCR2				( 8 )	// screen device (LCD, LED etc)
 #define main_IF_ETH					( 9 )	// ethernet
 #define main_IF_RF					( 10 )	// wireless
+
+/* Type of the message sent to the xSensorsQueue queue. */
+typedef struct
+{
+	sDevice*	pDev;	 	// pointer to sDevice
+	uint8_t 	nDevCmd;	// device index
+} xSensorMessage;
 
 /* Type of the message sent to the input queue. */
 typedef struct

@@ -158,6 +158,8 @@ void process_getowilist(cJSON *json_data)
 	OWI_device* owi_tmp = (OWI_device*)pvPortMalloc(sizeof(OWI_device) * mainMAX_GRP_DEVICES);
 	sGrpInfo* pGrpInfo = getGrpInfo((uint8_t) cJSON_GetObjectItem(json_data,"g")->valueint);
 
+// TO DO: replace to debugMsg...
+
 	taskENTER_CRITICAL();
 	{
 	res = owi_search_devices(owi_tmp, mainMAX_GRP_DEVICES, pGrpInfo, &pGrpInfo->iDevQty);
@@ -250,6 +252,9 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 		} else if (strcmp(sName, "devid") == 0) {
 			devArray[all_devs_counter]->nId = conv2d(sValue);
 
+		}  else if (strcmp(sName, "dl") == 0) {
+			devArray[all_devs_counter]->uiDeltaValue = conv2d(sValue);
+
 		} else if (strcmp(sName, "devtype") == 0) {
 			// section "dev:devtype" --------------------------------------------
 			devArray[all_devs_counter]->ucType = conv2d(sValue);
@@ -259,7 +264,8 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 
 			} else if (devArray[all_devs_counter]->ucType == device_TYPE_DHT22) {
 #ifdef  M_DHT
-				devArray[all_devs_counter]->pDevStruct = (void*) dht_device_init(&devArray[all_devs_counter]->pGroup->GrpDev);
+				devArray[all_devs_counter]->pDevStruct = (void*) DHTInitStruct();
+				if (!addInitDevRequest(devArray[all_devs_counter]->nId)) return pdFAIL; // add request for delayed initialization
 #endif
 			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_OD) {
 				gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_OUTPUT_50_MHZ,
@@ -342,7 +348,19 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 				}
 			}
 		}
-		// ***************** BMP180 sensor
+		// ***************** DHT22 sensor
+		else if (devArray[all_devs_counter]->ucType == device_TYPE_DHT22) {
+#ifdef  M_DHT
+			// delta humidity
+			if (strcmp(sName, "dlh") == 0) {
+				if (!devArray[all_devs_counter]->pDevStruct)
+					return pdFAIL;
+				else {
+					((DHT_data_t*) devArray[all_devs_counter]->pDevStruct)->uiDeltaHumidity = conv2d(sValue);
+				}
+			}
+#endif
+		}		// ***************** BMP180 sensor
 		else if (devArray[all_devs_counter]->ucType == device_TYPE_BMP180) {
 #ifdef  M_BMP180
 			if (strcmp(sName, "addr") == 0) {
@@ -352,6 +370,10 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 			} else if (strcmp(sName, "oss") == 0) {
 				if (devArray[all_devs_counter]->pDevStruct)
 					((BMP180_data_t*)devArray[all_devs_counter]->pDevStruct)->P_Oversampling = conv2d(sValue);
+				// delta pressure
+			} else if (strcmp(sName, "dlp") == 0) {
+				if (devArray[all_devs_counter]->pDevStruct)
+					((BMP180_data_t*)devArray[all_devs_counter]->pDevStruct)->uiDeltaPressure = conv2d(sValue);
 			}
 #endif
 		}
@@ -718,33 +740,6 @@ uint32_t storePreferences(char* sBuf, uint16_t nBufSize)
 	return nRes;
 }
 
-/* Load preferences from JSON message to EEPROM */
-void process_loadprefs(cJSON *json_data, char * jsonMsg, sGrpInfo*  grpArray[])
-{
-	uint8_t res;
-//  char msg[mainMAX_MSG_LEN];
-// first try to apply new preferences - apply_preferences() from main for check it correctness
-// if success, then save it into EEPROM and reboot
-// if not, then read and apply from EEPROM last correct settings
-
-	vTaskSuspendAll();
-
-	storeMemDevs(); // save MemDevices values
-
-	res = apply_preferences(json_data);		// res == pdPASS -> good!
-	if (res) {
-		uint16_t jsonSize = strlen(jsonMsg);
-		res = storePreferences(jsonMsg, jsonSize);
-
-	    SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ; // reboot
-
-
-	} else {
-		//sendBaseOut("\r\nError loading preferences");
-		debugMsg("\r\nError loading preferences");
-	}
-	xTaskResumeAll();
-}
 
 char* process_getdevvals(sDevice* devArray[], uint16_t all_devs_counter, uint16_t nDevId)
 {
@@ -1064,6 +1059,17 @@ void log_event2 (char c, void* pt)
 	xsprintf( cBuffer, "\r\n***%c: task %s delay",c, pcTaskGetTaskName((TaskHandle_t) pt));
 	//sendBaseOut(cBuffer);
 	debugMsg(cBuffer);
+}
+
+/*
+ * Generate and send heartbeat message
+ */
+void heartBeatSend(uint32_t nCounter, uint32_t nTimestamp)
+{
+	char* tmpBuffer = pvPortMalloc(50);
+
+	xsprintf( tmpBuffer, "{\"hb\":[{\"t\":%d, \"c\":%d}]}", nTimestamp, nCounter);
+	vSendInputMessage(1, 0, mainJSON_MESSAGE, getMC_Object(), 0, 0, (void*) tmpBuffer, strlen(tmpBuffer), 0);
 }
 
 /* log action event into temporary buffer and send it if buffer full */

@@ -137,7 +137,8 @@ typedef struct{
 	int16_t 	iPrevTemperature;
 	uint32_t	uiPressure;
 	uint32_t	uiPrevPressure;
-    uint32_t 	uiLastUpdate;	// last update device value
+    uint32_t 	uiLastUpdate;		// last update device value
+    uint32_t 	uiDeltaPressure;	// Humidity delta for change value tolerance
 
 	/* Settings */
     uint8_t I2C_Addr;				//I2c address. Default value 0xEE

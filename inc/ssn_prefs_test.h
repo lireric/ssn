@@ -61,6 +61,9 @@
 #define mainMAX_DHT_DEVICES				(3) 	// default max number of dht devices
 #define mainMAX_ROUTES					(2)		// max number routing interfaces
 
+// Heartbeat period (sec)
+#define mainHEARTBEAT_PERIOD	20
+
 // memory type device saving period (sec)
 #define mainMEMORY_DEV_SAVE_PERIOD		36000
 // maximum quantity of memory devices. Usually enough 1 element

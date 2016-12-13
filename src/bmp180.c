@@ -27,7 +27,7 @@
  */
 
 
-#include "i2c_eeprom.h"
+//#include "i2c_eeprom.h"
 #include "FreeRTOS.h"
 #include "../inc/ssn.h"
 

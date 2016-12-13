@@ -53,14 +53,27 @@ uint32_t measure_period_nus(sGrpDev* pGrpDev, uint32_t nTimeout) {
 	return TIMCounter;
 }
 
-DHT_data_t* dht_device_init(sGrpDev* pGrpDev) {
+DHT_data_t* DHTInitStruct() {
 	DHT_data_t* pDHTDev;
 
 	pDHTDev = (DHT_data_t*) pvPortMalloc(sizeof(DHT_data_t));
-	if (!pDHTDev) return pdFAIL;
-	if (!pGrpDev->pTimer) return pdFAIL;
-
 	pDHTDev->uiLastUpdate = 0;
+
+	if (!pDHTDev) return NULL;
+
+	return pDHTDev;
+}
+void dht_device_init(sDevice* dev) {
+
+	uint32_t res;
+	sGrpDev* pGrpDev = &dev->pGroup->GrpDev;
+	char* msg = (char*)pvPortMalloc(mainMAX_MSG_LEN);
+
+	if (!pGrpDev->pTimer)
+		{
+			xsprintf(msg, "\r\nError! Init DHT device - Timer not set: %d", dev->nId);
+			goto DhtEnd;
+		}
 
 	rcc_periph_clock_enable(pGrpDev->pPort);
 	switch (pGrpDev->pTimer) {
@@ -100,8 +113,18 @@ DHT_data_t* dht_device_init(sGrpDev* pGrpDev) {
 	/* Timer mode. */
 	timer_one_shot_mode(pGrpDev->pTimer);
 
-	/* Period */
-	return pDHTDev;
+	res = dht_get_data (dev);
+	if (!res) {
+		xsprintf(msg, "\r\nOk. DHT device initialized: %d ", dev->nId);
+	} else {
+		xsprintf(msg, "\r\nError! DHT device error code=%d: %d ", res, dev->nId);
+	}
+
+DhtEnd:
+	debugMsg(msg);
+
+	vPortFree(msg);
+
 }
 
 void dht_device_delete(DHT_data_t* pDHTDev)
@@ -109,7 +132,13 @@ void dht_device_delete(DHT_data_t* pDHTDev)
 	vPortFree((void*)pDHTDev);
 }
 
-uint8_t dht_get_data (sGrpDev* pGrpDev, DHT_data_t* dht_data) {
+/*
+ * Get DHT sensor data
+ * return 0 if success or error code
+ */
+uint32_t dht_get_data (sDevice* dev) {
+	sGrpDev* pGrpDev = &dev->pGroup->GrpDev;
+	DHT_data_t* dht_data = dev->pDevStruct;
 	uint64_t data = 0;
 	uint64_t bitmask = 0x0000008000000000;
 	uint8_t pos = 40;	// read 40 bit
@@ -156,7 +185,7 @@ uint8_t dht_get_data (sGrpDev* pGrpDev, DHT_data_t* dht_data) {
 
 	check_sum = (uint8_t)(data>>8)+(uint8_t)(data>>16)+(uint8_t)(data>>24)+(uint8_t)(data>>32);
 	dht_data->nPrevTemperature = dht_data->temperature;
-	dht_data->temperature = (uint16_t)(data>>8);
+	dht_data->temperature = (int16_t)(data>>8);
 	dht_data->nPrevHumidity = dht_data->humidity;
 	dht_data->humidity = (uint16_t)(data>>24);
 	dht_data->uiLastUpdate = rtc_get_counter_val();

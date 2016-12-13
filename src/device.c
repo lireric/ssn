@@ -64,7 +64,9 @@ static void pDevInitTask( void *pvParameters ) {
 	uint16_t nDevId;
 	/* Process all requests from queue */
 	while(xQueueReceive( xDevInitQueue, &nDevId, 0 ) == pdPASS) {
+
 		deviceInit(getDeviceByID(nDevId));
+
 	}
 	vTaskDelete( NULL ); // destroy it task after complete
 }
@@ -103,7 +105,7 @@ void deviceInit(sDevice* dev) {
 			break;
 		case device_TYPE_DHT22:
 			if (dev->pDevStruct) {
-// to do...
+				dht_device_init(dev);
 			}
 			break;
 		case device_TYPE_BMP180:

@@ -24,6 +24,7 @@
 #include "../inc/ssn.h"
 #include "../inc/ini.h"
 #include "processor.h"
+#include <stdlib.h>
 
 #ifdef  M_LCD
 #include "lcd.h"
@@ -35,7 +36,7 @@
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2016-11-05"
+#define SSN_VERSION "2016-12-13"
 
 /* Global variables 			========================================== */
 
@@ -77,6 +78,8 @@ uint8_t 	route_counter = 0;
 sDevice 	*uiMemoryDevsArray[mainMEMORY_DEV_MAX_QTY];
 uint8_t 	mem_devs_counter = 0;
 uint32_t 	uiLastSaveMemoryTick = 0;
+uint32_t 	uiLastHeartBeatTick = 0;
+uint32_t 	uiLastHeartBeatTS = 0;
 
 sPrefsBuffer xPrefsBuffer;
 
@@ -85,10 +88,6 @@ sSSNPDU xSSNPDU;
 
 int uiDevCounter=0;
 static uint32_t uiMainTick = 0;
-
-//static uint8_t nADCch_counter = 0;
-//int16_t* 	pADCValueArray = NULL;
-//uint32_t* 	pADCLastUpdate = NULL;
 
 xTaskHandle pCheckSensorHRTaskHnd;
 xTaskHandle pCheckSensorMRTaskHnd;
@@ -250,6 +249,7 @@ void RCC_Configuration(void)
 
 	rcc_clock_setup_in_hse_8mhz_out_72mhz();
 
+	// TO DO: move to device init...
 	/* Enable GPIOs clock */
 	rcc_periph_clock_enable(RCC_GPIOA);
 	rcc_periph_clock_enable(RCC_GPIOB);
@@ -512,7 +512,8 @@ skipLoadPrefs:
 	xReturn = xTaskCreate( prvLogOutTask, ( char * ) "LogOutTask", 380, NULL, mainDEBUG_OUT_TASK_PRIORITY, NULL );
 
 	xInputQueue = xQueueCreate( mainINPUT_QUEUE_SIZE, sizeof( xInputMessage ) );
-	xSensorsQueue = xQueueCreate( mainSENSORS_QUEUE_SIZE, sizeof(void*) );
+//	xSensorsQueue = xQueueCreate( mainSENSORS_QUEUE_SIZE, sizeof(void*) );
+	xSensorsQueue = xQueueCreate( mainSENSORS_QUEUE_SIZE, sizeof(xSensorMessage) );
 
 	xReturn = xTaskCreate( prvUSARTEchoTask, ( char * ) "Echo", 200, NULL, mainECHO_TASK_PRIORITY, &pTmpTask );
 
@@ -576,7 +577,6 @@ static void prvInputTask( void *pvParameters )
 			xsprintf(cPassMessage, "\r\nInputMessage: dest=%d, src=%d, msgtype=%d, cmd=%d",
 					xInputMessage.uiDestObject, xInputMessage.uiSrcObject,
 					xInputMessage.xMessageType, xInputMessage.nCommand);
-			//sendBaseOut(cPassMessage);
 			debugMsg(cPassMessage);
 
 			/* route message if needed */
@@ -677,10 +677,7 @@ processLocalMessages:
 						case main_IF_UART4:
 						case main_IF_UART5:
 						{
-								//sendBaseOut((char *) xInputMessage.pcMessage);
 							vSendSSNPacket (xInputMessage.uiDestObject, getMC_Object(), mainJSON_MESSAGE, xInputMessage.pcMessage);
-
-//								debugMsg((char *) xInputMessage.pcMessage);
 								break;
 						}
 						/* to do: add other node types...  */
@@ -869,9 +866,6 @@ processLocalMessages:
 											if (strcmp(cmd, "getowilist") == 0) {
 												process_getowilist(json_data);
 											}
-											if (strcmp(cmd, "loadprefs") == 0) {
-												process_loadprefs(json_data, jsonMsg, grpArray);
-											}
 											if (strcmp(cmd, "updateaction") == 0) {
 												UpdateActionJSON(json_data);
 											}
@@ -969,6 +963,7 @@ static void prvCheckSensorMRTask( void *pvParameters )
 //	uint32_t nLastVal;
 	(void) res;
 //	uint8_t channel_array[16];
+	xSensorMessage sSensorMsg;
 
 	xLastWakeTime = xTaskGetTickCount();
 
@@ -983,6 +978,7 @@ static void prvCheckSensorMRTask( void *pvParameters )
 // select middle rate group:
 //							if (devArray[j]->pGroup->ucDevRate == device_RATE_MID) {
 							ut = devArray[j]->ucType;
+							sSensorMsg.pDev = devArray[j];
 							switch (ut) {
 
 #ifdef  M_DS18B20
@@ -994,10 +990,14 @@ static void prvCheckSensorMRTask( void *pvParameters )
 										flag18b20_conv = devArray[j]->pGroup->uiGroup;
 									}
 // if value changed send message into Sensors queue for next processing:
-									if (((ds18b20_device*) devArray[j]->pDevStruct)->iDevValue != ((ds18b20_device*) devArray[j]->pDevStruct)->nDevPrevValue) {
-										res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
+									if (
+											abs(((ds18b20_device*) devArray[j]->pDevStruct)->iDevValue -
+													((ds18b20_device*) devArray[j]->pDevStruct)->nDevPrevValue) >= devArray[j]->uiDeltaValue
+											) {
+										sSensorMsg.nDevCmd = 0;
+										res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+//										res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
 										if (!res) {
-										//sendBaseOut("\r\nError sending into Sensors Queue!");
 											debugMsg("\r\nError sending into Sensors Queue!");
 										}
 									}
@@ -1008,13 +1008,24 @@ static void prvCheckSensorMRTask( void *pvParameters )
 #ifdef  M_DHT
 							case device_TYPE_DHT22:
 								if (devArray[j]->pDevStruct) {
-									taskENTER_CRITICAL(); {
-										res = dht_get_data (&devArray[j]->pGroup->GrpDev, (DHT_data_t*) devArray[j]->pDevStruct);
-									} taskEXIT_CRITICAL();
-									if (((DHT_data_t*) devArray[j]->pDevStruct)->humidity != ((DHT_data_t*) devArray[j]->pDevStruct)->nPrevHumidity
-										|| ((DHT_data_t*) devArray[j]->pDevStruct)->temperature != ((DHT_data_t*) devArray[j]->pDevStruct)->nPrevTemperature) {
-									res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
-									}
+//									taskENTER_CRITICAL(); {
+										res = dht_get_data (devArray[j]);
+//									} taskEXIT_CRITICAL();
+									if (
+											(abs(((DHT_data_t*) devArray[j]->pDevStruct)->humidity -
+													((DHT_data_t*) devArray[j]->pDevStruct)->nPrevHumidity) >=
+													((DHT_data_t*) devArray[j]->pDevStruct)->uiDeltaHumidity))
+										{
+											sSensorMsg.nDevCmd = 1;
+											res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+										}
+									if (abs(((DHT_data_t*) devArray[j]->pDevStruct)->temperature -
+												((DHT_data_t*) devArray[j]->pDevStruct)->nPrevTemperature) >= devArray[j]->uiDeltaValue)
+										{
+											sSensorMsg.nDevCmd = 0;
+											res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+//											res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
+										}
 								}
 								break;
 #endif
@@ -1022,10 +1033,20 @@ static void prvCheckSensorMRTask( void *pvParameters )
 							case device_TYPE_BMP180:
 								if (devArray[j]->pDevStruct) {
 									res = bmp180_get_data (devArray[j]);
-									if (((BMP180_data_t*) devArray[j]->pDevStruct)->iTemperature != ((BMP180_data_t*) devArray[j]->pDevStruct)->iPrevTemperature
-										|| ((BMP180_data_t*) devArray[j]->pDevStruct)->uiPressure != ((BMP180_data_t*) devArray[j]->pDevStruct)->uiPrevPressure) {
-										res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
-									}
+									if (abs(((BMP180_data_t*) devArray[j]->pDevStruct)->iTemperature -
+											((BMP180_data_t*) devArray[j]->pDevStruct)->iPrevTemperature) >= devArray[j]->uiDeltaValue)
+										{
+											sSensorMsg.nDevCmd = 0;
+											res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+
+										}
+									if  (abs(((BMP180_data_t*) devArray[j]->pDevStruct)->uiPressure -
+												((BMP180_data_t*) devArray[j]->pDevStruct)->uiPrevPressure) >=
+											((BMP180_data_t*) devArray[j]->pDevStruct)->uiDeltaPressure)
+										{
+											sSensorMsg.nDevCmd = 1;
+											res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+										}
 								}
 								break;
 #endif
@@ -1047,15 +1068,17 @@ static void prvCheckSensorMRTask( void *pvParameters )
 //									nADCch_counter = 0;
 										nTmpValue = ((sADC_data_t*)devArray[j]->pDevStruct)->nADCValueArray[nch];
 										((sADC_data_t*)devArray[j]->pDevStruct)->nADCValueArray[nch] = adc_read_regular(ADC1);
-										if (nTmpValue != ((sADC_data_t*)devArray[j]->pDevStruct)->nADCValueArray[nch]) {
+										if (abs(nTmpValue - ((sADC_data_t*)devArray[j]->pDevStruct)->nADCValueArray[nch]) >= devArray[j]->uiDeltaValue) {
 											devArray[j]->nFlag |= 0b00000001; // value is changed
+											sSensorMsg.nDevCmd = nch;
+											res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
 										}
 									//((sADC_data_t*)devArray[j]->pDevStruct)->uiLastUpdate = rtc_get_counter_val();
 										devArray[j]->uiLastUpdate = rtc_get_counter_val();
 									}
-									if (devArray[j]->nFlag && 0b00000001) {
-										res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
-									}
+//									if (devArray[j]->nFlag && 0b00000001) {
+//										res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
+//									}
 								}
 								break;
 //							case device_TYPE_BB1BIT_IO_PP:
@@ -1080,6 +1103,7 @@ static void prvCheckSensorHRTask( void *pvParameters )
 	( void ) pvParameters;
 	uint8_t res, ut;
 	uint16_t j;
+	xSensorMessage sSensorMsg;
 	while (1) {
 					for (j = 0; j <= all_devs_counter; j++) {
 // select hi rate group:
@@ -1094,7 +1118,10 @@ static void prvCheckSensorHRTask( void *pvParameters )
 
 									// res = scanDevActions (devArray[j]);
 									// xQueueSend(xSensorsQueue, &devArray[j], 0);
-									xQueueSendToFront(xSensorsQueue, &devArray[j], 0); // send to head of queue!
+									sSensorMsg.nDevCmd = 0;
+									sSensorMsg.pDev = devArray[j];
+									xQueueSendToFront(xSensorsQueue, &sSensorMsg, 0); // send to head of queue!
+//									xQueueSendToFront(xSensorsQueue, &devArray[j], 0); // send to head of queue!
 								}
 								break;
 								/*
@@ -1166,6 +1193,14 @@ static void prvCronFunc( void *pvParameters )
 			}
 		}
 
+// heartbeat tick:
+		if (uiCurrentTick > (uiLastHeartBeatTS + mainHEARTBEAT_PERIOD))
+		{
+			heartBeatSend(uiLastHeartBeatTick, uiCurrentTick);
+			uiLastHeartBeatTS = uiCurrentTick;
+			uiLastHeartBeatTick++;
+		}
+
 		logAction(0, 0, 0, 0); // check timeout for log submitting
 }
 
@@ -1174,41 +1209,49 @@ static void prvProcSensorTask( void *pvParameters )
 {
 	sDevice* dev;
 	( void ) pvParameters;
+	xSensorMessage sSensorMsg;
 
 	while (1)
 	{
 		/* Wait for a message from Sensors queue */
-		while ( xQueueReceive(xSensorsQueue, &dev, portMAX_DELAY)	!= pdPASS) ;
+//		while ( xQueueReceive(xSensorsQueue, &dev, portMAX_DELAY)	!= pdPASS) ;
+		while ( xQueueReceive(xSensorsQueue, &sSensorMsg, portMAX_DELAY)	!= pdPASS) ;
+		dev = sSensorMsg.pDev;
 		if (dev) {
 				switch (dev->ucType) {
 #ifdef  M_DS18B20
 				case device_TYPE_DS18B20:
 					if (dev->pDevStruct) {
-						logAction(0, dev->nId, 0, ((ds18b20_device*) dev->pDevStruct)->iDevValue);
+						logAction(0, dev->nId, sSensorMsg.nDevCmd, ((ds18b20_device*) dev->pDevStruct)->iDevValue);
 					}
 					break;
 #endif
 #ifdef  M_DHT
 				case device_TYPE_DHT22:
 					if (dev->pDevStruct) {
-						logAction(0, dev->nId, 0, ((DHT_data_t*) dev->pDevStruct)->temperature);
-						logAction(0, dev->nId, 1, ((DHT_data_t*) dev->pDevStruct)->humidity);
+						if (sSensorMsg.nDevCmd == 0)
+							logAction(0, dev->nId, 0, ((DHT_data_t*) dev->pDevStruct)->temperature);
+						else
+							logAction(0, dev->nId, 1, ((DHT_data_t*) dev->pDevStruct)->humidity);
 					}
 					break;
 #endif
 #ifdef  M_BMP180
 				case device_TYPE_BMP180:
 					if (dev->pDevStruct) {
-						logAction(0, dev->nId, 0, ((BMP180_data_t*) dev->pDevStruct)->iTemperature);
-						logAction(0, dev->nId, 1, ((BMP180_data_t*) dev->pDevStruct)->uiPressure);
+						if (sSensorMsg.nDevCmd == 0)
+							logAction(0, dev->nId, 0, ((BMP180_data_t*) dev->pDevStruct)->iTemperature);
+						else
+							logAction(0, dev->nId, 1, ((BMP180_data_t*) dev->pDevStruct)->uiPressure);
 					}
 					break;
 #endif
 				case device_TYPE_BB1BIT_IO_AI:
 					if (dev->pDevStruct) {
-						for (uint8_t ch=0; ch < dev->pGroup->iDevQty; ch++) {
-							logAction(0, dev->nId, ch, ((sADC_data_t*)dev->pDevStruct)->nADCValueArray[ch]);
-						}
+//						for (uint8_t ch=0; ch < dev->pGroup->iDevQty; ch++) {
+						logAction(0, dev->nId, sSensorMsg.nDevCmd, ((sADC_data_t*)dev->pDevStruct)->nADCValueArray[sSensorMsg.nDevCmd]);
+//							logAction(0, dev->nId, ch, ((sADC_data_t*)dev->pDevStruct)->nADCValueArray[ch]);
+//						}
 					}
 					break;
 				case device_TYPE_BB1BIT_IO_INPUT:
@@ -1440,136 +1483,6 @@ void vApplicationStackOverflowHook( xTaskHandle pxTask, signed char *pcTaskName 
 void vApplicationIdleHook( void )
 {
 	  ulIdleCycleCount++;
-}
-
-int32_t apply_preferences(cJSON *json_data) {
-	uint8_t i,j;
-	cJSON *json_app = cJSON_GetObjectItem(json_data, "app");	// get application preferences
-	cJSON *json_groups = cJSON_GetObjectItem(json_data, "grp");	// get array of groups
-	cJSON *grp_devs;
-	cJSON *json_routes = cJSON_GetObjectItem(json_data, "routes");	// get array of routes
-	cJSON *json_actions = cJSON_GetObjectItem(json_data, "logic");	// get array of actions
-	int32_t res = pdFAIL;
-	(void) res;
-
-	if (json_app)
-	{
-//		cJSON *json_tmp;
-		uint16_t	nLogObj = (uint16_t) cJSON_GetObjectItem(json_app, "logobj")->valueint;
-		setLog_Object(nLogObj);		// store object-logger
-	}
-
-	if (json_groups)
-	{
-		for (i=0;i<cJSON_GetArraySize(json_groups);i++)
-		{
-		cJSON *grpitem=cJSON_GetArrayItem(json_groups,i);
-		if (grpitem) {
-			grpArray[grp_counter] = (sGrpInfo*) pvPortMalloc(sizeof(sGrpInfo));
-			if (!grpArray[grp_counter]) break;
-
-			grpArray[grp_counter]->uiGroup = (uint8_t) cJSON_GetObjectItem(grpitem, "grpnum")->valueint;
-//			grpArray[grp_counter]->ucDevRate = (uint8_t) cJSON_GetObjectItem(grpitem, "devrate")->valueint;
-			grpArray[grp_counter]->iDevQty = (uint8_t) cJSON_GetObjectItem(grpitem, "devsqty")->valueint;
-			grpArray[grp_counter]->GrpDev.pPort = get_port_by_name((char*) cJSON_GetObjectItem(grpitem, "grpport")->valuestring);
-			grpArray[grp_counter]->GrpDev.pTimer = get_port_by_name((char*) cJSON_GetObjectItem(grpitem, "grptimer")->valuestring);
-			grpArray[grp_counter]->GrpDev.ucPin = (uint8_t) cJSON_GetObjectItem(grpitem, "grppin1")->valueint;
-			grpArray[grp_counter]->GrpDev.ucPin2 = (uint8_t) cJSON_GetObjectItem(grpitem, "grppin2")->valueint;
-			grp_devs = cJSON_GetObjectItem(grpitem, "devs");	// get array of devices
-
-			if (grp_devs) {
-			for (j=0;j<cJSON_GetArraySize(grp_devs);j++)
-			{
-				cJSON *devitem=cJSON_GetArrayItem(grp_devs,j);
-				if (devitem) {
-					devArray[all_devs_counter] = pvPortMalloc(sizeof(sDevice));
-					devArray[all_devs_counter]->nId = (uint16_t) cJSON_GetObjectItem(devitem, "devid")->valueint;
-					devArray[all_devs_counter]->ucType = (uint8_t) cJSON_GetObjectItem(devitem, "devtype")->valueint;
-					devArray[all_devs_counter]->pGroup = grpArray[grp_counter];
-
-					if (devArray[all_devs_counter]->ucType == device_TYPE_DS18B20) {
-#ifdef  M_DS18B20
-						devArray[all_devs_counter]->pDevStruct = (void*) ds18b20_init(grpArray[grp_counter], (char *) cJSON_GetObjectItem(devitem, "romid")->valuestring);
-#endif
-					}
-					if (devArray[all_devs_counter]->ucType == device_TYPE_DHT22) {
-#ifdef  M_DHT
-						devArray[all_devs_counter]->pDevStruct = (void*) dht_device_init(&grpArray[grp_counter]->GrpDev);
-#endif
-					}
-					if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_OD) {
-						gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_OUTPUT_50_MHZ,
-								GPIO_CNF_OUTPUT_OPENDRAIN, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
-					}
-					if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_PP) {
-						gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_OUTPUT_50_MHZ,
-								GPIO_CNF_OUTPUT_PUSHPULL, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
-					}
-					if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_INPUT) {
-						gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_INPUT,
-								GPIO_CNF_INPUT_FLOAT, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
-					}
-					if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_AI) {
-						gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_INPUT,
-								GPIO_CNF_INPUT_ANALOG, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
-						// to do:
-					}
-					if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_AO) {
-						// to do:
-					}
-#ifdef  M_GSM
-					if (devArray[all_devs_counter]->ucType == device_TYPE_GSM) {
-						devArray[all_devs_counter]->pDevStruct = (void*) gsm_preinit (devitem, xBaseOutQueue);
-						xTaskHandle pTmpTask;
-						res = xTaskCreate( prvStartGSMTask, ( char * ) "StartGSMTask", configMINIMAL_STACK_SIZE, devArray[all_devs_counter], gsmGSM_TASK_START_PRIORITY, &pTmpTask );
-
-						if (!res) return pdFAIL;
-					}
-#endif
-				}
-				all_devs_counter++;
-			}
-			}
-			grp_counter++;
-		}
-	}
-	cJSON_Delete(json_groups);
-	}
-
-// ************************************************************ json_routes
-	uint16_t	nDestObj;		// destination object
-	uint8_t 	xDestType;		// interface type to route
-
-	if (json_routes) {
-		for (i=0; i<cJSON_GetArraySize(json_routes); i++)
-		{
-			cJSON *routeitem=cJSON_GetArrayItem(json_routes,i);
-			if (routeitem) {
-				nDestObj  = (uint16_t) cJSON_GetObjectItem(routeitem, "obj")->valueint;
-				xDestType = (uint16_t) cJSON_GetObjectItem(routeitem, "if")->valueint;
-				res = setObjRoute(nDestObj, xDestType);
-				// to do: process error
-			}
-		}
-		cJSON_Delete(json_routes);
-	}
-
-// ************************************************************ json_actions
-	if (json_actions) {
-		uint16_t unActCount = cJSON_GetArraySize(json_actions);
-
-	for (i=0;i<unActCount;i++)
-	{
-		cJSON *devactitem=cJSON_GetArrayItem(json_actions,i);
-		if (devactitem) {
-			UpdateActionJSON(devactitem);
-		}
-	}
-	cJSON_Delete(json_actions);
-	res = refreshActions2DeviceCash();
-	}
-
-	return pdPASS;
 }
 
 static void vMainTimerFunctionInterval1(void* pParam) {

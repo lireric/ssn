@@ -117,7 +117,7 @@ uint8_t Rx1Buffer[BUFFER1_SIZE];
 //void print_debug (const char *str);
 void 		print_debug_FROM_ISR (const char *str);
 sGrpInfo* 	getGrpInfo(unsigned char ucGrpNum);
-int32_t 	apply_preferences(cJSON *json_data);
+//int32_t 	apply_preferences(cJSON *json_data);
 uint32_t 	vMainStartGSMTask(void* pParam);
 xTimerHandle mainTimerCreate(char* pcTimerName, uint32_t nPeriod, uint32_t isPeriodic, sEvtElm* pEvtElm);
 xTimerHandle mainTimerCreateOneShot(char* pcTimerName, uint32_t nPeriod, sEvtElm* pEvtElm);

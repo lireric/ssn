@@ -106,6 +106,10 @@
 #define mainMAX_ACTIONS					(30) 	// max number of actions
 #endif
 
+#ifndef mainHEARTBEAT_PERIOD
+#define mainHEARTBEAT_PERIOD	30
+#endif
+
 #ifndef mainINPUT_TASK_STACK
 #define mainINPUT_TASK_STACK	800
 #endif

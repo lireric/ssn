@@ -105,6 +105,7 @@ typedef struct
 	uint8_t		nLastPinValue;	// previous device value (only for 1 pin i/o devices)
 	uint8_t 	nActionsCashSize;	// number of actions in array
 	uint8_t 	nFlag;			//	1-st bit - one of the device channels values is changed; 8 bit - 1: device disabled, 0: device enabled;
+    uint32_t 	uiDeltaValue;	// device value change delta tolerance
     uint32_t 	uiLastUpdate;	// last update device value
 	uint32_t	nEventTime;		// number of sec/10 from event (setDevEvent)
     sGrpInfo * 	pGroup;			// pointer to the device group
