@@ -1,11 +1,11 @@
 #!/bin/bash
 
-jsonFile='loadprefs.ini';
+jsonFile='set_datetime.json';
 mcPort='/dev/ttyUSB2';
 
 obj_dst=4;
 obj_src=3;
-message_type=7;
+message_type=2;
 
 jsonValue=$(<$jsonFile)
 len=${#jsonValue};

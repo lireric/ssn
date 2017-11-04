@@ -55,6 +55,8 @@ extern uint8_t		mem_devs_counter;
 uint32_t 	process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue, sIniHandlerData* pIniHandlerData, int* pnSectionNo);
 void 		process_setdatetime(cJSON *json_data);
 void 		process_getowilist(cJSON *json_data);
+void 		process_getdatetime(cJSON *json_data);
+void 		hw_loadtime();
 //void 	process_loadprefs(cJSON *json_data, char * jsonMsg, sGrpInfo* grpArray[]);
 char* 		process_getdevvals(sDevice* devArray[], uint16_t all_devs_counter, uint16_t nDevId);
 void 		vSendInputMessage (uint8_t version, uint16_t	uiDestObject, uint8_t xMessageType, uint16_t uiSrcObject, uint16_t xSourceDev, uint16_t xDestDev, void* pcMessage, uint16_t nSize, uint16_t nCommand);

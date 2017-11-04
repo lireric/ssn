@@ -149,6 +149,39 @@ void process_setdatetime(cJSON *json_data)
 
 }
 
+void process_getdatetime(cJSON *json_data)
+{
+	hw_loadtime();
+}
+
+void hw_loadtime()
+{
+#if defined (M_RTC_DS1307)
+	sGrpInfo* pGrpInfo = getGrpInfo(SOFTI2C_1_GRP);
+	sGrpDev* pGrpDev2 = &pGrpInfo->GrpDev;
+		// load RTC from RTC_DS1307:
+		if ( RTC_DS1307_now(pGrpDev2) )
+			{
+				RTC_t rtc;
+				rtc.year = DS1307_time.year + 2000;
+				rtc.month = DS1307_time.month;
+				rtc.mday = DS1307_time.day;
+				rtc.hour = DS1307_time.hour;
+				rtc.min = DS1307_time.min;
+				rtc.sec = DS1307_time.sec;
+				rtc_settime(&rtc);
+		    	xsprintf(( char *) cPassMessage,
+		    			"\r\nSet date/time from RTC DS1307: %d-%d-%d %d:%d:%d", rtc.year, rtc.month, rtc.mday, rtc.hour, rtc.min, rtc.sec);
+		    	debugMsg((char *) &cPassMessage);
+
+			}
+			else {
+				debugMsg("\r\nRTC DS1307 not responding");
+			};
+#endif
+
+}
+
 // Get list devices, connected to pin
 // input: g - group number
 void process_getowilist(cJSON *json_data)
@@ -843,7 +876,7 @@ void debugMsg (char *str)
 {
 //	xQueueSend( xLogOutQueue, str, 0);
 
-	uint8_t uiCnt;
+	uint16_t uiCnt;
 	uint16_t uiBufLen;
 	uint32_t xReturn;
 	char msg[mainMAX_MSG_LEN];
@@ -868,7 +901,7 @@ void debugMsg (char *str)
 
 void sendBaseOut (char *str)
 {
-	uint8_t uiCnt;
+	uint16_t uiCnt;
 	uint16_t uiBufLen;
 	uint32_t xReturn;
 	char msg[mainMAX_MSG_LEN];

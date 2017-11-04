@@ -36,7 +36,7 @@
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2016-12-13"
+#define SSN_VERSION "2017-10-24"
 
 /* Global variables 			========================================== */
 
@@ -379,32 +379,12 @@ int main(void)
 		pGrpDev->ucPin = SOFTI2C_1_PIN_SDA;
 		pGrpDev->ucPin2 = SOFTI2C_1_PIN_SCL;
 		pGrpDev->pTimer = SOFTI2C_TIMER_1;
-//		grp_counter++;
-//		owi_device_init_i2c(pGrpDev);
 		soft_i2c_init(pGrpDev);
+//		i2c_setup(pGrpDev);
+
 #endif
 
-#if defined (M_RTC_DS1307)
-		// load RTC from RTC_DS1307:
-		if ( RTC_DS1307_now(pGrpDev) )
-			{
-				RTC_t rtc;
-				rtc.year = DS1307_time.year + 2000;
-				rtc.month = DS1307_time.month;
-				rtc.mday = DS1307_time.day;
-				rtc.hour = DS1307_time.hour;
-				rtc.min = DS1307_time.min;
-				rtc.sec = DS1307_time.sec;
-				rtc_settime(&rtc);
-		    	xsprintf(( portCHAR *) msg,
-		    			"\r\nSet date/time from RTC DS1307: %d-%d-%d %d:%d:%d", rtc.year, rtc.month, rtc.mday, rtc.hour, rtc.min, rtc.sec);
-		    	debugMsg((char *) &msg);
-
-			}
-			else {
-				debugMsg("\n\rRTC DS1307 not responding");
-			};
-#endif
+		hw_loadtime();
 		grp_counter++;
 
 // check skip preferences button:
@@ -507,15 +487,15 @@ int main(void)
 
 skipLoadPrefs:
 // ------------------------------------------------------------------------------
-	xReturn = xTaskCreate( prvBaseOutTask, ( char * ) "BaseOutTask", 200, NULL, mainBASEOUT_TASK_PRIORITY, &pTmpTask );
+	xReturn = xTaskCreate( prvBaseOutTask, ( char * ) "BaseOutTask", 300, NULL, mainBASEOUT_TASK_PRIORITY, &pTmpTask );
 	xBaseOutTaskHnd = (void*) pTmpTask;
-	xReturn = xTaskCreate( prvLogOutTask, ( char * ) "LogOutTask", 380, NULL, mainDEBUG_OUT_TASK_PRIORITY, NULL );
+	xReturn = xTaskCreate( prvLogOutTask, ( char * ) "LogOutTask", 420, NULL, mainDEBUG_OUT_TASK_PRIORITY, NULL );
 
 	xInputQueue = xQueueCreate( mainINPUT_QUEUE_SIZE, sizeof( xInputMessage ) );
 //	xSensorsQueue = xQueueCreate( mainSENSORS_QUEUE_SIZE, sizeof(void*) );
 	xSensorsQueue = xQueueCreate( mainSENSORS_QUEUE_SIZE, sizeof(xSensorMessage) );
 
-	xReturn = xTaskCreate( prvUSARTEchoTask, ( char * ) "Echo", 200, NULL, mainECHO_TASK_PRIORITY, &pTmpTask );
+	xReturn = xTaskCreate( prvUSARTEchoTask, ( char * ) "Echo", 300, NULL, mainECHO_TASK_PRIORITY, &pTmpTask );
 
 	xTimerHandle xTimer;
 (void) xTimer;
@@ -528,7 +508,7 @@ skipLoadPrefs:
 
 	xReturn = xTaskCreate( prvInputTask, ( char * ) "InputTask", mainINPUT_TASK_STACK, NULL, mainINPUT_TASK_PRIORITY, &pTmpTask );
 
-	xReturn = xTaskCreate( prvCheckSensorMRTask, ( char * ) "CheckSensorMRTask", 300, devArray, mainCHECK_SENSOR_MR_TASK_PRIORITY, &pTmpTask );
+	xReturn = xTaskCreate( prvCheckSensorMRTask, ( char * ) "CheckSensorMRTask", 400, devArray, mainCHECK_SENSOR_MR_TASK_PRIORITY, &pTmpTask );
 	pCheckSensorMRTaskHnd = pTmpTask;
 
 
@@ -862,6 +842,9 @@ processLocalMessages:
 
 											if (strcmp(cmd, "setdatetime") == 0) {
 												process_setdatetime(json_data);
+											}
+											if (strcmp(cmd, "getdatetime") == 0) {
+												process_getdatetime(json_data);
 											}
 											if (strcmp(cmd, "getowilist") == 0) {
 												process_getowilist(json_data);

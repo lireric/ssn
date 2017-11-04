@@ -104,7 +104,7 @@ uint8_t Rx1Buffer[BUFFER1_SIZE];
 #define mainSENSORS_QUEUE_SIZE	35
 #endif
 #ifndef  mainDEBUG_QUEUE_SIZE
-#define mainDEBUG_QUEUE_SIZE	70
+#define mainDEBUG_QUEUE_SIZE	40
 #endif
 #ifndef  mainBASEOUT_QUEUE_SIZE
 #define mainBASEOUT_QUEUE_SIZE	30

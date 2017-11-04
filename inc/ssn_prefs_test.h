@@ -51,18 +51,18 @@
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
 #define configTICK_RATE_HZ			( ( portTickType ) 100 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 45 * 1024 ) )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 40 * 1024 ) )
 
 /*-----------------------------------------------------------*/
 /* Hardware application settings */
 #define mainMAX_DEV_GROUPS				(20) 	// max number sensor groups
-#define mainMAX_GRP_DEVICES				(7) 	// default max number devices on one group
+#define mainMAX_GRP_DEVICES				(8) 	// default max number devices on one group
 #define mainMAX_ALL_DEVICES				(30) 	// default max number of all devices
 #define mainMAX_DHT_DEVICES				(3) 	// default max number of dht devices
 #define mainMAX_ROUTES					(2)		// max number routing interfaces
 
 // Heartbeat period (sec)
-#define mainHEARTBEAT_PERIOD	20
+#define mainHEARTBEAT_PERIOD	10
 
 // memory type device saving period (sec)
 #define mainMEMORY_DEV_SAVE_PERIOD		36000
@@ -86,16 +86,15 @@
 #define I2CBITRATE 	( 100000 )
 //#define I2C 	I2C1
 #define EEPROM_ADDRESS        	0xA0	// at24c32
-//#define DS1307_ADDRESS        0xD0	// rtc ds1307 address
 #define EEPROM_PAGE_SIZE      	32
 #define EEPROM_MAX_SIZE      	4096	//
 
 
 /* soft i2c hardware settings */
 /*  soft i2c group must be = 0 */
-#define SOFTI2C_1_PIN_SDA        1	//	PB7
-#define SOFTI2C_1_PIN_SCL        0	//	PB6
-#define SOFTI2C_1_PORT      	 GPIOC
+#define SOFTI2C_1_PIN_SDA        7	//	PB7 11
+#define SOFTI2C_1_PIN_SCL        6	//	PB6 10
+#define SOFTI2C_1_PORT      	 GPIOB
 #define SOFTI2C_TIMER_1 		TIM3    // timer for module delays
 #define SOFTI2C_1_GRP			( 0 )	// group soft i2c
 #define SOFTI2C_1_MAXDEVS		( 2 )

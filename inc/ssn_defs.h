@@ -29,7 +29,7 @@
 typedef enum {FAILED = 0, PASSED = !FAILED} TestStatus;
 
 #ifndef  mainMAX_MSG_LEN
-#define  mainMAX_MSG_LEN			127
+#define  mainMAX_MSG_LEN			255
 #endif
 
 #ifndef  mainMINMEMORYALLOCATE

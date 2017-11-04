@@ -28,7 +28,9 @@
 
 #include "device.h"
 #include "bb_device.h"
-#include "soft_i2c.h"
+#include "i2c_impl.h"
+//#include "soft_i2c.h"
+#include <libopencm3/stm32/i2c.h>
 
 #define DS1307_ADDRESS        0xD0	// rtc ds1307 address
 #define RTC_DS1307_RX_DEPTH       8
