@@ -17,6 +17,7 @@ https://github.com/benhoyt/inih
 
 #include "ini.h"
 #include "utils.h"
+#include "commands.h"
 
 //#if !INI_USE_STACK
 //#include <stdlib.h>
@@ -112,7 +113,7 @@ int ini_parse_stream(ini_reader reader, void* stream, ini_handler handler,
 #endif
     char section[MAX_SECTION] = "";
     char prev_name[MAX_NAME] = "";
-	char msg[mainMAX_MSG_LEN];
+//	char msg[mainMAX_MSG_LEN];
 
     char* start;
     char* end;
@@ -187,15 +188,13 @@ int ini_parse_stream(ini_reader reader, void* stream, ini_handler handler,
                 strncpy0(prev_name, name, sizeof(prev_name));
                 if (!handler(user, section, name, value, &nSectionNo) && !error) {
                     error = lineno;
-                	xsprintf(( portCHAR *) msg, "\r\nApplying INI format, error at process section: %s (line: %d, param: %s)\n", section, lineno, name);
-                	debugMsg((char *) &msg);
+                    xprintfMsg("\r\nApplying INI format, error at process section: %s (line: %d, param: %s)\n", section, lineno, name);
                 }
             }
             else if (!error) {
                 /* No '=' or ':' found on name[=:]value line */
                 error = lineno;
-            	xsprintf(( portCHAR *) msg, "\r\nParsing INI format, error in line: %d, param: %s\n", lineno, name);
-            	debugMsg((char *) &msg);
+                xprintfMsg("\r\nParsing INI format, error in line: %d, param: %s\n", lineno, name);
             }
         }
 

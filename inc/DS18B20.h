@@ -67,7 +67,7 @@ ds18b20_device* ds18b20_init (sGrpInfo* GrpInfo, char* pcROMid);
 void 			ds18b20_delete(ds18b20_device* pDS18b20);
 
 uint8_t ds_start_convert_single(sGrpDev* pGrpDev, OWI_device* pDev);
-uint8_t ds_start_convert_all(sGrpInfo* pGrpInfo, sDevice* devArray[], uint16_t devIndex);
+uint8_t ds_start_convert_all(sGrpInfo* pGrpInfo, uint16_t devIndex);
 uint8_t ds_read_data_single(uint8_t *ds_buff, sGrpDev* pGrpDev);
 uint8_t ds_read_temperature(sGrpDev* pGrpDev, ds18b20_device* ds18b20Dev);
 uint8_t ds_read_data_ROM(uint8_t *buff, sGrpDev* pGrpDev, OWI_device* pDev);

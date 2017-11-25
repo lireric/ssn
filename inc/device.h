@@ -127,9 +127,11 @@ typedef struct{
 	int16_t		nFreq;				// PWM frequency
 } sPWM_data_t;
 
-extern sDevice* 	devArray[];
+//extern sDevice* 	devArray[];
+extern sDevice	 	**devArray;
 extern uint16_t 	all_devs_counter;
-extern sGrpInfo* 	grpArray[];
+//extern sGrpInfo* 	grpArray[];
+extern sGrpInfo 	**grpArray;
 extern uint8_t 		grp_counter;
 
 //xTaskHandle pDevInitTask;
@@ -137,8 +139,18 @@ extern uint8_t 		grp_counter;
 extern void 		vMainStartTimer(sAction* pAct);
 extern void 		debugMsg (char *str);
 
+sGrpInfo* getGrpInfo(unsigned char ucGrpNum);
+sGrpInfo* newGrpInfo();
+sGrpInfo* addGrpInfo(sGrpInfo* pnewGrpInfo);
+sGrpInfo* getCurrentGrp();
 sGrpInfo* 			getGroupByID (uint8_t nGrpID);
+
+sDevice* 			newDev();
+sDevice* 			addDev(sDevice* pnewDev);
+sDevice* 			getCurrentDev();
 sDevice*			getDeviceByID (uint16_t nDevID);
+sDevice* 			getDevByNo(uint16_t nDevNo);
+
 uint8_t 			getNumDevValCodes(uint8_t ucType);
 int32_t 			getDevValueByID(uint8_t nValCode, uint16_t nDevID);
 int32_t 			getDevValue(uint8_t nValCode, sDevice* dev);

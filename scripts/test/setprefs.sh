@@ -1,7 +1,7 @@
 #!/bin/bash
 
 jsonFile='loadprefs.ini';
-mcPort='/dev/ttyUSB2';
+mcPort='/dev/ttyUSB1';
 
 obj_dst=4;
 obj_src=3;

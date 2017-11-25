@@ -96,10 +96,11 @@ uint8_t ds_read_temperature(sGrpDev* pGrpDev, ds18b20_device* ds18b20Dev)
 //arguments: device group, pointer to device array, first device in this group index in array
 //return    0 - Ok, 1 - sensor not find, 2 - short circuit
 //**************************************************************************************************
-uint8_t ds_start_convert_all(sGrpInfo* pGrpInfo, sDevice* devArray[], uint16_t devIndex)
+uint8_t ds_start_convert_all(sGrpInfo* pGrpInfo, uint16_t devIndex)
 {
   uint8_t i, result = 0, result2 = 0;
   sGrpDev* pGrpDev = &pGrpInfo->GrpDev;
+  sDevice * pDev;
 //taskENTER_CRITICAL(); {
   result = owi_reset_pulse(pGrpDev);       // send reset pulse
   if (result) return result;               // if error return error code
@@ -112,9 +113,10 @@ uint8_t ds_start_convert_all(sGrpInfo* pGrpInfo, sDevice* devArray[], uint16_t d
 
 // record temperature values into the devices array:
   for (i = devIndex; i < (pGrpInfo->iDevQty+devIndex); i++) {
-	  if (devArray[i]->pDevStruct) {
+	  pDev = getDevByNo(i);
+	  if (pDev->pDevStruct) {
 //		  taskENTER_CRITICAL(); {
-	  	  result2 = ds_read_temperature(pGrpDev, (ds18b20_device*) devArray[i]->pDevStruct);
+	  	  result2 = ds_read_temperature(pGrpDev, (ds18b20_device*) pDev->pDevStruct);
 	  	  if (result2) { result++; }
 //		  } taskEXIT_CRITICAL();
 	  	  delay_nus(pGrpDev, 1000);				// wait

@@ -27,6 +27,7 @@
 
 
 #include "FreeRTOS.h"
+#include "commands.h"
 #include "DHT22.h"
 #include "../inc/ssn.h"
 
@@ -67,11 +68,11 @@ void dht_device_init(sDevice* dev) {
 
 	uint32_t res;
 	sGrpDev* pGrpDev = &dev->pGroup->GrpDev;
-	char* msg = (char*)pvPortMalloc(mainMAX_MSG_LEN);
+//	char* msg = (char*)pvPortMalloc(mainMAX_MSG_LEN);
 
 	if (!pGrpDev->pTimer)
 		{
-			xsprintf(msg, "\r\nError! Init DHT device - Timer not set: %d", dev->nId);
+		xprintfMsg("\r\nError! Init DHT device - Timer not set: %d", dev->nId);
 			goto DhtEnd;
 		}
 
@@ -115,16 +116,13 @@ void dht_device_init(sDevice* dev) {
 
 	res = dht_get_data (dev);
 	if (!res) {
-		xsprintf(msg, "\r\nOk. DHT device initialized: %d ", dev->nId);
+		xprintfMsg("\r\nOk. DHT device initialized: %d ", dev->nId);
 	} else {
-		xsprintf(msg, "\r\nError! DHT device error code=%d: %d ", res, dev->nId);
+		xprintfMsg("\r\nError! DHT device error code=%d: %d ", res, dev->nId);
 	}
 
-DhtEnd:
-	debugMsg(msg);
-
-	vPortFree(msg);
-
+	DhtEnd:
+	return;
 }
 
 void dht_device_delete(DHT_data_t* pDHTDev)

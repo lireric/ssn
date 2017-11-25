@@ -37,6 +37,7 @@
 #include "cJSON.h"
 #include "xprintf.h"
 #include "FreeRTOS.h"
+#include "commands.h"
 
 static const char *ep;
 
@@ -135,16 +136,16 @@ static char *print_number(cJSON *item)
 	{
 		str=(char*)cJSON_malloc(21);	/* 2^64+1 can be represented in 21 chars. */
 //		if (str) sprintf(str,"%d",item->valueint);
-		if (str) xsprintf(str,"%d",item->valueint);
+		if (str) xprintfMsgStr(str,"%d",item->valueint);
 	}
 	else
 	{
 		str=(char*)cJSON_malloc(64);	/* This is a nice tradeoff. */
 		if (str)
 		{
-			if (fabs(floor(d)-d)<=DBL_EPSILON && fabs(d)<1.0e60)xsprintf(str,"%.0f",d);
-			else if (fabs(d)<1.0e-6 || fabs(d)>1.0e9)			xsprintf(str,"%e",d);
-			else												xsprintf(str,"%f",d);
+			if (fabs(floor(d)-d)<=DBL_EPSILON && fabs(d)<1.0e60)xprintfMsgStr(str,"%.0f",d);
+			else if (fabs(d)<1.0e-6 || fabs(d)>1.0e9)			xprintfMsgStr(str,"%e",d);
+			else												xprintfMsgStr(str,"%f",d);
 		}
 	}
 	return str;
@@ -252,7 +253,7 @@ static char *print_string_ptr(const char *str)
 				case '\n':	*ptr2++='n';	break;
 				case '\r':	*ptr2++='r';	break;
 				case '\t':	*ptr2++='t';	break;
-				default: xsprintf(ptr2,"u%04x",token);ptr2+=5;	break;	/* escape and print */
+				default: xprintfMsgStr(ptr2,"u%04x",token);ptr2+=5;	break;	/* escape and print */
 			}
 		}
 	}

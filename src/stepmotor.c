@@ -28,6 +28,7 @@
 #include <libopencm3/stm32/gpio.h>
 #include "FreeRTOS.h"
 #include "../inc/ssn.h"
+#include "commands.h"
 
 //extern static void 	StepMotorTimerFunction(void* pParam);
 
@@ -69,7 +70,7 @@ stepmotor_data_t* StepMotorInitStruct(sDevice* dev)
 
 void StepMotorInitHW(sDevice* dev)
 {
-	char msg[mainMAX_MSG_LEN];
+//	char msg[mainMAX_MSG_LEN];
 	stepmotor_data_t* pSMDev = (stepmotor_data_t*) dev->pDevStruct;
 
 	if (pSMDev) {
@@ -138,9 +139,7 @@ void StepMotorInitHW(sDevice* dev)
 			StepMotorOffAllPhases(dev);
 
 		pSMDev->uiState = eSMReady; // device ready to next steps
-		xsprintf(( portCHAR *) msg, "\r\nStep motor device initialized: %d ", dev->nId);
-
-		debugMsg(msg);
+		xprintfMsg("\r\nStep motor device initialized: %d ", dev->nId);
 	}
 
 }

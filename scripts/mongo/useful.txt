@@ -1,0 +1,4 @@
+﻿db.dev_values.ensureIndex({"ts":-1})
+
+db.dev_values.find({dev:{$eq:1004}}).sort({ts:-1})
+db.dev_values.explain().find({dev:{$eq:1003},val:{$gt:270}})

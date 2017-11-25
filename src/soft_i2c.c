@@ -44,6 +44,9 @@ static const uint8_t I2CSWM_ACK = 0;
 
 void soft_i2c_init(sGrpDev* pGrpDev)
 {
+	if (!pGrpDev->pPort || !pGrpDev->pTimer) {
+		return; // error
+	}
 	rcc_periph_clock_enable(pGrpDev->pPort);
 	switch (pGrpDev->pTimer) {
 	case TIM1:

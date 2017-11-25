@@ -11,6 +11,7 @@
 #include "stack.h"
 #include "utils.h"
 #include "FreeRTOS.h"
+#include "commands.h"
 
 #include "processor.h"
 
@@ -1199,7 +1200,7 @@ int32_t	calcAndDoAction (sAction* pAct)
 	sEvtElm* pActElm;
 	sActElm* pActionInfo;
 	int32_t nCalcResult;
-	char msg[50];
+//	char msg[50];
 	int32_t nSetDevValue;
 
 	res = processActionStack (pAct->pStartElmEvents, &nCalcResult);
@@ -1235,10 +1236,10 @@ int32_t	calcAndDoAction (sAction* pAct)
 							setDevValueByID(nSetDevValue, nSetDevCmd, pActionInfo->nDevId, pActionInfo->nElmDataType);
 
 							if (pActionInfo->nElmDataType == eElmString) {
-								xsprintf(msg, " act_in[%d] -> set dev[%d,%d] = %s ", pAct->nActId,
+								xprintfMsg(" act_in[%d] -> set dev[%d,%d] = %s ", pAct->nActId,
 										pActionInfo->nDevId, pActionInfo->nActCmdIn, (char*)nSetDevValue);
 							} else {
-								xsprintf(msg, " act_in[%d] -> set dev[%d,%d] = %d ", pAct->nActId, pActionInfo->nDevId, nSetDevCmd, nSetDevValue);
+								xprintfMsg(" act_in[%d] -> set dev[%d,%d] = %d ", pAct->nActId, pActionInfo->nDevId, nSetDevCmd, nSetDevValue);
 								if (!(pAct->nFlags & devACTION_FLAG_NOLOG))
 								{
 									logAction(pAct->nActId, pActionInfo->nDevId, nSetDevCmd, nSetDevValue);
@@ -1259,10 +1260,10 @@ int32_t	calcAndDoAction (sAction* pAct)
 							setDevValueByID(nSetDevValue, pActionInfo->nActCmdOut, pActionInfo->nDevId, pActionInfo->nElmDataType);
 //							setDevValueByID(pActionInfo->nElmDataOut, pActionInfo->nActCmdOut, pActionInfo->nDevId, pActionInfo->nElmDataType);
 							if (pActionInfo->nElmDataType == eElmString) {
-								xsprintf(msg, " act_out[%d] -> set dev[%d,%d] = %s ", pAct->nActId,
+								xprintfMsg(" act_out[%d] -> set dev[%d,%d] = %s ", pAct->nActId,
 										pActionInfo->nDevId, pActionInfo->nActCmdOut, (char*)nSetDevValue);
 							} else {
-								xsprintf(msg, " act_out[%d] -> set dev[%d,%d] = %d ", pAct->nActId,
+								xprintfMsg(" act_out[%d] -> set dev[%d,%d] = %d ", pAct->nActId,
 										pActionInfo->nDevId, pActionInfo->nActCmdOut, nSetDevValue);
 								if (!(pAct->nFlags & devACTION_FLAG_NOLOG))
 								{
@@ -1274,8 +1275,6 @@ int32_t	calcAndDoAction (sAction* pAct)
 
 					if (!(pAct->nFlags & devACTION_FLAG_NOLOG))
 					{
-						//sendBaseOut(msg);
-						debugMsg(msg);
 						// to do: make notification!!!
 	//					buff = pvPortMalloc(50);
 	//					if (buff) {
@@ -1350,19 +1349,22 @@ int32_t	processRPN(sAction* pAct, sEvtElm*	pEvtElm, sEvtElm** pEvtElmOut, uint8_
 {
 	int32_t res = pdTRUE;
 	int8_t		nState; // process state: 0 - before '=', 1 - after '='
-	sCommonStack xOutStack;
-	sCommonStack xOpersStack;
+//	sCommonStack xOutStack;
+//	sCommonStack xOpersStack;
 	sEvtElm*	pOperationsEvtElm;	// operations stack
 	sEvtElm*	pFirstEvtElm;		// begin of actions formula
+	sCommonStack *xOutStack = (sCommonStack *) pvPortMalloc(sizeof(sCommonStack));
+	sCommonStack *xOpersStack = (sCommonStack *) pvPortMalloc(sizeof(sCommonStack));;
 
 	if (!pEvtElm) { res = pdFALSE; goto endProcRPN; }
+	if (!xOutStack || !xOpersStack) { res = pdFALSE; goto endProcRPN; }
 
 	// process original stack left to right ****************************************************
 	// init temporary stacks for Dijkstra algorithm:
-	res = initStack(&xOutStack, nStackSize);
+	res = initStack(xOutStack, nStackSize);
 	if (!res) { res = pdFALSE; goto endProcRPN; }
 
-	res = initStack(&xOpersStack, nStackSize);
+	res = initStack(xOpersStack, nStackSize);
 	if (!res) { res = pdFALSE; goto endProcRPN; }
 
 	pOperationsEvtElm = NULL;
@@ -1378,26 +1380,26 @@ int32_t	processRPN(sAction* pAct, sEvtElm*	pEvtElm, sEvtElm** pEvtElmOut, uint8_
 			// if element == ')' then push to out stack all operations until '('
 			if (pEvtElm->nElmData1 == eOpSC) {
 				do {
-					pOperationsEvtElm = (sEvtElm*) popStack(&xOpersStack);
+					pOperationsEvtElm = (sEvtElm*) popStack(xOpersStack);
 					if (!pOperationsEvtElm)
 						break;
 
 					if (pOperationsEvtElm->nElmData1 != eOpSO) {
-						pushStack(&xOutStack, (void*) pOperationsEvtElm);
+						pushStack(xOutStack, (void*) pOperationsEvtElm);
 					}
 
 				} while (pOperationsEvtElm->nElmData1 != eOpSO);
 			} else
 			// if element == '(' then push it to operations stack
 			if (pEvtElm->nElmData1 == eOpSO) {
-				pushStack(&xOpersStack, (void*) pEvtElm);
+				pushStack(xOpersStack, (void*) pEvtElm);
 			} else
 
 			// if element == '=' then finish process parsing RPN: ***********************************************
 			if (pEvtElm->nElmData1 == eOpResume) {
 				nState = 1;
 
-				pFirstEvtElm = finishRPN(&xOpersStack, &xOutStack);
+				pFirstEvtElm = finishRPN(xOpersStack, xOutStack);
 				if (pAct)
 					pAct->pStartElmEvents = pFirstEvtElm; // store last not NULL (first) element
 
@@ -1409,7 +1411,7 @@ int32_t	processRPN(sAction* pAct, sEvtElm*	pEvtElm, sEvtElm** pEvtElmOut, uint8_
 				// for other operation types
 				// if operations stack empty then operation from input push to operations stack
 				if (!pOperationsEvtElm) {
-					pushStack(&xOpersStack, (void*) pEvtElm);
+					pushStack(xOpersStack, (void*) pEvtElm);
 					pOperationsEvtElm = pEvtElm;
 				} else {
 					// if new operation priority greater operation from stack's head then push new operation to the operations stack
@@ -1417,7 +1419,7 @@ int32_t	processRPN(sAction* pAct, sEvtElm*	pEvtElm, sEvtElm** pEvtElmOut, uint8_
 							> getPriority(
 									(uint8_t) pOperationsEvtElm->nElmData1)) {
 						//									pOperationsEvtElm = elmPush (pOperationsEvtElm, pEvtElm);
-						pushStack(&xOpersStack, (void*) pEvtElm);
+						pushStack(xOpersStack, (void*) pEvtElm);
 						pOperationsEvtElm = pEvtElm;
 					} else {
 						// else push to out stack all operations with greater priority. Push to operations stack new operation
@@ -1425,12 +1427,12 @@ int32_t	processRPN(sAction* pAct, sEvtElm*	pEvtElm, sEvtElm** pEvtElmOut, uint8_
 								<= getPriority(
 										(uint8_t) pOperationsEvtElm->nElmData1)) {
 							pOperationsEvtElm = (sEvtElm*) popStack(
-									&xOpersStack);
-							pushStack(&xOutStack, (void*) pOperationsEvtElm);
+									xOpersStack);
+							pushStack(xOutStack, (void*) pOperationsEvtElm);
 							if (!pOperationsEvtElm)
 								break;
 						}
-						pushStack(&xOpersStack, (void*) pEvtElm);
+						pushStack(xOpersStack, (void*) pEvtElm);
 					}
 				}
 			}
@@ -1510,7 +1512,7 @@ int32_t	processRPN(sAction* pAct, sEvtElm*	pEvtElm, sEvtElm** pEvtElmOut, uint8_
 			break;
 		}
 		default: {
-			pushStack(&xOutStack, (void*) pEvtElm);
+			pushStack(xOutStack, (void*) pEvtElm);
 			break;
 		}
 		} // --switch
@@ -1524,12 +1526,12 @@ int32_t	processRPN(sAction* pAct, sEvtElm*	pEvtElm, sEvtElm** pEvtElmOut, uint8_
 
 // process stacks without '=' element (e.g. in action parameters):
 	if (nState == 0) {
-		pFirstEvtElm = finishRPN(&xOpersStack, &xOutStack);
+		pFirstEvtElm = finishRPN(xOpersStack, xOutStack);
 		*pEvtElmOut = pFirstEvtElm;
 	}
 
-	freeStack(&xOpersStack);
-	freeStack(&xOutStack);
+	freeStack(xOpersStack);
+	freeStack(xOutStack);
 
 	endProcRPN:
 	return res;
@@ -1617,7 +1619,9 @@ int32_t	setAction (uint16_t nActId, char* pAStr, uint32_t arep, uint16_t nFlags)
 		pAct->pStartElmActions = pFirstActionEvtElm;
 
 // call RPN processing of stacks:
-		res = processRPN(pAct, pFirstEvtElm, &pEvtElm, nSizeElm);
+		if (nSizeElm > 0) {
+			res = processRPN(pAct, pFirstEvtElm, &pEvtElm, nSizeElm);
+		}
 		if (!res) return pdFALSE;
 
 

@@ -11,6 +11,7 @@
 #define _USE_XFUNC_IN	0	/* 1: Use input function */
 #define	_LINE_ECHO		1	/* 1: Echo back input chars in xgets function */
 
+#include <stdarg.h>
 
 #if _USE_XFUNC_OUT
 #define xdev_out(func) xfunc_out = (void(*)(unsigned char))(func)
@@ -22,6 +23,13 @@ void xprintf (const char* fmt, ...);
 void xsprintf (char* buff, const char* fmt, ...);
 void xfprintf (void (*func)(unsigned char), const char*	fmt, ...);
 void put_dump (const void* buff, unsigned long addr, int len, int width);
+
+//static void xvprintf (const char*	fmt, va_list arp);
+
+//void xputc2 (char* buff, char c);
+//void xputs2 (char* buff, const char* str);
+void xvprintf2 (char* buff, const char*	fmt, va_list arp);
+
 #define DW_CHAR		sizeof(char)
 #define DW_SHORT	sizeof(short)
 #define DW_LONG		sizeof(long)

@@ -111,7 +111,7 @@ void deviceInit(sDevice* dev) {
 		case device_TYPE_BMP180:
 #ifdef  M_BMP180
 			if (dev->pDevStruct) {
-// to do...
+				bmp180DeviceInit(dev);
 			}
 #endif
 			break;
@@ -364,33 +364,71 @@ adc_setup_ret:
 }
 
 
-sGrpInfo* getGroupByID (uint8_t nGrpID)
+
+//sGrpInfo* getGrpInfo(unsigned char ucGrpNum)
+//{
+//	unsigned char i;
+//	for(i=0; i < mainMAX_DEV_GROUPS; i++)
+//	{
+//		if (((sGrpInfo*)(grpArray+i))->uiGroup == ucGrpNum) return (sGrpInfo*)(grpArray+i);
+//	}
+//	return (sGrpInfo*)0;
+//}
+
+// -------------------------------- Device array operations:
+sDevice* newDev()
 {
-	uint8_t i;
-	sGrpInfo* pGrp = NULL;
-
-	for (i = 0; i <= grp_counter; i++) {
-			if (grpArray[i]->uiGroup == nGrpID) {
-				pGrp = grpArray[i];
-				break;
-			}
+	sDevice * pDev = NULL;
+	if (++all_devs_counter > mainMAX_ALL_DEVICES) {
+		return NULL;
 	}
+	pDev = (sDevice*)pvPortMalloc(sizeof(sDevice));
+//	*(&pDev) = (sDevice*)pvPortMalloc(sizeof(sDevice));
+//	**(&devArray + all_devs_counter) = pDev;
+	*(sDevice**)(devArray + all_devs_counter) = pDev;
+	memset (pDev,0,sizeof(sDevice)); 					// reset all device attributes
 
-	return pGrp;
+	return pDev;
 }
 
+sDevice* addDev(sDevice* pnewDev)
+{
+	sDevice* pDev = newDev();
+
+	memcpy(pDev, pnewDev, sizeof(sDevice));
+
+	return pDev;
+}
+
+// Get device by number in array:
+sDevice* getDevByNo(uint16_t nDevNo)
+{
+	if (nDevNo <= all_devs_counter)
+		return *(sDevice**)(devArray+nDevNo);
+	else
+		return NULL;
+}
+
+sDevice* getCurrentDev()
+{
+	return *(sDevice**)(devArray+all_devs_counter);
+}
+
+
+// Get device by ID (from preferences):
 sDevice* getDeviceByID (uint16_t nDevID)
 {
 	uint16_t i;
-	sDevice* pDev = 0;
+	sDevice* pDev = NULL;
 
 	for (i = 0; i <= all_devs_counter; i++) {
-			if (devArray[i]->nId == nDevID) {
-				pDev = devArray[i];
+			pDev = getDevByNo(i);
+			if (pDev->nId == nDevID) {
+				return pDev;
 				break;
 			}
 	}
-	return pDev;
+	return NULL;
 }
 
 int16_t	getDeviceObjByID (uint16_t nDevID)
@@ -403,12 +441,65 @@ int16_t	getDeviceObjByID (uint16_t nDevID)
 	return uiObj;
 }
 
+// -------------------------------- Group array operations:
+sGrpInfo* newGrpInfo()
+{
+	sGrpInfo * pGrp = NULL;
+	if (++grp_counter > mainMAX_DEV_GROUPS) {
+		return NULL;
+	}
+	pGrp = (sGrpInfo*)pvPortMalloc(sizeof(sGrpInfo));
+//	*(&pGrp) = ;
+	*(sGrpInfo**)(grpArray+grp_counter) = pGrp;
+
+	return pGrp;
+}
+
+sGrpInfo* addGrpInfo(sGrpInfo* pnewGrpInfo)
+{
+	sGrpInfo* pGrpInfo = newGrpInfo();
+	memcpy(pGrpInfo, pnewGrpInfo, sizeof(sGrpInfo));
+
+//	pnewGrpInfo->GrpDev = pnewGrpInfo->GrpDev;
+//	pnewGrpInfo->iDevQty = pnewGrpInfo->iDevQty;
+//	pnewGrpInfo->uiGroup = pnewGrpInfo->uiGroup;
+//	pnewGrpInfo->uiObj = pnewGrpInfo->uiObj;
+
+	return pGrpInfo;
+}
+
+sGrpInfo* getGrpInfo (uint8_t nGrpID)
+{
+	uint8_t i;
+	sGrpInfo* pGrp = NULL;
+
+	for (i = 0; i <= grp_counter; i++) {
+//			if (grpArray[i]->uiGroup == nGrpID) {
+		pGrp = *(sGrpInfo**)(grpArray+i);
+			if (pGrp->uiGroup == nGrpID) {
+				return pGrp;
+			}
+	}
+	return NULL;
+}
+
+sGrpInfo* getCurrentGrp()
+{
+	return *(sGrpInfo**)(grpArray+grp_counter);
+}
+
+
+// -------------------------------- Device values operations:
+
 int32_t getDevValueByID(uint8_t nValCode, uint16_t nDevID)
 {
 	uint16_t i;
 	int32_t res = 0;
-	for (i = 0; i <= all_devs_counter; i++) {
-			if (devArray[i]->nId == nDevID) { res = getDevValue(nValCode, devArray[i]); break;}
+	sDevice * pDev;
+
+	for (i = 1; i <= all_devs_counter; i++) {
+		pDev = getDevByNo(i);
+		if (pDev->nId == nDevID) { res = getDevValue(nValCode, pDev); break;}
 	}
 	return res;
 }
@@ -558,6 +649,7 @@ uint8_t getNumDevValCodes(uint8_t ucType)
 void setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t nDataType)
 {
 	uint16_t i;
+	sDevice * pDev;
 
 // if DevID == 0 then search action with ActID == nValue, else search device:
 
@@ -568,12 +660,13 @@ void setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t n
 			}
 		}
 	} else {
-		for (i = 0; i < all_devs_counter; i++) {
-			if (devArray[i]->nId == nDevID) {
+		for (i = 1; i < all_devs_counter; i++) {
+			pDev = getDevByNo(i);
+			if (pDev->nId == nDevID) {
 				if (nDataType == eElmDevValue) {
 					nValue = getDevValueByID(nDevCmd, (uint16_t) nValue); // for eElmDevValue datatype nValue = devID
 				} else {
-					setDevValue(nValue, nDevCmd, devArray[i], nDataType);
+					setDevValue(nValue, nDevCmd, pDev, nDataType);
 				}
 				break;
 			}
@@ -581,12 +674,13 @@ void setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t n
 		// if local device array not contain this device, send to input queue for routing
 		if (i >= all_devs_counter)
 		{
-			char msg[mainMAX_MSG_LEN];
+//			char msg[mainMAX_MSG_LEN];
+			char *msg = pvPortMalloc(mainMAX_MSG_LEN);
 			if (nDataType == eElmString) {
-				xsprintf(msg, "{\"ssn\":{\"v\":1,\"obj\":0,\"cmd\":\"sdv\", \"data\": {\"adev\":%d,\"acmd\":%d,\"aval\":\"%s\"}}}", nDevID, nDevCmd, (char*)nValue);
+				xprintfMsgStr(msg, "{\"ssn\":{\"v\":1,\"obj\":0,\"cmd\":\"sdv\", \"data\": {\"adev\":%d,\"acmd\":%d,\"aval\":\"%s\"}}}", nDevID, nDevCmd, (char*)nValue);
 				vPortFree((void*)nValue);
 			} else {
-				xsprintf(msg, "{\"ssn\":{\"v\":1,\"obj\":0,\"cmd\":\"sdv\", \"data\": {\"adev\":%d,\"acmd\":%d,\"aval\":\"%d\"}}}", nDevID, nDevCmd, nValue);
+				xprintfMsgStr(msg, "{\"ssn\":{\"v\":1,\"obj\":0,\"cmd\":\"sdv\", \"data\": {\"adev\":%d,\"acmd\":%d,\"aval\":\"%d\"}}}", nDevID, nDevCmd, nValue);
 			}
 			char* buf = pvPortMalloc(strlen(msg));
 			if (buf)
@@ -594,6 +688,7 @@ void setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t n
 				memcpy(buf, &msg, strlen(msg) + 1);
 				vSendInputMessage(1, 0, mainJSON_MESSAGE, 0, 0, nDevID, (void*) buf, strlen(buf), 0);
 			}
+			vPortFree(msg);
 		}
 	}
 }
@@ -670,8 +765,11 @@ void setDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nDataTyp
 void	clearActionsDeviceCash (sDevice* pDev)
 {
 	if (pDev) {
-		vPortFree(pDev->pActionsCash);
-		pDev->pActionsCash = NULL;
+		if (pDev->nActionsCashSize > 0)
+		{
+			vPortFree(pDev->pActionsCash);
+			pDev->pActionsCash = NULL;
+		}
 	}
 }
 
@@ -691,9 +789,9 @@ int32_t	refreshActions2DeviceCash ()
 
 	vTaskSuspendAll();
 
-	for (nDevIndex = 0; nDevIndex <= all_devs_counter; nDevIndex++)
+	for (nDevIndex = 1; nDevIndex <= all_devs_counter; nDevIndex++)
 	{
-		pDev = devArray[nDevIndex];
+		pDev = getDevByNo(nDevIndex);
 		if (pDev) {
 			clearActionsDeviceCash(pDev);
 			nTmpArrayIndex = 0;

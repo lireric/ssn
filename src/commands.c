@@ -27,6 +27,8 @@
 
 #include "commands.h"
 #include "xprintf.h"
+#include <stdarg.h>
+
 #include "utils.h"
 #ifdef PERSIST_STM32FLASH
 #include <libopencm3/stm32/flash.h>
@@ -144,8 +146,7 @@ void process_setdatetime(cJSON *json_data)
 	DS1307_time.min = rtc.min;
 	DS1307_time.sec = rtc.sec;
 	RTC_DS1307_adjust(pGrpDev2);
-	//sendBaseOut("\n\rSet local & RTC DS1307 date/time from JSON");
-	debugMsg("\n\rSet local & RTC DS1307 date/time from JSON");
+	xprintfMsg("\n\rSet local & RTC DS1307 date/time from JSON");
 
 }
 
@@ -170,13 +171,11 @@ void hw_loadtime()
 				rtc.min = DS1307_time.min;
 				rtc.sec = DS1307_time.sec;
 				rtc_settime(&rtc);
-		    	xsprintf(( char *) cPassMessage,
-		    			"\r\nSet date/time from RTC DS1307: %d-%d-%d %d:%d:%d", rtc.year, rtc.month, rtc.mday, rtc.hour, rtc.min, rtc.sec);
-		    	debugMsg((char *) &cPassMessage);
+				xprintfMsg("\r\nSet date/time from RTC DS1307: %d-%d-%d %d:%d:%d", rtc.year, rtc.month, rtc.mday, rtc.hour, rtc.min, rtc.sec);
 
 			}
 			else {
-				debugMsg("\r\nRTC DS1307 not responding");
+				xprintfMsg("\r\nRTC DS1307 not responding");
 			};
 #endif
 
@@ -198,17 +197,15 @@ void process_getowilist(cJSON *json_data)
 	res = owi_search_devices(owi_tmp, mainMAX_GRP_DEVICES, pGrpInfo, &pGrpInfo->iDevQty);
 	}
 	if (!res) {
-	xsprintf((char *) cPassMessage, "{\"ssn\":{\"v\":1,\"ret\":\"getowilist\", \"data\":{ \"num\":%d, \"owiid\":[", pGrpInfo->iDevQty);
-	sendBaseOut((char *)cPassMessage);
+		xprintfMsg("{\"ssn\":{\"v\":1,\"ret\":\"getowilist\", \"data\":{ \"num\":%d, \"owiid\":[", pGrpInfo->iDevQty);
 
 	char comma = ',';
 	uint8_t i;
 		for (i = 0; i<pGrpInfo->iDevQty; i++) {
 			if (i==(pGrpInfo->iDevQty-1)) {comma = ' ';};
-			xsprintf((char *) cPassMessage, "\"%02x%02x%02x%02x%02x%02x%02x%02x\"%c", owi_tmp[i].ucROM[0],owi_tmp[i].ucROM[1],owi_tmp[i].ucROM[2],owi_tmp[i].ucROM[3],owi_tmp[i].ucROM[4],owi_tmp[i].ucROM[5],owi_tmp[i].ucROM[6],owi_tmp[i].ucROM[7], comma);
-			sendBaseOut((char *)cPassMessage);
+			xprintfMsg("\"%02x%02x%02x%02x%02x%02x%02x%02x\"%c", owi_tmp[i].ucROM[0],owi_tmp[i].ucROM[1],owi_tmp[i].ucROM[2],owi_tmp[i].ucROM[3],owi_tmp[i].ucROM[4],owi_tmp[i].ucROM[5],owi_tmp[i].ucROM[6],owi_tmp[i].ucROM[7], comma);
 		}
-		sendBaseOut("]}}}");
+		xprintfMsg("]}}}");
 	}
 	taskEXIT_CRITICAL();
 	vPortFree(owi_tmp);
@@ -221,6 +218,9 @@ void process_getowilist(cJSON *json_data)
 uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue, sIniHandlerData* pIniHandlerData, int* pnSectionNo)
 {
 	int32_t nRes = pdPASS; //pdFAIL;
+	sGrpInfo *pGrpInfo = NULL;
+	sDevice * pDev;
+
 #ifdef  M_GSM
 	sGSMDevice* ptGSMDev = NULL;
 #endif
@@ -232,287 +232,307 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 		// section "grp" --------------------------------------------
 		// check for new group
 		if (strcmp(pIniHandlerData->sLastSection, sSection) != 0) {
-			if (grp_counter++ > mainMAX_DEV_GROUPS) {
-							return pdFAIL;
-						}
-			grpArray[grp_counter] = (sGrpInfo*) pvPortMalloc(sizeof(sGrpInfo));
-			if (!grpArray[grp_counter]) {
+//			if (grp_counter++ > mainMAX_DEV_GROUPS) {
+//							return pdFAIL;
+//						}
+//			grpArray[grp_counter] = (sGrpInfo*) pvPortMalloc(sizeof(sGrpInfo));
+//			if (!grpArray[grp_counter]) {
+//				return pdFAIL;
+//			}
+			pGrpInfo = newGrpInfo();
+			if (!pGrpInfo) {
 				return pdFAIL;
 			}
-			grpArray[grp_counter]->uiObj = getMC_Object();
-			grpArray[grp_counter]->iDevQty = 0;
-			grpArray[grp_counter]->GrpDev.pTimer = 0;
+
+//			grpArray[grp_counter]->uiObj = getMC_Object();
+//			grpArray[grp_counter]->iDevQty = 0;
+//			grpArray[grp_counter]->GrpDev.pTimer = 0;
+
+			pGrpInfo->uiObj = getMC_Object();
+			pGrpInfo->iDevQty = 0;
+			pGrpInfo->GrpDev.pTimer = 0;
+
+		} else {
+			pGrpInfo = getCurrentGrp();
 		}
 		if (strcmp(sName, "grpnum") == 0) {
-			grpArray[grp_counter]->uiGroup = conv2d(sValue);
+			pGrpInfo->uiGroup = conv2d(sValue);
 
 		} else if (strcmp(sName, "grpport") == 0) {
-			grpArray[grp_counter]->GrpDev.pPort = get_port_by_name(sValue);
+			pGrpInfo->GrpDev.pPort = get_port_by_name(sValue);
 
 		} else if (strcmp(sName, "grptimer") == 0) {
-			grpArray[grp_counter]->GrpDev.pTimer = get_port_by_name(sValue);
+			pGrpInfo->GrpDev.pTimer = get_port_by_name(sValue);
 
 		} else if (strcmp(sName, "grppin1") == 0) {
-			grpArray[grp_counter]->GrpDev.ucPin = conv2d(sValue);
+			pGrpInfo->GrpDev.ucPin = conv2d(sValue);
 
 		} else if (strcmp(sName, "grppin2") == 0) {
-			grpArray[grp_counter]->GrpDev.ucPin2 = conv2d(sValue);
+			pGrpInfo->GrpDev.ucPin2 = conv2d(sValue);
 		}
 	} else if (strcmp(sSection, "dev") == 0) {
 		// section "dev" --------------------------------------------
 		// check for new device
 		if (strcmp(pIniHandlerData->sLastSection, sSection) != 0) {
 
-			if (all_devs_counter++ > mainMAX_ALL_DEVICES) {
+			if (all_devs_counter > mainMAX_ALL_DEVICES) {
 				return pdFAIL;
 			}
-			devArray[all_devs_counter] = (sDevice*) pvPortMalloc(sizeof(sDevice));
-			memset (devArray[all_devs_counter],0,sizeof(sDevice)); // reset all device attributes
+//			devArray[all_devs_counter] = (sDevice*) pvPortMalloc(sizeof(sDevice));
+//			memset (devArray[all_devs_counter],0,sizeof(sDevice)); // reset all device attributes
+			pDev = newDev();
 
-			if (!devArray[all_devs_counter]) {
+			if (!pDev) {
 				return pdFAIL;
 			}
-			devArray[all_devs_counter]->nDevObj = getMC_Object();
+			pDev->nDevObj = getMC_Object();
 		}
+		pDev = getCurrentDev();
 		if (strcmp(sName, "grp") == 0) {
-			devArray[all_devs_counter]->pGroup = getGroupByID(conv2d(sValue));
+			pDev->pGroup = getGrpInfo(conv2d(sValue));
 
-			if (!devArray[all_devs_counter]->pGroup) {
+			if (!pDev->pGroup) {
 				return pdFAIL;
 			}
-			devArray[all_devs_counter]->pGroup->iDevQty++;
+			pDev->pGroup->iDevQty++;
 
 		} else if (strcmp(sName, "devid") == 0) {
-			devArray[all_devs_counter]->nId = conv2d(sValue);
+			pDev->nId = conv2d(sValue);
 
 		}  else if (strcmp(sName, "dl") == 0) {
-			devArray[all_devs_counter]->uiDeltaValue = conv2d(sValue);
+			pDev->uiDeltaValue = conv2d(sValue);
 
 		} else if (strcmp(sName, "devtype") == 0) {
 			// section "dev:devtype" --------------------------------------------
-			devArray[all_devs_counter]->ucType = conv2d(sValue);
+			pDev->ucType = conv2d(sValue);
 
-			if (devArray[all_devs_counter]->ucType == device_TYPE_DS18B20) {
-				devArray[all_devs_counter]->pDevStruct = NULL;
+			if (pDev->ucType == device_TYPE_DS18B20) {
+				pDev->pDevStruct = NULL;
 
-			} else if (devArray[all_devs_counter]->ucType == device_TYPE_DHT22) {
+			} else if (pDev->ucType == device_TYPE_DHT22) {
 #ifdef  M_DHT
-				devArray[all_devs_counter]->pDevStruct = (void*) DHTInitStruct();
-				if (!addInitDevRequest(devArray[all_devs_counter]->nId)) return pdFAIL; // add request for delayed initialization
+				pDev->pDevStruct = (void*) DHTInitStruct();
+				if (!addInitDevRequest(pDev->nId)) return pdFAIL; // add request for delayed initialization
 #endif
-			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_OD) {
-				gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_OUTPUT_50_MHZ,
-						GPIO_CNF_OUTPUT_OPENDRAIN, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
-				gpio_set(devArray[all_devs_counter]->pGroup->GrpDev.pPort, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin); // set high value line
+			} else if (pDev->ucType == device_TYPE_BB1BIT_IO_OD) {
+				gpio_set_mode(pDev->pGroup->GrpDev.pPort, GPIO_MODE_OUTPUT_50_MHZ,
+						GPIO_CNF_OUTPUT_OPENDRAIN, 1 << pDev->pGroup->GrpDev.ucPin);
+				gpio_set(pDev->pGroup->GrpDev.pPort, 1 << pDev->pGroup->GrpDev.ucPin); // set high value line
 
-			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_PP) {
-				gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_OUTPUT_50_MHZ,
-						GPIO_CNF_OUTPUT_PUSHPULL, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
+			} else if (pDev->ucType == device_TYPE_BB1BIT_IO_PP) {
+				gpio_set_mode(pDev->pGroup->GrpDev.pPort, GPIO_MODE_OUTPUT_50_MHZ,
+						GPIO_CNF_OUTPUT_PUSHPULL, 1 << pDev->pGroup->GrpDev.ucPin);
 
-			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_INPUT) {
-				gpio_set_mode(devArray[all_devs_counter]->pGroup->GrpDev.pPort, GPIO_MODE_INPUT,
-						GPIO_CNF_INPUT_FLOAT, 1 << devArray[all_devs_counter]->pGroup->GrpDev.ucPin);
+			} else if (pDev->ucType == device_TYPE_BB1BIT_IO_INPUT) {
+				gpio_set_mode(pDev->pGroup->GrpDev.pPort, GPIO_MODE_INPUT,
+						GPIO_CNF_INPUT_FLOAT, 1 << pDev->pGroup->GrpDev.ucPin);
 
-			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_AO) {
+			} else if (pDev->ucType == device_TYPE_BB1BIT_IO_AO) {
 				// to do:
 
-			} else if (devArray[all_devs_counter]->ucType == device_TYPE_PWM) {
+			} else if (pDev->ucType == device_TYPE_PWM) {
 
-				devArray[all_devs_counter]->pDevStruct = pvPortMalloc(sizeof(sPWM_data_t));
+				pDev->pDevStruct = pvPortMalloc(sizeof(sPWM_data_t));
 
-			} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_AI) {
+			} else if (pDev->ucType == device_TYPE_BB1BIT_IO_AI) {
 
-				devArray[all_devs_counter]->pDevStruct = pvPortMalloc(sizeof(sADC_data_t));
-					if (!devArray[all_devs_counter]->pDevStruct) {
+				pDev->pDevStruct = pvPortMalloc(sizeof(sADC_data_t));
+					if (!pDev->pDevStruct) {
 						return pdFAIL;
 					}
 
-			} else if (devArray[all_devs_counter]->ucType == device_TYPE_GSM) {
+			} else if (pDev->ucType == device_TYPE_GSM) {
 #ifdef  M_GSM
-				devArray[all_devs_counter]->pDevStruct = pvPortMalloc(sizeof(sGSMDevice));
-				if (!devArray[all_devs_counter]->pDevStruct) {
+				dpDev->pDevStruct = pvPortMalloc(sizeof(sGSMDevice));
+				if (!pDev->pDevStruct) {
 					return pdFAIL;
 				}
 				//gsm_preinit_ini ((sGSMDevice*) devArray[all_devs_counter]->pDevStruct, xBaseOutQueue);
-				nRes = vMainStartGSMTask((void*)devArray[all_devs_counter]);
+				nRes = vMainStartGSMTask((void*)pDev);
 				if (!nRes)
 					return pdFAIL;
 #endif
 
-			}
-			// ***************** step motor init structure:
+		} else if (pDev->ucType == device_TYPE_BMP180) {
+#ifdef  M_BMP180
+			pDev->pDevStruct = (void*) bmp180DeviceInitStruct();
+			if (!addInitDevRequest(pDev->nId)) return pdFAIL; // add request for delayed initialization
+#endif
+		}
+// ***************** step motor init structure:
 #ifdef  M_STEPMOTOR
-			else if (devArray[all_devs_counter]->ucType == device_TYPE_STEPMOTOR) {
-					StepMotorInitStruct(devArray[all_devs_counter]);
-					if (!devArray[all_devs_counter]->pDevStruct) return pdFAIL;
-					devArray[all_devs_counter]->nFlag |= 0x80; // set device disable flag
-					if (!addInitDevRequest(devArray[all_devs_counter]->nId)) return pdFAIL; // add request for delayed initialization
+			else if (pDev->ucType == device_TYPE_STEPMOTOR) {
+					StepMotorInitStruct(pDev);
+					if (!pDev->pDevStruct) return pdFAIL;
+					pDev->nFlag |= 0x80; // set device disable flag
+					if (!addInitDevRequest(pDev->nId)) return pdFAIL; // add request for delayed initialization
 				}
 #endif
 		}
 		// ---- other dev attributes: -----------------------------------------
-		else if (devArray[all_devs_counter]->ucType == device_TYPE_MEMORY) {
+		else if (pDev->ucType == device_TYPE_MEMORY) {
 			// memory element pseudo device
 			if (strcmp(sName, "e") == 0) {
-				devArray[all_devs_counter]->pGroup->iDevQty = conv2d(sValue);
+				pDev->pGroup->iDevQty = conv2d(sValue);
 				// allocate memory for memory elements array:
-				devArray[all_devs_counter]->pDevStruct = (void*)pvPortMalloc(sizeof(uint32_t)*devArray[all_devs_counter]->pGroup->iDevQty);
-				if (!devArray[all_devs_counter]->pDevStruct) {
+				pDev->pDevStruct = (void*)pvPortMalloc(sizeof(uint32_t)*pDev->pGroup->iDevQty);
+				if (!pDev->pDevStruct) {
 					return pdFAIL;
 				}
 				if (mem_devs_counter <= mainMEMORY_DEV_MAX_QTY)
-					uiMemoryDevsArray[mem_devs_counter++]=devArray[all_devs_counter];
+					uiMemoryDevsArray[mem_devs_counter++]=pDev;
 				else
 					return pdFAIL;
 			}
-		} else if (devArray[all_devs_counter]->ucType == device_TYPE_PWM) {
+		} else if (pDev->ucType == device_TYPE_PWM) {
 			if (strcmp(sName, "ch") == 0) {
-				if (!pwm_setup(devArray[all_devs_counter], sValue)) {
+				if (!pwm_setup(pDev, sValue)) {
 					return pdFAIL;
 				}
 			} else if (strcmp(sName, "freq") == 0) {
-				((sPWM_data_t*)devArray[all_devs_counter]->pDevStruct)->nFreq = conv2d(sValue);
+				((sPWM_data_t*)pDev->pDevStruct)->nFreq = conv2d(sValue);
 			}
 
-		} else if (devArray[all_devs_counter]->ucType == device_TYPE_BB1BIT_IO_AI) {
+		} else if (pDev->ucType == device_TYPE_BB1BIT_IO_AI) {
 			if (strcmp(sName, "ch") == 0) {
-				if (!adc_setup(devArray[all_devs_counter], sValue)) {
+				if (!adc_setup(pDev, sValue)) {
 					return pdFAIL;
 				}
 			}
 		}
 		// ***************** DHT22 sensor
-		else if (devArray[all_devs_counter]->ucType == device_TYPE_DHT22) {
+		else if (pDev->ucType == device_TYPE_DHT22) {
 #ifdef  M_DHT
 			// delta humidity
 			if (strcmp(sName, "dlh") == 0) {
-				if (!devArray[all_devs_counter]->pDevStruct)
+				if (!pDev->pDevStruct)
 					return pdFAIL;
 				else {
-					((DHT_data_t*) devArray[all_devs_counter]->pDevStruct)->uiDeltaHumidity = conv2d(sValue);
+					((DHT_data_t*) pDev->pDevStruct)->uiDeltaHumidity = conv2d(sValue);
 				}
 			}
 #endif
 		}		// ***************** BMP180 sensor
-		else if (devArray[all_devs_counter]->ucType == device_TYPE_BMP180) {
+		else if (pDev->ucType == device_TYPE_BMP180) {
 #ifdef  M_BMP180
 			if (strcmp(sName, "addr") == 0) {
-				//(BMP180_data_t*)devArray[all_devs_counter]->pDevStruct =
-				bmp180_device_init(devArray[all_devs_counter], conv2d(sValue));
-				if (!devArray[all_devs_counter]->pDevStruct) return pdFAIL;
+				if (pDev->pDevStruct)
+					((BMP180_data_t*)pDev->pDevStruct)->I2C_Addr = conv2d(sValue);
+//				bmp180_device_init(pDev, conv2d(sValue));
+//				if (!pDev->pDevStruct) return pdFAIL;
 			} else if (strcmp(sName, "oss") == 0) {
-				if (devArray[all_devs_counter]->pDevStruct)
-					((BMP180_data_t*)devArray[all_devs_counter]->pDevStruct)->P_Oversampling = conv2d(sValue);
+				if (pDev->pDevStruct)
+					((BMP180_data_t*)pDev->pDevStruct)->P_Oversampling = conv2d(sValue);
 				// delta pressure
 			} else if (strcmp(sName, "dlp") == 0) {
-				if (devArray[all_devs_counter]->pDevStruct)
-					((BMP180_data_t*)devArray[all_devs_counter]->pDevStruct)->uiDeltaPressure = conv2d(sValue);
+				if (pDev->pDevStruct)
+					((BMP180_data_t*)pDev->pDevStruct)->uiDeltaPressure = conv2d(sValue);
 			}
 #endif
 		}
 		// ***************** step motor
-		else if (devArray[all_devs_counter]->ucType == device_TYPE_STEPMOTOR) {
+		else if (pDev->ucType == device_TYPE_STEPMOTOR) {
 #ifdef  M_STEPMOTOR
-			if (devArray[all_devs_counter]->pDevStruct) {
+			if (pDev->pDevStruct) {
 				// step period (ms):
 				if (strcmp(sName, "st") == 0) {
-					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->uiStepTime = conv2d(sValue);
+					((stepmotor_data_t*)pDev->pDevStruct)->uiStepTime = conv2d(sValue);
 				}
 				// step motor type:
 				else if (strcmp(sName, "smtype") == 0) {
-					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->sm_type = conv2d(sValue);
+					((stepmotor_data_t*)pDev->pDevStruct)->sm_type = conv2d(sValue);
 				}
 				// step motor pin phase A:
 				else if (strcmp(sName, "pina") == 0) {
-					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->ucPinPhase[0] = conv2d(sValue);
+					((stepmotor_data_t*)pDev->pDevStruct)->ucPinPhase[0] = conv2d(sValue);
 				}
 				// step motor pin phase B:
 				else if (strcmp(sName, "pinb") == 0) {
-					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->ucPinPhase[1] = conv2d(sValue);
+					((stepmotor_data_t*)pDev->pDevStruct)->ucPinPhase[1] = conv2d(sValue);
 				}
 				// step motor pin phase C:
 				else if (strcmp(sName, "pinc") == 0) {
-					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->ucPinPhase[2] = conv2d(sValue);
+					((stepmotor_data_t*)pDev->pDevStruct)->ucPinPhase[2] = conv2d(sValue);
 				}
 				// step motor pin phase D:
 				else if (strcmp(sName, "pind") == 0) {
-					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->ucPinPhase[3] = conv2d(sValue);
+					((stepmotor_data_t*)pDev->pDevStruct)->ucPinPhase[3] = conv2d(sValue);
 				}
 				// Flag:
 				else if (strcmp(sName, "f") == 0) {
-					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->uiFlag = conv2d(sValue);
+					((stepmotor_data_t*)pDev->pDevStruct)->uiFlag = conv2d(sValue);
 				}
 				// manual max position:
 				else if (strcmp(sName, "pmax") == 0) {
-					((stepmotor_data_t*)devArray[all_devs_counter]->pDevStruct)->iPositionPrefMax = conv2d(sValue);
+					((stepmotor_data_t*)pDev->pDevStruct)->iPositionPrefMax = conv2d(sValue);
 				}
 			}
 #endif
 		} else if (strcmp(sName, "romid") == 0) {
 #ifdef  M_DS18B20
-			devArray[all_devs_counter]->pDevStruct = (void*) ds18b20_init(devArray[all_devs_counter]->pGroup, sValue);
+			pDev->pDevStruct = (void*) ds18b20_init(pDev->pGroup, sValue);
 #endif
 		}
 #ifdef  M_GSM
 		else if (strcmp(sName, "PortDTR") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			ptGSMDev->uiPortDTR = get_port_by_name(sValue);
 		} else if (strcmp(sName, "PinDTR") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			ptGSMDev->uiPinDTR = conv2d(sValue);
 		} else if (strcmp(sName, "PortPwrKey") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			ptGSMDev->uiPortPwrKey = get_port_by_name(sValue);
 		} else if (strcmp(sName, "PinPwrKey") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			ptGSMDev->uiPortPwrKey = conv2d(sValue);
 		} else if (strcmp(sName, "PortChgCtrl") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			ptGSMDev->uiPortChgCtrl = get_port_by_name(sValue);
 		} else if (strcmp(sName, "PinChgCtrl") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			ptGSMDev->uiPinChgCtrl = conv2d(sValue);
 		} else if (strcmp(sName, "PortRTS") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			ptGSMDev->uiPortRTS = get_port_by_name(sValue);
 		} else if (strcmp(sName, "PinRTS") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			ptGSMDev->uiPinRTS = conv2d(sValue);
 		} else if (strcmp(sName, "USART") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			ptGSMDev->uiUSART = conv2d(sValue);
 		} else if (strcmp(sName, "acc") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			ptGSMDev->uiSSNAcc = conv2d(sValue);
 		} else if (strcmp(sName, "v") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			strncpy0(ptGSMDev->chip, sValue, strlen(sValue)+1);
 		} else if (strcmp(sName, "APN") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			strncpy0(ptGSMDev->cAPN, sValue, strlen(sValue)+1);
 		} else if (strcmp(sName, "SrvAddr") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			strncpy0(ptGSMDev->cSrvAddr, sValue, strlen(sValue)+1);
 		} else if (strcmp(sName, "SrvPort") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			ptGSMDev->uiSrvPort = conv2d(sValue);
 		} else if (strcmp(sName, "SMSNumber") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			strncpy0(ptGSMDev->cSMSNumber, sValue, strlen(sValue)+1);
 		} else if (strcmp(sName, "PriDNS") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			strncpy0(ptGSMDev->cPriDNS, sValue, strlen(sValue)+1);
 		} else if (strcmp(sName, "SecDNS") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			strncpy0(ptGSMDev->cSecDNS, sValue, strlen(sValue)+1);
 		} else if (strcmp(sName, "GUser") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			strncpy0(ptGSMDev->cGPRSUserID, sValue, strlen(sValue));
 		} else if (strcmp(sName, "GUserPswd") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			strncpy0(ptGSMDev->cGPRSUserPassw, sValue, strlen(sValue)+1);
 		} else if (strcmp(sName, "AESKey") == 0) {
-			ptGSMDev = (sGSMDevice*)devArray[all_devs_counter]->pDevStruct;
+			ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
 			strncpy0(ptGSMDev->cAESKey, sValue, strlen(sValue)+1);
 		}
 #endif
@@ -629,7 +649,8 @@ int32_t storeMemDevs()
 		*((uint16_t*)(puiBuf+nIndex)) = (uint16_t)nAddr;
 		nIndex += 2;
 		// TO DO: check with preferences overlapping..
-		nRes = eeprom_write(&grpArray[0]->GrpDev, EEPROM_ADDRESS, nAddr, (uint8_t*)puiBuf, nIndex);
+		sGrpInfo* pGrpInfo = getGrpInfo (0);
+		nRes = eeprom_write(&pGrpInfo->GrpDev, EEPROM_ADDRESS, nAddr, (uint8_t*)puiBuf, nIndex);
 		vPortFree((void*)puiBuf);
 
 	} else {
@@ -654,10 +675,11 @@ int32_t restoreMemDevs()
 	uint16_t nAddr;
 	uint8_t sBuf1[2]; // array for address value storing
 	uint8_t nNumMemDevs = 0;
+	sGrpInfo* pGrpInfo = getGrpInfo (0);
 
 	nAddr = EEPROM_MAX_SIZE - 2; // last 2 bytes EEPROM - address of memoryDev block
 
-	nRes = eeprom_read(&grpArray[0]->GrpDev, EEPROM_ADDRESS, nAddr, (uint8_t*) &sBuf1, 2);
+	nRes = eeprom_read(&pGrpInfo->GrpDev, EEPROM_ADDRESS, nAddr, (uint8_t*) &sBuf1, 2);
 
 	if (nRes) {
 
@@ -667,7 +689,7 @@ int32_t restoreMemDevs()
 		puiBuf = pvPortMalloc(nBufSize);
 
 			if (puiBuf) {
-				nRes = eeprom_read(&grpArray[0]->GrpDev, EEPROM_ADDRESS, nAddr, (uint8_t*) puiBuf, nBufSize);
+				nRes = eeprom_read(&pGrpInfo->GrpDev, EEPROM_ADDRESS, nAddr, (uint8_t*) puiBuf, nBufSize);
 				calcCRC = crc16((uint8_t*) puiBuf, nBufSize-4);
 				bufCRC = *(uint16_t*)(puiBuf+nBufSize-4); // last 2 bytes = CRC
 
@@ -718,7 +740,7 @@ uint32_t storePreferences(char* sBuf, uint16_t nBufSize)
 			nRes = eeprom_write(&grpArray[0]->GrpDev, EEPROM_ADDRESS, 0, (uint8_t*)tmpBuf, 2);
 			if (nRes) {
 				//sendBaseOut("\n\rNew preferences saved into EEPROM. Reboot");
-				debugMsg("\n\rNew preferences saved into EEPROM. Reboot");
+				xprintfMsg("\n\rNew preferences saved into EEPROM. Reboot");
 				delay_nus(&grpArray[0]->GrpDev, 10000);	// 10ms
 //			    SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
 //			    while (1);
@@ -726,7 +748,7 @@ uint32_t storePreferences(char* sBuf, uint16_t nBufSize)
 
 		} else {
 			//sendBaseOut("\n\rError saving preferences into EEPROM");
-			debugMsg("\n\rError saving preferences into EEPROM");
+			xprintfMsg("\n\rError saving preferences into EEPROM");
 		}
 #endif
 #ifdef PERSIST_STM32FLASH
@@ -764,7 +786,8 @@ uint32_t storePreferences(char* sBuf, uint16_t nBufSize)
 			flash_lock();
 
 //			sendBaseOut("\n\rNew preferences saved into EEPROM. Reboot");
-			delay_nus(&grpArray[0]->GrpDev, 10000);	// 10ms
+			sGrpInfo* pGrpInfo = getGrpInfo (0);
+			delay_nus(&pGrpInfo->GrpDev, 10000);	// 10ms
 //		    SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
 //		    while (1);
 
@@ -774,7 +797,7 @@ uint32_t storePreferences(char* sBuf, uint16_t nBufSize)
 }
 
 
-char* process_getdevvals(sDevice* devArray[], uint16_t all_devs_counter, uint16_t nDevId)
+char* process_getdevvals(sDevice** devArray, uint16_t all_devs_counter, uint16_t nDevId)
 {
 	uint16_t j;
 	uint8_t ut;
@@ -786,33 +809,37 @@ char* process_getdevvals(sDevice* devArray[], uint16_t all_devs_counter, uint16_
 	uint16_t	nStrCounter = 0;
 	uint16_t	uiBufLen;
 	uint8_t nExtBufCounter = 1;
-	char buf [mainMAX_MSG_LEN];
+//	char buf [mainMAX_MSG_LEN];
+	char *buf = pvPortMalloc(mainMAX_MSG_LEN);
 	int32_t nDevValue;
 	uint32_t nDevLastUpdate;
+	sDevice * pDev;
 //	char comma = ',';
 
 	taskENTER_CRITICAL();
 	{
 //		const char* pcTeleHeader = "{\"ssn\":{\"v\":1,\"ret\":\"getdevvals\", \"data\":{\"devs\":[";
-		xsprintf(buf, "{\"ssn\":{\"v\":1,\"obj\":%d,\"ret\":\"getdevvals\", \"data\":{\"devs\":[",  getMC_Object() );
+		xprintfMsgStr(buf, "{\"ssn\":{\"v\":1,\"obj\":%d,\"ret\":\"getdevvals\", \"data\":{\"devs\":[",  getMC_Object() );
 		uiBufLen = strlen(buf);
 		memcpy(tele_data, buf, uiBufLen);
 		nStrCounter+=uiBufLen;
 
 		for (j = 0; j < all_devs_counter; j++) {
-			if ((nDevId > 0) && (devArray[j]->nId != nDevId)) {
+			pDev = getDevByNo(j);
+			if ((nDevId > 0) && (pDev->nId != nDevId)) {
 				continue;
 			}
-				ut = devArray[j]->ucType;
-				buf[0]=0;
+				ut = pDev->ucType;
+//				buf[0]=0;
+				*buf=0;
 				if ((ut == device_TYPE_MEMORY) || (ut == device_TYPE_BB1BIT_IO_AI)) {
-					nNumValTypes = devArray[j]->pGroup->iDevQty;
+					nNumValTypes = pDev->pGroup->iDevQty;
 				} else {
 					nNumValTypes = getNumDevValCodes(ut);
 				}
 				for (uint8_t k=0; k<nNumValTypes; k++) {
-					getDevData(devArray[j], k, &nDevValue, &nDevLastUpdate);
-					xsprintf(buf, "{\"dev\":%d, \"n\":%d, \"i\":%d, \"val\":%d, \"updtime\":%ld},",  devArray[j]->nId, nNumValTypes, k, nDevValue, nDevLastUpdate );
+					getDevData(pDev, k, &nDevValue, &nDevLastUpdate);
+					xprintfMsgStr(buf, "{\"dev\":%d, \"n\":%d, \"i\":%d, \"val\":%d, \"updtime\":%ld},",  pDev->nId, nNumValTypes, k, nDevValue, nDevLastUpdate );
 					uiBufLen = strlen(buf);
 					if (uiBufLen > 0) {
 						if ((nStrCounter + uiBufLen) > nBufSize) {
@@ -842,6 +869,7 @@ char* process_getdevvals(sDevice* devArray[], uint16_t all_devs_counter, uint16_
 			tele_data[nStrCounter]=0;
 	}
 	taskEXIT_CRITICAL();
+	vPortFree(buf);
 	return tele_data;
 }
 
@@ -866,11 +894,39 @@ void vSendInputMessage (uint8_t version, uint16_t	uiDestObject, uint8_t xMessage
 void vSendSSNPacket (uint16_t nObjDst, uint16_t nObjSrc, uint8_t nMessType, char* cData)
 {
 	uint16_t nDataLength = strlen(cData);
-	char* tmpBuf = pvPortMalloc(nDataLength+30);
-	xsprintf(tmpBuf, "\n===ssn1%04x%04x%02x%04x%s%04x", nObjDst, nObjSrc, nMessType, nDataLength, cData, crc16((uint8_t*) cData, nDataLength));
-	sendBaseOut(tmpBuf);
-	vPortFree(tmpBuf);
+//	char* tmpBuf = pvPortMalloc(nDataLength+30);
+	xprintfMsg("\n===ssn1%04x%04x%02x%04x%s%04x", nObjDst, nObjSrc, nMessType, nDataLength, cData, crc16((uint8_t*) cData, nDataLength));
+//	vPortFree(tmpBuf);
 }
+
+void xprintfMsg (			/* Put a formatted string to the memory */
+		const char*	fmt,	/* Pointer to the format string */
+		...					/* Optional arguments */
+	)
+	{
+		char* buff = pvPortMalloc(1024);			/* Pointer to the output buffer */
+		va_list arp;
+
+		va_start(arp, fmt);
+		xvprintf2(buff, fmt, arp);
+		va_end(arp);
+		sendBaseOut (buff);
+		vPortFree(buff);
+	}
+
+void xprintfMsgStr (
+		char* buff,         /* Put a formatted string to the memory */
+		const char*	fmt,	/* Pointer to the format string */
+		...					/* Optional arguments */
+	)
+	{
+		va_list arp;
+
+		va_start(arp, fmt);
+		xvprintf2(buff, fmt, arp);
+		va_end(arp);
+	}
+
 
 void debugMsg (char *str)
 {
@@ -879,7 +935,8 @@ void debugMsg (char *str)
 	uint16_t uiCnt;
 	uint16_t uiBufLen;
 	uint32_t xReturn;
-	char msg[mainMAX_MSG_LEN];
+//	char msg[mainMAX_MSG_LEN];
+	char *msg = pvPortMalloc(mainMAX_MSG_LEN);
 
 		for (uiCnt=0; uiCnt<=strlen(str)/mainMAX_MSG_LEN; uiCnt++)
 		{
@@ -887,14 +944,16 @@ void debugMsg (char *str)
 			if (uiBufLen > (mainMAX_MSG_LEN)) {
 				uiBufLen = mainMAX_MSG_LEN;
 			} else {
-				memset (&msg,0,mainMAX_MSG_LEN); // clear buffer
+				memset (msg,0,mainMAX_MSG_LEN); // clear buffer
 			}
 
-			memcpy(&msg, &str[uiCnt*mainMAX_MSG_LEN], uiBufLen);
+			memcpy(msg, &str[uiCnt*mainMAX_MSG_LEN], uiBufLen);
 			if (xLogOutQueue) {
 				xReturn = xQueueSend( xLogOutQueue, msg, 0 );
 			}
 		}
+
+		vPortFree(msg);
 		( void ) xReturn;
 
 }
@@ -904,7 +963,8 @@ void sendBaseOut (char *str)
 	uint16_t uiCnt;
 	uint16_t uiBufLen;
 	uint32_t xReturn;
-	char msg[mainMAX_MSG_LEN];
+//	char msg[mainMAX_MSG_LEN];
+	char *msg = pvPortMalloc(mainMAX_MSG_LEN);
 
 		for (uiCnt=0; uiCnt<=strlen(str)/mainMAX_MSG_LEN; uiCnt++)
 		{
@@ -912,27 +972,25 @@ void sendBaseOut (char *str)
 			if (uiBufLen > (mainMAX_MSG_LEN)) {
 				uiBufLen = mainMAX_MSG_LEN;
 			} else {
-				memset (&msg,0,mainMAX_MSG_LEN); // clear buffer
+				memset (msg,0,mainMAX_MSG_LEN); // clear buffer
 			}
 
-			memcpy(&msg, &str[uiCnt*mainMAX_MSG_LEN], uiBufLen);
+			memcpy(msg, &str[uiCnt*mainMAX_MSG_LEN], uiBufLen);
 			if (xBaseOutQueue) {
 				xReturn = xQueueSend( xBaseOutQueue, msg, 0 );
 			}
 		}
-
+	vPortFree(msg);
 	( void ) xReturn;
 }
 
 void vCommandSelector(sSSNCommand* xSSNCommand)
 {
-	char msg[30];
+//	char msg[30];
 	if (xSSNCommand) {
 		switch (xSSNCommand->nCmd) {
 			case mainCOMMAND_COMMITED: {
-				xsprintf(msg, "\r\nCOMMITED: %d ", xSSNCommand->nCmdID);
-				//sendBaseOut(msg);
-				debugMsg(msg);
+				xprintfMsg("\r\nCOMMITED: %d ", xSSNCommand->nCmdID);
 
 				// do nothing
 				break;
@@ -953,7 +1011,7 @@ void vCommandSelector(sSSNCommand* xSSNCommand)
 				// disable charging of battery
 	#ifdef  M_GSM
 				//sendBaseOut("\r\nOVER-VOLTAGE, disable charging");
-				debugMsg("\r\nOVER-VOLTAGE, disable charging");
+				xprintfMsg("\r\nOVER-VOLTAGE, disable charging");
 				sGSMDevice* pGSMDev = (sGSMDevice*) xSSNCommand->pcData;
 				if (pGSMDev) {
 					gpio_clear(pGSMDev->uiPortChgCtrl, 1 << pGSMDev->uiPortChgCtrl);
@@ -965,7 +1023,7 @@ void vCommandSelector(sSSNCommand* xSSNCommand)
 				// disable charging of battery
 	#ifdef  M_GSM
 				//sendBaseOut("\r\nLOW-VOLTAGE, enable charging");
-				debugMsg("\r\nLOW-VOLTAGE, enable charging");
+				xprintfMsg("\r\nLOW-VOLTAGE, enable charging");
 				sGSMDevice* pGSMDev = (sGSMDevice*) xSSNCommand->pcData;
 				if (pGSMDev) {
 					gpio_set(pGSMDev->uiPortChgCtrl, 1 << pGSMDev->uiPortChgCtrl);
@@ -983,9 +1041,7 @@ void vCommandSelector(sSSNCommand* xSSNCommand)
 				break;
 			}
 		}
-		xsprintf(msg, "\r\nFreeHeapSize:=%d **********", xPortGetFreeHeapSize());
-		debugMsg(msg);
-		//sendBaseOut(msg);
+		xprintfMsg("\r\nFreeHeapSize:=%d **********", xPortGetFreeHeapSize());
 
 	}
 }
@@ -1020,7 +1076,7 @@ void	UpdateActionJSON(cJSON *devactitem)
 	uint16_t arep = 0;
 	uint16_t nFlags = 0;
 	uint32_t ret;
-	char msg [100];
+//	char msg [100];
 
 	if (cJSON_GetObjectItem(devactitem, "astr")) {
 
@@ -1051,9 +1107,7 @@ void	UpdateActionJSON(cJSON *devactitem)
 		ret = setAction (nActID, pActStr, arep, nFlags);
 
 		if (!ret) {
-			xsprintf(msg, "\r\nError processing action rules! AID=%d", nActID);
-			debugMsg(msg);
-			//sendBaseOut(msg);
+			xprintfMsg("\r\nError processing action rules! AID=%d", nActID);
 		}
 	}
 }
@@ -1077,21 +1131,17 @@ int32_t	UpdateAction(char* pcDevAction)
 
 void log_event (void* poldt, void* pnewt, uint32_t xTickCount)
 {
-	char cBuffer [200];
-	xsprintf( cBuffer, "\r\n***%s switched out, %s switched in, tick count = %u",
+//	char cBuffer [200];
+	xprintfMsg("\r\n***%s switched out, %s switched in, tick count = %u",
 			pcTaskGetTaskName((TaskHandle_t) poldt),
 			pcTaskGetTaskName((TaskHandle_t) pnewt),
 			xTickCount );
-	//sendBaseOut(cBuffer);
-	debugMsg(cBuffer);
 }
 
 void log_event2 (char c, void* pt)
 {
-	char cBuffer [200];
-	xsprintf( cBuffer, "\r\n***%c: task %s delay",c, pcTaskGetTaskName((TaskHandle_t) pt));
-	//sendBaseOut(cBuffer);
-	debugMsg(cBuffer);
+//	char cBuffer [200];
+	xprintfMsg("\r\n***%c: task %s delay",c, pcTaskGetTaskName((TaskHandle_t) pt));
 }
 
 /*
@@ -1101,8 +1151,9 @@ void heartBeatSend(uint32_t nCounter, uint32_t nTimestamp)
 {
 	char* tmpBuffer = pvPortMalloc(50);
 
-	xsprintf( tmpBuffer, "{\"hb\":[{\"t\":%d, \"c\":%d}]}", nTimestamp, nCounter);
+	xprintfMsgStr(tmpBuffer, "{\"hb\":[{\"t\":%d, \"c\":%d}]}", nTimestamp, nCounter);
 	vSendInputMessage(1, 0, mainJSON_MESSAGE, getMC_Object(), 0, 0, (void*) tmpBuffer, strlen(tmpBuffer), 0);
+
 }
 
 /* log action event into temporary buffer and send it if buffer full */
@@ -1111,7 +1162,8 @@ void	logAction(uint16_t nActId, uint16_t nDevId, uint8_t nDevCmd, uint32_t nValu
 	uint16_t i;
 	uint16_t j;
 	char* pBuffer;
-	char tmpBuffer[100];
+//	char tmpBuffer[100];
+	char *tmpBuffer = pvPortMalloc(100);
 	uint32_t nCurTimestamp = rtc_get_counter_val();
 
 	if (nDevId) {
@@ -1128,24 +1180,24 @@ void	logAction(uint16_t nActId, uint16_t nDevId, uint8_t nDevCmd, uint32_t nValu
 			pBuffer = pvPortMalloc(70*logActCounter+10);	// allocate memory for current log elements
 			if (!pBuffer) {
 				//sendBaseOut("\r\nError allocate memory for log data!");
-				debugMsg("\r\nError allocate memory for log data!");
+				xprintfMsg("\r\nError allocate memory for log data!");
 				return;
 			}
 
-			xsprintf( tmpBuffer, "{\"log\":[");
-			memcpy(&pBuffer[0], &tmpBuffer, strlen(tmpBuffer));
+			xprintfMsgStr(tmpBuffer, "{\"log\":[");
+			memcpy(&pBuffer[0], tmpBuffer, strlen(tmpBuffer));
 			j = strlen(tmpBuffer);
 
 			for (i = 0; i < logActCounter; i++)
 			{
-				xsprintf( tmpBuffer, "{\"a\":%d,\"d\":%d,\"c\":%d,\"v\":%d,\"t\":%d},", logActionsArray[i].nActId,
+				xprintfMsgStr(tmpBuffer, "{\"a\":%d,\"d\":%d,\"c\":%d,\"v\":%d,\"t\":%d},", logActionsArray[i].nActId,
 						logActionsArray[i].nDevId, logActionsArray[i].nDevCmd, logActionsArray[i].nValue,
 						logActionsArray[i].nTimestamp);
-				memcpy(&pBuffer[j], &tmpBuffer, strlen(tmpBuffer));
+				memcpy(&pBuffer[j], tmpBuffer, strlen(tmpBuffer));
 				j += strlen(tmpBuffer);
 			}
-			xsprintf( tmpBuffer, "{}]}");
-			memcpy(&pBuffer[j], &tmpBuffer, strlen(tmpBuffer));
+			xprintfMsgStr(tmpBuffer, "{}]}");
+			memcpy(&pBuffer[j], tmpBuffer, strlen(tmpBuffer));
 			pBuffer[j+strlen(tmpBuffer)] = 0;
 
 			// send log data to input buffer for routing to destination:
@@ -1153,5 +1205,6 @@ void	logAction(uint16_t nActId, uint16_t nDevId, uint8_t nDevCmd, uint32_t nValu
 			nlogActLastUpdate = nCurTimestamp;
 			logActCounter = 0;
 	}
+	vPortFree(tmpBuffer);
 
 }

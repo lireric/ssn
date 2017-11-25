@@ -26,6 +26,8 @@
 #include "processor.h"
 #include <stdlib.h>
 
+const int  __attribute__((used)) uxTopUsedPriority = configMAX_PRIORITIES;
+
 #ifdef  M_LCD
 #include "lcd.h"
 #endif
@@ -36,7 +38,7 @@
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2017-10-24"
+#define SSN_VERSION "2017-11-25:1"
 
 /* Global variables 			========================================== */
 
@@ -54,11 +56,13 @@ void* xBaseOutTaskHnd;
 
 #endif
 
-sGrpInfo *grpArray[mainMAX_DEV_GROUPS];
-uint8_t 	grp_counter = 0;
+//sGrpInfo *grpArray[mainMAX_DEV_GROUPS];
+sGrpInfo	**grpArray;
+uint8_t		grp_counter = -1;
 
-sDevice *devArray[mainMAX_ALL_DEVICES];
-uint16_t 	all_devs_counter = 0;
+//sDevice *devArray[mainMAX_ALL_DEVICES];
+sDevice 	**devArray;
+uint16_t 	all_devs_counter = -1;
 
 sAction *actArray[mainMAX_ACTIONS];
 uint16_t 	act_counter = 0;
@@ -159,7 +163,7 @@ static int handler(void* user, const char* section, const char* name,
                    const char* value, int* pnSectionNo)
 {
     sIniHandlerData* pIniHandlerData = (sIniHandlerData*)user;
-	char msg[mainMAX_MSG_LEN];
+//	char msg[mainMAX_MSG_LEN];
 	uint32_t nRes = pdPASS;
 
     #define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
@@ -167,8 +171,9 @@ static int handler(void* user, const char* section, const char* name,
 		case 0:
 		{
 			if (MATCH("ssn", "v") && conv2d(value) != 1) {
-				xsprintf(msg, "\r\nWrong SSN protocol version: %s ", value);
-				debugMsg(msg);
+//				xsprintf(msg, "\r\nWrong SSN protocol version: %s ", value);
+//				debugMsg(msg);
+				xprintfMsg("\r\nWrong SSN protocol version: %s ", value);
 				nRes =  pdFAIL;
 			} else if (MATCH("ssn", "obj")) {
 				pIniHandlerData->iniSSNCommand->uiDevDest = conv2d(value);
@@ -289,15 +294,6 @@ void NVIC_Configuration(void)
 	scb_set_priority_grouping(0);
 }
 
-sGrpInfo* getGrpInfo(unsigned char ucGrpNum)
-{
-	unsigned char i;
-	for(i=0; i < mainMAX_DEV_GROUPS; i++)
-	{
-		if (grpArray[i]->uiGroup == ucGrpNum) return grpArray[i];
-	}
-	return (sGrpInfo*)0;
-}
 
 //////////////////////////////////////////////////////////////////////////
 /*************************************************************************
@@ -315,10 +311,13 @@ int main(void)
 //  debug();
 #endif
 
+  grpArray = (sGrpInfo **) pvPortMalloc(mainMAX_DEV_GROUPS * sizeof(void*));
+  devArray = (sDevice **) pvPortMalloc(mainMAX_ALL_DEVICES * sizeof(void*));
+
   ulIdleCycleCount = 0UL;
   portBASE_TYPE xReturn;
   uint8_t res;
-  char msg[mainMAX_MSG_LEN];
+//  char msg[mainMAX_MSG_LEN];
   setMC_Object(MC_OBJECT);
 
 #ifdef  WATCHDOG
@@ -351,41 +350,42 @@ int main(void)
  * to do: make init other UARTs if needed...
  */
 		//sendBaseOut("\r\n\r\nStart SSN");
-	  	xsprintf(( portCHAR *) msg, "\r\n\r\nStart SSN. Version: %s\n", SSN_VERSION);
-		debugMsg(msg);
+//	  	xsprintf(( portCHAR *) msg, "\r\n\r\nStart SSN. Version: %s\n", SSN_VERSION);
+	  	xprintfMsg("\r\n\r\nStart SSN. Version: %s ", SSN_VERSION);
+//		debugMsg(msg);
 
 // ------------------------------------------------------------------------------
-	  	sGrpInfo * pGrp;
-		sDevice* pVirtualDev;	// abstract group and device for timer actions cashing
-		sGrpDev * pGrpDev;
+	  	sGrpInfo *pGrp;
+		sDevice *pVirtualDev;	// abstract group and device for timer actions cashing
+//		sGrpDev *pGrpDev;
 
-		grpArray[grp_counter] = (sGrpInfo*) pvPortMalloc(sizeof(sGrpInfo));
-		pGrp = grpArray[grp_counter];
-		pGrpDev = &pGrp->GrpDev;
-		pGrpDev->pTimer = SOFTI2C_TIMER_1;
-		pVirtualDev = (sDevice*) pvPortMalloc(sizeof(sDevice));
+		pGrp = newGrpInfo();
+		pGrp->uiGroup = SOFTI2C_1_GRP;
+		pGrp->iDevQty = 0; // not applicable to virtual group
+//		pGrpDev = &pGrp->GrpDev;
+		pGrp->GrpDev.pTimer = SOFTI2C_TIMER_1;
+//		pGrpDev->pTimer = SOFTI2C_TIMER_1;
+
+		pVirtualDev = newDev();
 		pVirtualDev->nId = 0;
 		pVirtualDev->nDevObj = 0;
 		pVirtualDev->pGroup = pGrp;
 		pVirtualDev->ucType = device_TYPE_VIRTUAL;
-		devArray[all_devs_counter++] = pVirtualDev;
+//		devArray[all_devs_counter++] = pVirtualDev;
 
 #if defined (M_RTC_DS1307) || defined (PERSIST_EEPROM_I2C)
 		// software i2c group index = 0 (grp_counter = 0)
 		// This group combine RTC_DS1307 and EEPROM
-		pGrp->uiGroup = SOFTI2C_1_GRP;
-//		pGrp->ucDevRate = device_RATE_NONE;
-		pGrpDev->pPort = SOFTI2C_1_PORT;
-		pGrpDev->ucPin = SOFTI2C_1_PIN_SDA;
-		pGrpDev->ucPin2 = SOFTI2C_1_PIN_SCL;
-		pGrpDev->pTimer = SOFTI2C_TIMER_1;
-		soft_i2c_init(pGrpDev);
+		pGrp->GrpDev.pPort = SOFTI2C_1_PORT;
+		pGrp->GrpDev.ucPin = SOFTI2C_1_PIN_SDA;
+		pGrp->GrpDev.ucPin2 = SOFTI2C_1_PIN_SCL;
+		pGrp->GrpDev.pTimer = SOFTI2C_TIMER_1;
+		soft_i2c_init(&pGrp->GrpDev);
 //		i2c_setup(pGrpDev);
 
 #endif
 
 		hw_loadtime();
-		grp_counter++;
 
 // check skip preferences button:
 
@@ -393,7 +393,7 @@ int main(void)
 						GPIO_CNF_INPUT_FLOAT, 1 << mainSKIP_PREF_PIN);
 				uint32_t button = GPIO_IDR(mainSKIP_PREF_PORT) & (1 << mainSKIP_PREF_PIN);
 				if ((button && pdTRUE ) == mainSKIP_PREF_VALUE) {
-					debugMsg("\n\rSkip reading configuration from EEPROM or FLASH");
+					xprintfMsg("\n\rSkip reading configuration from EEPROM or FLASH");
 					goto skipLoadPrefs;
 				}
 
@@ -434,10 +434,10 @@ int main(void)
 				xPrefsBuffer.buffer[nBufSize]=0;
 #ifdef PERSIST_STM32FLASH
 				//sendBaseOut("\n\rConfiguration loaded from FLASH");
-				debugMsg("\n\rConfiguration loaded from FLASH");
+				xprintfMsg("\n\rConfiguration loaded from FLASH");
 #else
 				//sendBaseOut("\n\rConfiguration loaded from EEPROM");
-				debugMsg("\n\rConfiguration loaded from EEPROM");
+				xprintfMsg("\n\rConfiguration loaded from EEPROM");
 #endif
 //		    	debugMsg((char *) &xPrefsBuffer.buffer);
 				// define format preferences: if first char = "{" than JSON, else INI
@@ -454,14 +454,9 @@ int main(void)
 				    ctx.bytes_left = nBufSize;
 				    res = ini_parse_stream((ini_reader)ini_buffer_reader, &ctx, handler, &xIniHandlerData);
 				    if (res != 0) {
-				    	xsprintf(( portCHAR *) msg, "\r\nErrors was in INI parsing, last error line: %d\n", res);
-				    	//sendBaseOut((char *) &msg);
-				    	debugMsg((char *) &msg);
+				    	xprintfMsg("\r\nErrors was in INI parsing, last error line: %d\r\n", res);
 				    } else {
-				    	xsprintf(( portCHAR *) msg, "\r\nParsed INI format\n");
-				    	//sendBaseOut((char *) &msg);
-				    	debugMsg((char *) &msg);
-
+//				    	xprintfMsg("\r\nParsed INI format\r\n");
 				    	res = restoreMemDevs();
 				    	uiLastSaveMemoryTick = rtc_get_counter_val();
 				    	//res = pdPASS;
@@ -477,11 +472,11 @@ int main(void)
 
 		vPortFree(xPrefsBuffer.buffer);
 		} else {
-			debugMsg("\n\rError preferences size info (EEPROM or FLASH)");
+			xprintfMsg("\n\rError preferences size info (EEPROM or FLASH)");
 		}
 	} else {
 		//error
-		debugMsg("\n\rError reading configuration from EEPROM or FLASH");
+		xprintfMsg("\n\rError reading configuration from EEPROM or FLASH");
 	}
 
 
@@ -540,7 +535,7 @@ static void prvInputTask( void *pvParameters )
 	/* Just to avoid compiler warnings. */
 	(void) pvParameters;
 	xInputMessage xInputMessage;
-	char cPassMessage[mainMAX_MSG_LEN*3];
+//	char cPassMessage[mainMAX_MSG_LEN*3];
 	char * jsonMsg;
 	int32_t xReturn;
 	sSSNCommand xSSNCommand;
@@ -554,10 +549,9 @@ static void prvInputTask( void *pvParameters )
 		if (xInputMessage.version == 1) {
 			uiDestInterface = getObjRoute(xInputMessage.uiDestObject);
 
-			xsprintf(cPassMessage, "\r\nInputMessage: dest=%d, src=%d, msgtype=%d, cmd=%d",
+			xprintfMsg("\r\nInputMessage: dest=%d, src=%d, msgtype=%d, cmd=%d",
 					xInputMessage.uiDestObject, xInputMessage.uiSrcObject,
 					xInputMessage.xMessageType, xInputMessage.nCommand);
-			debugMsg(cPassMessage);
 
 			/* route message if needed */
 			if (xInputMessage.uiDestObject != getMC_Object()) {
@@ -614,7 +608,7 @@ processLocalMessages:
 								xReturn = gsm_send_request(xInputMessage.pcMessage, xInputMessage.nMsgSize);
 								if (!xReturn) {
 									//sendBaseOut("\r\nGPRS LOG request failed");
-									debugMsg("\r\nGPRS LOG request failed");
+									xprintfMsg("\r\nGPRS LOG request failed");
 								}
 							}
 							break;
@@ -644,7 +638,7 @@ processLocalMessages:
 								xReturn = gsm_send_request(xInputMessage.pcMessage, xInputMessage.nMsgSize);
 								if (!xReturn) {
 									//sendBaseOut("\r\nGPRS TELEMETRY request failed");
-									debugMsg("\r\nGPRS TELEMETRY request failed");
+									xprintfMsg("\r\nGPRS TELEMETRY request failed");
 								}
 							}
 							break;
@@ -674,10 +668,7 @@ processLocalMessages:
 						case main_IF_UART4:
 						case main_IF_UART5:
 						{
-							//sendBaseOut("\r\nInfo msg: ");
-							debugMsg("\r\nInfo msg: ");
-							//sendBaseOut((char *) xInputMessage.pcMessage);
-							debugMsg((char *) xInputMessage.pcMessage);
+							xprintfMsg("\r\nInfo msg: %s", xInputMessage.pcMessage);
 							break;
 						}
 #ifdef  M_GSM
@@ -695,10 +686,7 @@ processLocalMessages:
 					break;
 				}
 				case mainGSM_MESSAGE_IN: {
-					//sendBaseOut("\r\nGSM_IN msg: ");
-					debugMsg("\r\nGSM_IN msg: ");
-					//sendBaseOut((char *) xInputMessage.pcMessage);
-					debugMsg((char *) xInputMessage.pcMessage);
+					xprintfMsg("\r\nGSM_IN msg:  %s", (char *) xInputMessage.pcMessage);
 					xReturn = fillCommandStruct((char *) xInputMessage.pcMessage, &xSSNCommand);
 					// process commands if they exists
 					if (xReturn) {
@@ -744,60 +732,13 @@ processLocalMessages:
 // common part INI structure:
 //
 				case mainINI_MESSAGE: {
-					xsprintf(cPassMessage, "\r\nFreeHeap=%d, StHWM=%d =PRCINI", xPortGetFreeHeapSize(), uxTaskGetStackHighWaterMark(0));
-					//sendBaseOut(cPassMessage);
-					debugMsg(cPassMessage);
+					xprintfMsg("\r\nFreeHeap=%d, StHWM=%d =PRCINI", xPortGetFreeHeapSize(), uxTaskGetStackHighWaterMark(0));
 					xReturn = storePreferences(xInputMessage.pcMessage, strlen(xInputMessage.pcMessage));
-					xsprintf(cPassMessage, "\r\nPreferences saved: %d", xReturn);
-			    	debugMsg(cPassMessage);
+					xprintfMsg("\r\nPreferences saved: %d", xReturn);
 					vTaskDelay( 1000 / portTICK_PERIOD_MS );
 					main_reboot(); 	// reboot
 				    while (1);
 
-					/*
-				    sIniHandlerData xIniHandlerData;
-				    sSSNCommand xSSNCommand;
-				    xSSNCommand.nCmd = 0;
-				    xIniHandlerData.iniSSNCommand = &xSSNCommand;
-				    xIniHandlerData.sLastName[0] = 0;
-				    xIniHandlerData.sLastSection[0] = 0;
-					xIniHandlerData.xTempAction.aid = 0;
-					xIniHandlerData.xTempAction.astr[0] = 0;
-					xIniHandlerData.xTempAction.arep = 0;
-					xIniHandlerData.xTempAction.nFlags = 0;
-					xIniHandlerData.pnPrevSectionNo = -1;
-
-				    buffer_ctx ctx;
-				    ctx.ptr = (char*) xInputMessage.pcMessage;
-				    ctx.bytes_left = strlen(ctx.ptr);
-
-
-					xReturn = ini_parse_stream((ini_reader)ini_buffer_reader, &ctx, handler, &xIniHandlerData);
-				    if (xReturn != 0) {
-				    	xsprintf(( portCHAR *) cPassMessage, "\r\nCan't parse INI format, line: %d, param: %s\n", xReturn, xIniHandlerData.sLastName);
-				    	//sendBaseOut(cPassMessage);
-				    	debugMsg(cPassMessage);
-						vTaskDelay( 500 / portTICK_PERIOD_MS );
-				    }
-					if (xIniHandlerData.iniSSNCommand->nCmd == mainCOMMAND_GETPREFERENCES) {
-						// check for loading last logic section:
-						if (xReturn == 0) {
-							vTaskSuspendAll();
-							if (xIniHandlerData.xTempAction.aid) {
-								xReturn = setAction (xIniHandlerData.xTempAction.aid, xIniHandlerData.xTempAction.astr, xIniHandlerData.xTempAction.arep, xIniHandlerData.xTempAction.nFlags);
-							}
-							xsprintf(cPassMessage, "\r\nConfig loaded from buffer (INI)");
-//							vTaskSuspendAll();
-							xReturn = refreshActions2DeviceCash();
-							xReturn = storePreferences(xInputMessage.pcMessage, strlen(xInputMessage.pcMessage));
-//							xTaskResumeAll();	// start scheduler if load preferences command
-						}
-//				    	sendBaseOut(cPassMessage);
-					    SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;	// reboot
-					    while (1);
-					}
-					vPortFree(xInputMessage.pcMessage);
-						*/
 					break;
 				}
 // ============= JSON format processing:
@@ -806,26 +747,20 @@ processLocalMessages:
  common part JSON structure:
  {	"ssn": {"v":"version_number", "cmd":"command", "data": { ... } } }
 */
-					xsprintf(cPassMessage, "\r\nFreeHeap=%d, StHWM=%d =PRCJSON", xPortGetFreeHeapSize(), uxTaskGetStackHighWaterMark(0));
-					//sendBaseOut(cPassMessage);
-					debugMsg(cPassMessage);
+					xprintfMsg("\r\nFreeHeap=%d, StHWM=%d =PRCJSON", xPortGetFreeHeapSize(), uxTaskGetStackHighWaterMark(0));
 
 								jsonMsg = (char*) xInputMessage.pcMessage;
 								cJSON *json_root;
 								cJSON *json_ssn;
 								json_root=cJSON_Parse(jsonMsg);
 								if (!json_root) {
-									xsprintf(cPassMessage, "\n\rError before: [%s]\n\r",cJSON_GetErrorPtr());
-									//sendBaseOut(cPassMessage);
-									debugMsg(cPassMessage);
+									xprintfMsg("\n\rError before: [%s]\n\r",cJSON_GetErrorPtr());
 								}
 								else
 								{
 									json_ssn=cJSON_GetObjectItem(json_root,"ssn");
 									if (!json_ssn) {
-										xsprintf(cPassMessage, "\n\rJSON error before: [%s]\n\r",cJSON_GetErrorPtr());
-										//sendBaseOut(cPassMessage);
-										debugMsg(cPassMessage);
+										xprintfMsg("\n\rJSON error before: [%s]\n\r",cJSON_GetErrorPtr());
 									} else {
 // now processing command:
 										int version = cJSON_GetObjectItem(json_ssn,"v")->valueint;
@@ -834,9 +769,7 @@ processLocalMessages:
 											uint16_t nObjDest = (uint16_t) cJSON_GetObjectItem(json_ssn,"obj")->valueint;
 //											uint16_t nObjSrc  = (uint16_t) cJSON_GetObjectItem(json_ssn,"obj_src")->valueint;
 
-											xsprintf(cPassMessage, "\n\rProcess JSON command: %s", cmd );
-											//sendBaseOut(cPassMessage);
-											debugMsg(cPassMessage);
+											xprintfMsg("\n\rProcess JSON command: %s", cmd );
 
 											cJSON *json_data = cJSON_GetObjectItem(json_ssn,"data");
 
@@ -862,14 +795,13 @@ processLocalMessages:
 														// process string data type:
 														setDevValueByID((int32_t)strVal, dev_cmd, dev_id, eElmString);
 														logAction(0, dev_id, dev_cmd, dev_val);
-														xsprintf(cPassMessage, "\n\rSet dev[%d](%d)=%s", dev_id, dev_cmd, strVal);
+														xprintfMsg("\n\rSet dev[%d](%d)=%s", dev_id, dev_cmd, strVal);
 													} else {
 														// process numeric data type:
 														setDevValueByID(dev_val, dev_cmd, dev_id, eElmInteger);
 														logAction(0, dev_id, dev_cmd, dev_val);
-														xsprintf(cPassMessage, "\n\rSet dev[%d]=(%d)%d", dev_id, dev_cmd, dev_val);
+														xprintfMsg("\n\rSet dev[%d]=(%d)%d", dev_id, dev_cmd, dev_val);
 													}
-													debugMsg(cPassMessage);
 													// send notification about command executing:
 //													xsprintf(cPassMessage, "{\"status\":\"0\", \"comment\":\"set dev[%d](%d)=%d\"}", dev_id, dev_cmd, dev_val);
 //													char* pResp = pvPortMalloc(strlen(cPassMessage));
@@ -913,8 +845,7 @@ processLocalMessages:
 											}
 
 										}	else 	{
-											//sendBaseOut("Wrong SSN message version");
-											debugMsg("Wrong SSN message version");
+											xprintfMsg("Wrong SSN message version");
 										}
 									cJSON_Delete(json_root);
 								} // ssn
@@ -925,19 +856,15 @@ processLocalMessages:
 			} // switch
 			} // if - routing
 	} // if - message version
-		char msg[30];
-		xsprintf(msg, "\r\nFreeHeap:=%d =INPUTTSK===", xPortGetFreeHeapSize());
-		//sendBaseOut(msg);
-		debugMsg(msg);
+		xprintfMsg("\r\nFreeHeap:=%d =INPUTTSK===", xPortGetFreeHeapSize());
 //		taskYIELD();
 	} // while
 }
 
 
 /* The poll Middle Rate sensors task. */
-static void prvCheckSensorMRTask( void *pvParameters )
-{
-/* Just to avoid compiler warnings. */
+static void prvCheckSensorMRTask(void *pvParameters) {
+	/* Just to avoid compiler warnings. */
 	(void) pvParameters;
 	portTickType xLastWakeTime;
 	uint16_t j;
@@ -947,6 +874,7 @@ static void prvCheckSensorMRTask( void *pvParameters )
 	(void) res;
 //	uint8_t channel_array[16];
 	xSensorMessage sSensorMsg;
+	sDevice * pDev;
 
 	xLastWakeTime = xTaskGetTickCount();
 
@@ -957,113 +885,125 @@ static void prvCheckSensorMRTask( void *pvParameters )
 		RTC_t rtc;
 		rtc_gettime(&rtc);
 
-					for (j = 0; j < all_devs_counter; j++) {
-// select middle rate group:
-//							if (devArray[j]->pGroup->ucDevRate == device_RATE_MID) {
-							ut = devArray[j]->ucType;
-							sSensorMsg.pDev = devArray[j];
-							switch (ut) {
+		for (j = 1; j <= all_devs_counter; j++) {
+			pDev = getDevByNo(j);
+			if (pDev) {
+				ut = pDev->ucType;
+				sSensorMsg.pDev = pDev;
+				switch (ut) {
 
 #ifdef  M_DS18B20
-							case device_TYPE_DS18B20:
-								if (devArray[j]->pDevStruct) {
+				case device_TYPE_DS18B20:
+					if (pDev->pDevStruct) {
 // check ds18b20 conversation status on this line (it's make only for one (first) device - if set for this group, than skip):
-									if (flag18b20_conv != devArray[j]->pGroup->uiGroup) {
-										res = ds_start_convert_all(devArray[j]->pGroup, devArray, j);     // start temperature measuring
-										flag18b20_conv = devArray[j]->pGroup->uiGroup;
-									}
+						if (flag18b20_conv != pDev->pGroup->uiGroup) {
+							res = ds_start_convert_all(pDev->pGroup, j);     // start temperature measuring
+							flag18b20_conv = pDev->pGroup->uiGroup;
+						}
 // if value changed send message into Sensors queue for next processing:
-									if (
-											abs(((ds18b20_device*) devArray[j]->pDevStruct)->iDevValue -
-													((ds18b20_device*) devArray[j]->pDevStruct)->nDevPrevValue) >= devArray[j]->uiDeltaValue
-											) {
-										sSensorMsg.nDevCmd = 0;
-										res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+						if (abs(
+								((ds18b20_device*) pDev->pDevStruct)->iDevValue
+										- ((ds18b20_device*) pDev->pDevStruct)->nDevPrevValue)
+								>= pDev->uiDeltaValue) {
+							sSensorMsg.nDevCmd = 0;
+							res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
 //										res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
-										if (!res) {
-											debugMsg("\r\nError sending into Sensors Queue!");
-										}
-									}
-								}
-								break;
+							if (!res) {
+								xprintfMsg(
+										"\r\nError sending into Sensors Queue!");
+							}
+						}
+					}
+					break;
 #endif
 
 #ifdef  M_DHT
-							case device_TYPE_DHT22:
-								if (devArray[j]->pDevStruct) {
+				case device_TYPE_DHT22:
+					if (pDev->pDevStruct) {
 //									taskENTER_CRITICAL(); {
-										res = dht_get_data (devArray[j]);
+						res = dht_get_data(pDev);
 //									} taskEXIT_CRITICAL();
-									if (
-											(abs(((DHT_data_t*) devArray[j]->pDevStruct)->humidity -
-													((DHT_data_t*) devArray[j]->pDevStruct)->nPrevHumidity) >=
-													((DHT_data_t*) devArray[j]->pDevStruct)->uiDeltaHumidity))
-										{
-											sSensorMsg.nDevCmd = 1;
-											res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
-										}
-									if (abs(((DHT_data_t*) devArray[j]->pDevStruct)->temperature -
-												((DHT_data_t*) devArray[j]->pDevStruct)->nPrevTemperature) >= devArray[j]->uiDeltaValue)
-										{
-											sSensorMsg.nDevCmd = 0;
-											res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+						if ((abs(
+								((DHT_data_t*) pDev->pDevStruct)->humidity
+										- ((DHT_data_t*) pDev->pDevStruct)->nPrevHumidity)
+								>= ((DHT_data_t*) pDev->pDevStruct)->uiDeltaHumidity)) {
+							sSensorMsg.nDevCmd = 1;
+							res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+						}
+						if (abs(
+								((DHT_data_t*) pDev->pDevStruct)->temperature
+										- ((DHT_data_t*) pDev->pDevStruct)->nPrevTemperature)
+								>= pDev->uiDeltaValue) {
+							sSensorMsg.nDevCmd = 0;
+							res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
 //											res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
-										}
-								}
-								break;
+						}
+					}
+					break;
 #endif
 #ifdef  M_BMP180
-							case device_TYPE_BMP180:
-								if (devArray[j]->pDevStruct) {
-									res = bmp180_get_data (devArray[j]);
-									if (abs(((BMP180_data_t*) devArray[j]->pDevStruct)->iTemperature -
-											((BMP180_data_t*) devArray[j]->pDevStruct)->iPrevTemperature) >= devArray[j]->uiDeltaValue)
-										{
-											sSensorMsg.nDevCmd = 0;
-											res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+				case device_TYPE_BMP180:
+					if (pDev->pDevStruct) {
+						res = bmp180_get_data(pDev);
+						if (abs(
+								((BMP180_data_t*) pDev->pDevStruct)->iTemperature
+										- ((BMP180_data_t*) pDev->pDevStruct)->iPrevTemperature)
+								>= pDev->uiDeltaValue) {
+							sSensorMsg.nDevCmd = 0;
+							res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
 
-										}
-									if  (abs(((BMP180_data_t*) devArray[j]->pDevStruct)->uiPressure -
-												((BMP180_data_t*) devArray[j]->pDevStruct)->uiPrevPressure) >=
-											((BMP180_data_t*) devArray[j]->pDevStruct)->uiDeltaPressure)
-										{
-											sSensorMsg.nDevCmd = 1;
-											res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
-										}
-								}
-								break;
+						}
+						if (abs(
+								((BMP180_data_t*) pDev->pDevStruct)->uiPressure
+										- ((BMP180_data_t*) pDev->pDevStruct)->uiPrevPressure)
+								>= ((BMP180_data_t*) pDev->pDevStruct)->uiDeltaPressure) {
+							sSensorMsg.nDevCmd = 1;
+							res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+						}
+					}
+					break;
 #endif
-							case device_TYPE_BB1BIT_IO_AI:
-								if (devArray[j]->pDevStruct) {
-								// ADC calculation:
-									adc_set_regular_sequence(ADC1, devArray[j]->pGroup->iDevQty, ((sADC_data_t*)devArray[j]->pDevStruct)->nChannelArray);
-									adc_start_conversion_direct(ADC1);
+				case device_TYPE_BB1BIT_IO_AI:
+					if (pDev->pDevStruct) {
+						// ADC calculation:
+						adc_set_regular_sequence(ADC1, pDev->pGroup->iDevQty,
+								((sADC_data_t*) pDev->pDevStruct)->nChannelArray);
+						adc_start_conversion_direct(ADC1);
 //								adc_start_conversion_regular(ADC1);
 //								while (!adc_eoc(ADC1));
 //								nADCch_counter = 0;
-									devArray[j]->nFlag &= 0b11111110;
+						pDev->nFlag &= 0b11111110;
 
-									for (uint8_t nch=0; nch < devArray[j]->pGroup->iDevQty; nch++) {
-										uint16_t nTmpValue;
-										adc_set_regular_sequence(ADC1, 1, ((((sADC_data_t*)devArray[j]->pDevStruct)->nChannelArray)+nch));
-										adc_start_conversion_direct(ADC1);
-										while (!adc_eoc(ADC1));
+						for (uint8_t nch = 0; nch < pDev->pGroup->iDevQty;
+								nch++) {
+							uint16_t nTmpValue;
+							adc_set_regular_sequence(ADC1, 1,
+									((((sADC_data_t*) pDev->pDevStruct)->nChannelArray)
+											+ nch));
+							adc_start_conversion_direct(ADC1);
+							while (!adc_eoc(ADC1))
+								;
 //									nADCch_counter = 0;
-										nTmpValue = ((sADC_data_t*)devArray[j]->pDevStruct)->nADCValueArray[nch];
-										((sADC_data_t*)devArray[j]->pDevStruct)->nADCValueArray[nch] = adc_read_regular(ADC1);
-										if (abs(nTmpValue - ((sADC_data_t*)devArray[j]->pDevStruct)->nADCValueArray[nch]) >= devArray[j]->uiDeltaValue) {
-											devArray[j]->nFlag |= 0b00000001; // value is changed
-											sSensorMsg.nDevCmd = nch;
-											res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
-										}
-									//((sADC_data_t*)devArray[j]->pDevStruct)->uiLastUpdate = rtc_get_counter_val();
-										devArray[j]->uiLastUpdate = rtc_get_counter_val();
-									}
+							nTmpValue =
+									((sADC_data_t*) pDev->pDevStruct)->nADCValueArray[nch];
+							((sADC_data_t*) pDev->pDevStruct)->nADCValueArray[nch] =
+									adc_read_regular(ADC1);
+							if (abs(
+									nTmpValue
+											- ((sADC_data_t*) pDev->pDevStruct)->nADCValueArray[nch])
+									>= pDev->uiDeltaValue) {
+								pDev->nFlag |= 0b00000001; // value is changed
+								sSensorMsg.nDevCmd = nch;
+								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+							}
+							//((sADC_data_t*)devArray[j]->pDevStruct)->uiLastUpdate = rtc_get_counter_val();
+							pDev->uiLastUpdate = rtc_get_counter_val();
+						}
 //									if (devArray[j]->nFlag && 0b00000001) {
 //										res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
 //									}
-								}
-								break;
+					}
+					break;
 //							case device_TYPE_BB1BIT_IO_PP:
 //							case device_TYPE_BB1BIT_IO_OD:
 //								res = (int8_t) bb_read_wire_data_bit(&devArray[j]->pGroup->GrpDev);
@@ -1072,8 +1012,9 @@ static void prvCheckSensorMRTask( void *pvParameters )
 //									xQueueSend(xSensorsQueue, (void*)&devArray[j], portMAX_DELAY);
 //								}
 //								break;
-							}
+				}
 //					}
+			}
 		}
 		taskYIELD();
 		vTaskDelayUntil(&xLastWakeTime, mainSensorRateMR);
@@ -1081,48 +1022,50 @@ static void prvCheckSensorMRTask( void *pvParameters )
 }
 
 /* The process High Rate sensors data task. */
-static void prvCheckSensorHRTask( void *pvParameters )
-{
-	( void ) pvParameters;
+static void prvCheckSensorHRTask(void *pvParameters) {
+	(void) pvParameters;
 	uint8_t res, ut;
 	uint16_t j;
 	xSensorMessage sSensorMsg;
-	while (1) {
-					for (j = 0; j <= all_devs_counter; j++) {
-// select hi rate group:
-//							if (devArray[j]->pGroup->ucDevRate == device_RATE_HI) {
-							ut = devArray[j]->ucType;
-							switch (ut) {
-							case device_TYPE_BB1BIT_IO_INPUT:
-								res = (int8_t) bb_read_wire_data_bit(&devArray[j]->pGroup->GrpDev);
-								if (res != devArray[j]->nLastPinValue) {
-									devArray[j]->nLastPinValue = res;
-									devArray[j]->uiLastUpdate = rtc_get_counter_val();
+	sDevice * pDev;
 
-									// res = scanDevActions (devArray[j]);
-									// xQueueSend(xSensorsQueue, &devArray[j], 0);
-									sSensorMsg.nDevCmd = 0;
-									sSensorMsg.pDev = devArray[j];
-									xQueueSendToFront(xSensorsQueue, &sSensorMsg, 0); // send to head of queue!
+	while (1) {
+		for (j = 1; j <= all_devs_counter; j++) {
+			if (pDev) {
+				pDev = getDevByNo(j);
+				ut = pDev->ucType;
+				switch (ut) {
+				case device_TYPE_BB1BIT_IO_INPUT:
+					res = (int8_t) bb_read_wire_data_bit(&pDev->pGroup->GrpDev);
+					if (res != pDev->nLastPinValue) {
+						pDev->nLastPinValue = res;
+						pDev->uiLastUpdate = rtc_get_counter_val();
+
+						// res = scanDevActions (devArray[j]);
+						// xQueueSend(xSensorsQueue, &devArray[j], 0);
+						sSensorMsg.nDevCmd = 0;
+						sSensorMsg.pDev = pDev;
+						xQueueSendToFront(xSensorsQueue, &sSensorMsg, 0); // send to head of queue!
 //									xQueueSendToFront(xSensorsQueue, &devArray[j], 0); // send to head of queue!
-								}
-								break;
-								/*
-							case device_TYPE_STEPMOTOR:
-								if (getMainTimerTick() > (((stepmotor_data_t*) (devArray[j]->pDevStruct))->uiLastTick) +
-										((stepmotor_data_t*) (devArray[j]->pDevStruct))->uiStepTime) {
-									StepMotorNextStep(devArray[j]);
-								}
-								break;
-								*/
-							case device_TYPE_BB1BIT_IO_PP:
-							case device_TYPE_BB1BIT_IO_OD:
-								break;
-							}
-//					}
 					}
+					break;
+					/*
+					 case device_TYPE_STEPMOTOR:
+					 if (getMainTimerTick() > (((stepmotor_data_t*) (devArray[j]->pDevStruct))->uiLastTick) +
+					 ((stepmotor_data_t*) (devArray[j]->pDevStruct))->uiStepTime) {
+					 StepMotorNextStep(devArray[j]);
+					 }
+					 break;
+					 */
+				case device_TYPE_BB1BIT_IO_PP:
+				case device_TYPE_BB1BIT_IO_OD:
+					break;
+				}
+//					}
+			}
+		}
 //		taskYIELD();
-		vTaskDelay(mainSensorRateHR );
+		vTaskDelay(mainSensorRateHR);
 	}
 }
 
@@ -1152,14 +1095,14 @@ static void prvCronFunc( void *pvParameters )
 			xSSNPDU.state = SSN_STATE_ERROR;
 			vPortFree(xSSNPDU.buffer);
 			//sendBaseOut("\r\nSSN receive data timeout error!");
-			debugMsg("\r\nSSN receive data timeout error!");
+			xprintfMsg("\r\nSSN receive data timeout error!");
 		}
 
 #ifdef  WATCHDOG
 		iwdg_reset();	// reset watchdog timer
 #endif
 
-		sDevice* pDev = devArray[0]; // get virtual time device
+		sDevice* pDev = getDevByNo(0); // get virtual time device
 		// scan thru actions with time events:
 		scanDevActions (pDev);
 		uiCurrentTick = rtc_get_counter_val();
@@ -1338,7 +1281,7 @@ uint16_t calcCRC;
 							}
 							if (!xSSNPDU.buffer) {
 								xSSNPDU.state = SSN_STATE_ERROR;
-								debugMsg("\r\nSSN buffer allocation error!");
+								xprintfMsg("\r\nSSN buffer allocation error!");
 								nScanCnt = 0;
 								break;
 							} else {
@@ -1367,10 +1310,7 @@ uint16_t calcCRC;
 								vSendInputMessage (1, xSSNPDU.obj_dest, xSSNPDU.message_type, xSSNPDU.obj_src, 0, 0, (void*) xSSNPDU.buffer, xSSNPDU.nDataSize,0);
 							} else {
 								xSSNPDU.state = SSN_STATE_ERROR;
-								xsprintf(cTmpBuf, "\r\nSSN data CRC error! (calc=%04x, msg=%04x)", calcCRC, xSSNPDU.crc16);
-								//sendBaseOut(cTmpBuf);
-								debugMsg(cTmpBuf);
-	//							sendBaseOut(xSSNPDU.buffer);
+								xprintfMsg("\r\nSSN data CRC error! (calc=%04x, msg=%04x)", calcCRC, xSSNPDU.crc16);
 								vPortFree(xSSNPDU.buffer);
 								nScanCnt = 0;
 							}
@@ -1579,7 +1519,7 @@ static void prvDebugStatTask(void* pParam)
 	(void) pParam;
 	while (1) {
 
-			sendBaseOut("\r\n\r\nTaskStat info: \r\nName	State	Priority	Stack	Num\r\n");
+			xprintfMsg("\r\n\r\nTaskStat info: \r\nName	State	Priority	Stack	Num\r\n");
 			vTaskList((char*)&cDebugBuf);
 			sendBaseOut(cDebugBuf);
 			taskYIELD();

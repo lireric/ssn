@@ -31,31 +31,44 @@
 #include "FreeRTOS.h"
 #include "../inc/ssn.h"
 
-BMP180_data_t* bmp180_device_init(sDevice *pDev, uint8_t nAddr) {
+BMP180_data_t* bmp180DeviceInitStruct()
+{
+	BMP180_data_t* pBMP180Dev = NULL;
+
+	pBMP180Dev = (BMP180_data_t*) pvPortMalloc(sizeof(BMP180_data_t));
+	return pBMP180Dev;
+}
+
+
+BMP180_data_t* bmp180DeviceInit(sDevice *pDev) {
 	BMP180_data_t* pBMP180Dev = NULL;
 	sGrpDev* pGrpDev = &pDev->pGroup->GrpDev;
 	int32_t nRes;
 	uint8_t buf[22];
+	if (!pGrpDev->pPort || !pGrpDev->pTimer)
+		goto bmp180InitEnd; // error
 
 //	owi_device_init_i2c(pGrpDev);
 	soft_i2c_init(pGrpDev);
 
-	nRes = soft_i2c_ReadBufferAddress(pGrpDev, nAddr, BMP180_REG_CHIP_ID, buf, 1); // read chip id. it must be 0x55
+	nRes = soft_i2c_ReadBufferAddress(pGrpDev, pBMP180Dev->I2C_Addr, BMP180_REG_CHIP_ID, buf, 1); // read chip id. it must be 0x55
 
 	if (nRes && (buf[0] == 0x55)) {
 		buf[0] = BMP180_SOFT_RESET_CMD;
 		nRes = soft_i2c_WriteBufferAddress(pGrpDev, pBMP180Dev->I2C_Addr, BMP180_REG_SOFT_RESET, buf, 1); // reset
 		delay_ms(pGrpDev, 10);
 
-		nRes = soft_i2c_ReadBufferAddress(pGrpDev, nAddr, BMP180_REG_AC1_H, buf, 22);
+		nRes = soft_i2c_ReadBufferAddress(pGrpDev, pBMP180Dev->I2C_Addr, BMP180_REG_AC1_H, buf, 22);
 
 
 		if (nRes) {
-			pBMP180Dev = (BMP180_data_t*) pvPortMalloc(sizeof(BMP180_data_t));
-			pDev->pDevStruct = (void*) pBMP180Dev;
+//			pBMP180Dev = (BMP180_data_t*) pvPortMalloc(sizeof(BMP180_data_t));
+//			pDev->pDevStruct = (void*) pBMP180Dev;
+			pBMP180Dev = (BMP180_data_t*)pDev->pDevStruct;
+
 			if (pBMP180Dev) {
 
-				((BMP180_data_t*) pDev->pDevStruct)->I2C_Addr =	nAddr;
+//				((BMP180_data_t*) pDev->pDevStruct)->I2C_Addr =	nAddr;
 
 				pBMP180Dev->AC1 = (buf[0] << 8) | buf[1];
 				pBMP180Dev->AC2 = (buf[2] << 8) | buf[3];
@@ -77,6 +90,7 @@ BMP180_data_t* bmp180_device_init(sDevice *pDev, uint8_t nAddr) {
 			}
 		}
 	}
+	bmp180InitEnd:
 	return pBMP180Dev;
 
 }
