@@ -26,7 +26,6 @@
  */
 
 #include "device.h"
-//#include "bb_device.h"
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/timer.h>
 #include "soft_i2c.h"
@@ -354,7 +353,6 @@ uint32_t soft_i2c_ReadBuffer (sGrpDev* pGrpDev, uint8_t chipAddress, uint8_t *bu
 uint32_t soft_i2c_ReadBufferAddress (sGrpDev* pGrpDev, uint8_t chipAddress, uint8_t registerAddress, uint8_t *buffer, uint32_t sizeOfBuffer)
 {
 
-//	return soft_i2c_read_ex2(pGrpDev, chipAddress, registerAddress, buffer, sizeOfBuffer);
 
     if ( !soft_i2c_start(pGrpDev) ) {
     	// try once more
@@ -402,7 +400,8 @@ uint32_t soft_i2c_ReadBufferAddress (sGrpDev* pGrpDev, uint8_t chipAddress, uint
 
 uint32_t soft_i2c_ReadBufferAddress16 (sGrpDev* pGrpDev, uint8_t chipAddress, uint16_t registerAddress, uint8_t *buffer, uint32_t sizeOfBuffer)
 {
-	if ( !soft_i2c_start(pGrpDev) ) {
+
+    if ( !soft_i2c_start(pGrpDev) ) {
     	// try once more
     	soft_i2c_reset(pGrpDev);
     	if ( !soft_i2c_start(pGrpDev) )
@@ -418,10 +417,11 @@ uint32_t soft_i2c_ReadBufferAddress16 (sGrpDev* pGrpDev, uint8_t chipAddress, ui
     // 16 bit address:
     soft_i2c_PutByte(pGrpDev, (registerAddress >> 8) & 0xff);
     if ( !soft_i2c_WaitAck(pGrpDev) ) {
-    	soft_i2c_stop(pGrpDev);
-        return pdFALSE;
+        	soft_i2c_stop(pGrpDev);
+            return pdFALSE;
     }
-    soft_i2c_PutByte(pGrpDev, registerAddress & 0xff);
+
+   	soft_i2c_PutByte(pGrpDev, registerAddress & 0xff);
     if ( !soft_i2c_WaitAck(pGrpDev) ) {
     	soft_i2c_stop(pGrpDev);
         return pdFALSE;
@@ -446,11 +446,13 @@ uint32_t soft_i2c_ReadBufferAddress16 (sGrpDev* pGrpDev, uint8_t chipAddress, ui
         	soft_i2c_NoAck(pGrpDev);
             break;
         }
-        else
+       else
         	soft_i2c_ack(pGrpDev);
     }
     soft_i2c_stop(pGrpDev);
     return pdTRUE;
+
+
 }
 
 int soft_i2c_WriteBuffer (sGrpDev* pGrpDev,  uint8_t chipAddress, uint8_t *buffer, uint32_t sizeOfBuffer )
@@ -485,9 +487,6 @@ int soft_i2c_WriteBuffer (sGrpDev* pGrpDev,  uint8_t chipAddress, uint8_t *buffe
 
 int soft_i2c_WriteBufferAddress (sGrpDev* pGrpDev,  uint8_t chipAddress,  uint8_t registerAddress, uint8_t *buffer, uint32_t sizeOfBuffer )
 {
-	return soft_i2c_send_ex2(pGrpDev, chipAddress, registerAddress, buffer, sizeOfBuffer);
-
-/*
     if ( !soft_i2c_start(pGrpDev) ) {
     	// try once more
     	soft_i2c_reset(pGrpDev);
@@ -500,68 +499,12 @@ int soft_i2c_WriteBufferAddress (sGrpDev* pGrpDev,  uint8_t chipAddress,  uint8_
     	soft_i2c_stop(pGrpDev);
         return pdFALSE;
     }
-    soft_i2c_PutByte(pGrpDev, registerAddress );
-    if ( !soft_i2c_WaitAck(pGrpDev) ) {
-    	soft_i2c_stop(pGrpDev);
-        return pdFALSE;
-    }
-
-//	if ( !soft_i2c_start(pGrpDev) )
-//		return pdFALSE;
-
-	soft_i2c_PutByte(pGrpDev, chipAddress );
-    if ( !soft_i2c_WaitAck(pGrpDev) ) {
-    	soft_i2c_stop(pGrpDev);
-        return pdFALSE;
-    }
-
-    uint32_t nCnt = sizeOfBuffer;
-    while ( nCnt > 0 ) {
-    	soft_i2c_PutByte(pGrpDev, *buffer );
+        // 8 bit address:
+        soft_i2c_PutByte(pGrpDev, registerAddress & 0xff);
         if ( !soft_i2c_WaitAck(pGrpDev) ) {
         	soft_i2c_stop(pGrpDev);
             return pdFALSE;
         }
-
-        buffer++;
-        nCnt--;
-    }
-    soft_i2c_stop(pGrpDev);
-    return pdTRUE;*/
-}
-
-int soft_i2c_WriteBufferAddress16 (sGrpDev* pGrpDev,  uint8_t chipAddress,  uint16_t registerAddress, uint8_t *buffer, uint32_t sizeOfBuffer )
-{
-    if ( !soft_i2c_start(pGrpDev) ) {
-    	// try once more
-    	soft_i2c_reset(pGrpDev);
-    	if ( !soft_i2c_start(pGrpDev) )
-    		return pdFALSE;
-    }
-
-    soft_i2c_PutByte(pGrpDev, chipAddress );
-    if ( !soft_i2c_WaitAck(pGrpDev) ) {
-    	soft_i2c_stop(pGrpDev);
-        return pdFALSE;
-    }
-
-    // 16 bit address:
-    soft_i2c_PutByte(pGrpDev, (registerAddress >> 8) & 0xff);
-    if ( !soft_i2c_WaitAck(pGrpDev) ) {
-    	soft_i2c_stop(pGrpDev);
-        return pdFALSE;
-    }
-    soft_i2c_PutByte(pGrpDev, registerAddress & 0xff);
-    if ( !soft_i2c_WaitAck(pGrpDev) ) {
-    	soft_i2c_stop(pGrpDev);
-        return pdFALSE;
-    }
-
-	soft_i2c_PutByte(pGrpDev, chipAddress );
-    if ( !soft_i2c_WaitAck(pGrpDev) ) {
-    	soft_i2c_stop(pGrpDev);
-        return pdFALSE;
-    }
 
     uint32_t nCnt = sizeOfBuffer;
     while ( nCnt != 0 ) {
@@ -578,380 +521,46 @@ int soft_i2c_WriteBufferAddress16 (sGrpDev* pGrpDev,  uint8_t chipAddress,  uint
     return pdTRUE;
 }
 
-// -----------------------
-//
-//uint8_t soft_i2c_write (sGrpDev* pGrpDev, uint8_t data)
-//{
-//	uint8_t db = 0x80;
-//	uint8_t i;
-//	for (i = 0; i < 8; i++) {
-//		if (data & db) {
-//			bb_set_wire(pGrpDev);	// SETSDA
-//		} else {
-//			bb_clear_wire(pGrpDev); //  SDA_LOW
-//		}
-//		soft_i2c_clock(pGrpDev);
-//		db >>= 1;
-//	}
-//
-//	/* get ACK */
-//	bb_set_wire(pGrpDev);			// SETSDA
-//	return soft_i2c_clock(pGrpDev);
-//}
-//
-////inline static
-//uint8_t soft_i2c_read(sGrpDev* pGrpDev, uint8_t ack )
-//	{
-//		uint8_t rb = 0;
-//		uint8_t db = 0x80;
-//		uint8_t i;
-//		for (i = 0; i < 8; i++) {
-//			if (soft_i2c_clock(pGrpDev))
-//				rb |= db;
-//			db >>= 1;
-//		}
-//
-//		if (ack == I2CSWM_ACK) {
-//			/* send ACK */
-//			bb_clear_wire(pGrpDev); //  SDA_LOW
-//			soft_i2c_clock(pGrpDev);
-//			bb_set_wire(pGrpDev);	// SETSDA
-//		} else {
-//			/* send NACK */
-//			bb_set_wire(pGrpDev);	// SETSDA
-//			soft_i2c_clock(pGrpDev);
-//		}
-//		return rb;
-//	}
-//
-//
-//int soft_i2c_read_ex(sGrpDev* pGrpDev, const uint16_t saddr,
-//			uint8_t* lpdata1, uint32_t size1, uint8_t* lpdata2, uint32_t size2)
-//{
-//		soft_i2c_start(pGrpDev);
-//		if (lpdata1 != NULL) {
-//			if (soft_i2c_write(pGrpDev, saddr | I2CSWM_DIRECTION_TX)
-//					== I2CSWM_NACK) {
-//				soft_i2c_stop(pGrpDev);
-//				return 0;
-//			}
-//
-//			int i;
-//			for (i = 0; i < size1; i++) {
-//				if (soft_i2c_write(pGrpDev, *lpdata1++) == I2CSWM_NACK) {
-//					soft_i2c_stop(pGrpDev);
-//					return 0;
-//				}
-//			}
-//			soft_i2c_start(pGrpDev);
-//		}
-//
-//		if (lpdata2 != NULL) {
-//			if (soft_i2c_write(pGrpDev, saddr | I2CSWM_DIRECTION_RX)
-//					== I2CSWM_NACK) {
-//				soft_i2c_stop(pGrpDev);
-//				return 0;
-//			}
-//			bb_set_wire_SCL(pGrpDev);	// SETSCL
-//			int i;
-//			for (i = 1; i < size2; i++) {
-//				*lpdata2 = soft_i2c_read(pGrpDev, I2CSWM_ACK);
-//				lpdata2++;
-//			}
-//			*lpdata2 = soft_i2c_read(pGrpDev, I2CSWM_NACK);
-//			lpdata2++;
-//		}
-//		soft_i2c_stop(pGrpDev);
-//		return 1;
-//}
-//
-//int soft_i2c_send_ex(sGrpDev* pGrpDev, const uint16_t saddr, uint8_t* lpdata1, uint32_t size1, uint8_t* lpdata2, uint32_t size2)
-//{
-//		soft_i2c_start(pGrpDev);
-//		if (lpdata1 != NULL) {
-//			if (soft_i2c_write(pGrpDev, saddr | I2CSWM_DIRECTION_TX)
-//					== I2CSWM_NACK) {
-//				soft_i2c_stop(pGrpDev);
-//				return 0;
-//			}
-//
-//			int i;
-//			for (i = 0; i < size1; i++) {
-//				if (soft_i2c_write(pGrpDev, *lpdata1++) == I2CSWM_NACK) {
-//					soft_i2c_stop(pGrpDev);
-//					return 0;
-//				}
-//			}
-//		}
-//
-//		if (lpdata2 != NULL) {
-//
-//			int i;
-//			for (i = 0; i < size2; i++) {
-//				if (soft_i2c_write(pGrpDev, *lpdata2++) == I2CSWM_NACK) {
-//					soft_i2c_stop(pGrpDev);
-//					return 0;
-//				}
-//			}
-//		}
-//		soft_i2c_stop(pGrpDev);
-//		return 1;
-//}
-//
-//int soft_i2c_send_ex2(sGrpDev* pGrpDev, const uint16_t saddr, uint16_t lpdata1, uint8_t* lpdata2, uint32_t size2)
-//{
-//		soft_i2c_start(pGrpDev);
-//			if (soft_i2c_write(pGrpDev, saddr | I2CSWM_DIRECTION_TX)
-//					== I2CSWM_NACK) {
-//				soft_i2c_stop(pGrpDev);
-//				return 0;
-//			}
-//
-//			if (soft_i2c_write(pGrpDev, (lpdata1 >> 8) & 0xff) == I2CSWM_NACK) {
-//					soft_i2c_stop(pGrpDev);
-//					return 0;
-//				} else {
-//					if (soft_i2c_write(pGrpDev, (lpdata1  & 0xff)) == I2CSWM_NACK) {
-//						soft_i2c_stop(pGrpDev);
-//						return 0;
-//					}
-//				}
-//
-//		if (lpdata2 != NULL) {
-//
-//			int i;
-//			for (i = 0; i < size2; i++) {
-//				if (soft_i2c_write(pGrpDev, *lpdata2++) == I2CSWM_NACK) {
-//					soft_i2c_stop(pGrpDev);
-//					return 0;
-//				}
-//			}
-//		}
-//		soft_i2c_stop(pGrpDev);
-//		return 1;
-//}
-//
-//int soft_i2c_read_ex2(sGrpDev* pGrpDev, const uint16_t saddr, uint16_t lpdata1, uint8_t* lpdata2, uint32_t size2)
-//{
-//		soft_i2c_start(pGrpDev);
-//			if (soft_i2c_write(pGrpDev, saddr | I2CSWM_DIRECTION_TX)
-//					== I2CSWM_NACK) {
-//				soft_i2c_stop(pGrpDev);
-//				return 0;
-//			}
-//
-//			if (soft_i2c_write(pGrpDev, (lpdata1 >> 8) & 0xff) == I2CSWM_NACK) {
-//					soft_i2c_stop(pGrpDev);
-//					return 0;
-//				} else {
-//					if (soft_i2c_write(pGrpDev, (lpdata1  & 0xff)) == I2CSWM_NACK) {
-//						soft_i2c_stop(pGrpDev);
-//						return 0;
-//					}
-//				}
-//
-//
-//			soft_i2c_start(pGrpDev);
-//
-//		if (lpdata2 != NULL) {
-//			if (soft_i2c_write(pGrpDev, saddr | I2CSWM_DIRECTION_RX) == I2CSWM_NACK) {
-//				soft_i2c_stop(pGrpDev);
-//				return 0;
-//			}
-//			bb_set_wire_SCL(pGrpDev);	// SETSCL
-//			int i;
-//			for (i = 1; i < size2; i++) {
-//				*lpdata2 = soft_i2c_read(pGrpDev, I2CSWM_ACK);
-//				lpdata2++;
-//			}
-//			*lpdata2 = soft_i2c_read(pGrpDev, I2CSWM_NACK);
-//			lpdata2++;
-//		}
-//		soft_i2c_stop(pGrpDev);
-//		return 1;
-//}
-//
-///*
-// * read registers (use 1 byte address)
-// */
-//int soft_i2c_read_ex8(sGrpDev* pGrpDev, const uint8_t saddr, uint8_t lpdata1, uint8_t* lpdata2, uint32_t size2)
-//{
-//		soft_i2c_start(pGrpDev);
-//			if (soft_i2c_write(pGrpDev, saddr | I2CSWM_DIRECTION_TX) == I2CSWM_NACK) {
-//				soft_i2c_stop(pGrpDev);
-//				return 0;
-//			}
-//
-//			if (soft_i2c_write(pGrpDev, lpdata1) == I2CSWM_NACK) {
-//				soft_i2c_stop(pGrpDev);
-//				return 0;
-//			}
-//			soft_i2c_start(pGrpDev);
-//
-//		if (lpdata2 != NULL) {
-//			if (soft_i2c_write(pGrpDev, saddr | I2CSWM_DIRECTION_RX) == I2CSWM_NACK) {
-//				soft_i2c_stop(pGrpDev);
-//				return 0;
-//			}
-//			bb_set_wire_SCL(pGrpDev);	// SETSCL
-//			int i;
-//			for (i = 1; i < size2; i++) {
-//				*lpdata2 = soft_i2c_read(pGrpDev, I2CSWM_ACK);
-//				lpdata2++;
-//			}
-//			*lpdata2 = soft_i2c_read(pGrpDev, I2CSWM_NACK);
-//			lpdata2++;
-//		}
-//		soft_i2c_stop(pGrpDev);
-//		return 1;
-//}
-
-int soft_i2c_read_ex(sGrpDev* pGrpDev, const uint16_t saddr,
-			uint8_t* lpdata1, uint32_t size1, uint8_t* lpdata2, uint32_t size2)
+int soft_i2c_WriteBufferAddress16 (sGrpDev* pGrpDev,  uint8_t chipAddress,  uint16_t registerAddress, uint8_t *buffer, uint32_t sizeOfBuffer )
 {
-		soft_i2c_start(pGrpDev);
-		if (lpdata1 != NULL) {
-			if (soft_i2c_write(pGrpDev, saddr | I2CSWM_DIRECTION_TX)
-					== I2CSWM_NACK) {
-				soft_i2c_stop(pGrpDev);
-				return 0;
-			}
+    if ( !soft_i2c_start(pGrpDev) ) {
+    	// try once more
+    	soft_i2c_reset(pGrpDev);
+    	if ( !soft_i2c_start(pGrpDev) )
+    		return pdFALSE;
+    }
 
-			int i;
-			for (i = 0; i < size1; i++) {
-				if (soft_i2c_write(pGrpDev, *lpdata1++) == I2CSWM_NACK) {
-					soft_i2c_stop(pGrpDev);
-					return 0;
-				}
-			}
-			soft_i2c_start(pGrpDev);
-		}
+    soft_i2c_PutByte(pGrpDev, chipAddress );
+    if ( !soft_i2c_WaitAck(pGrpDev) ) {
+    	soft_i2c_stop(pGrpDev);
+        return pdFALSE;
+    }
+        // 16 bit address:
+        soft_i2c_PutByte(pGrpDev, (registerAddress >> 8) & 0xff);
+        if ( !soft_i2c_WaitAck(pGrpDev) ) {
+            	soft_i2c_stop(pGrpDev);
+                return pdFALSE;
+        }
+        soft_i2c_PutByte(pGrpDev, registerAddress & 0xff);
+        if ( !soft_i2c_WaitAck(pGrpDev) ) {
+        	soft_i2c_stop(pGrpDev);
+            return pdFALSE;
+        }
 
-		if (lpdata2 != NULL) {
-			if (soft_i2c_write(pGrpDev, saddr | I2CSWM_DIRECTION_RX)
-					== I2CSWM_NACK) {
-				soft_i2c_stop(pGrpDev);
-				return 0;
-			}
-		    soft_i2c_set_wire_SCL (pGrpDev);		// SETSCL
-			int i;
-			for (i = 1; i < size2; i++) {
-				*lpdata2 = soft_i2c_read(pGrpDev, I2CSWM_ACK);
-				lpdata2++;
-			}
-			*lpdata2 = soft_i2c_read(pGrpDev, I2CSWM_NACK);
-			lpdata2++;
-		}
-		soft_i2c_stop(pGrpDev);
-		return 1;
+    uint32_t nCnt = sizeOfBuffer;
+    while ( nCnt != 0 ) {
+    	soft_i2c_PutByte(pGrpDev, *buffer );
+        if ( !soft_i2c_WaitAck(pGrpDev) ) {
+        	soft_i2c_stop(pGrpDev);
+            return pdFALSE;
+        }
+
+        buffer++;
+        nCnt--;
+    }
+    soft_i2c_stop(pGrpDev);
+    return pdTRUE;
+
 }
 
-int soft_i2c_send_ex(sGrpDev* pGrpDev, const uint16_t saddr, uint8_t* lpdata1, uint32_t size1, uint8_t* lpdata2, uint32_t size2)
-{
-		soft_i2c_start(pGrpDev);
-		if (lpdata1 != NULL) {
-			if (soft_i2c_write(pGrpDev, saddr | I2CSWM_DIRECTION_TX)
-					== I2CSWM_NACK) {
-				soft_i2c_stop(pGrpDev);
-				return 0;
-			}
-
-			int i;
-			for (i = 0; i < size1; i++) {
-				if (soft_i2c_write(pGrpDev, *lpdata1++) == I2CSWM_NACK) {
-					soft_i2c_stop(pGrpDev);
-					return 0;
-				}
-			}
-		}
-
-		if (lpdata2 != NULL) {
-
-			int i;
-			for (i = 0; i < size2; i++) {
-				if (soft_i2c_write(pGrpDev, *lpdata2++) == I2CSWM_NACK) {
-					soft_i2c_stop(pGrpDev);
-					return 0;
-				}
-			}
-//			delay_nus(pGrpDev, 5000);// delay 5ms for internal EEPROM write operation
-		}
-		soft_i2c_stop(pGrpDev);
-		return 1;
-}
-
-int soft_i2c_send_ex2(sGrpDev* pGrpDev, const uint16_t saddr, uint16_t lpdata1, uint8_t* lpdata2, uint32_t size2)
-{
-		soft_i2c_start(pGrpDev);
-			if (soft_i2c_write(pGrpDev, saddr | I2CSWM_DIRECTION_TX)
-					== I2CSWM_NACK) {
-				soft_i2c_stop(pGrpDev);
-				return 0;
-			}
-
-			if (soft_i2c_write(pGrpDev, (lpdata1 >> 8) & 0xff) == I2CSWM_NACK) {
-					soft_i2c_stop(pGrpDev);
-					return 0;
-				} else {
-					if (soft_i2c_write(pGrpDev, (lpdata1  & 0xff)) == I2CSWM_NACK) {
-						soft_i2c_stop(pGrpDev);
-						return 0;
-					}
-				}
-
-		if (lpdata2 != NULL) {
-
-			int i;
-			for (i = 0; i < size2; i++) {
-				if (soft_i2c_write(pGrpDev, *lpdata2++) == I2CSWM_NACK) {
-					soft_i2c_stop(pGrpDev);
-					return 0;
-				}
-			}
-//			delay_nus(pGrpDev, 5000);// delay 5ms for internal EEPROM write operation
-		}
-		soft_i2c_stop(pGrpDev);
-		return 1;
-}
-
-int soft_i2c_read_ex2(sGrpDev* pGrpDev, const uint16_t saddr, uint16_t lpdata1, uint8_t* lpdata2, uint32_t size2)
-{
-		soft_i2c_start(pGrpDev);
-			if (soft_i2c_write(pGrpDev, saddr | I2CSWM_DIRECTION_TX)
-					== I2CSWM_NACK) {
-				soft_i2c_stop(pGrpDev);
-				return 0;
-			}
-
-			if (soft_i2c_write(pGrpDev, (lpdata1 >> 8) & 0xff) == I2CSWM_NACK) {
-					soft_i2c_stop(pGrpDev);
-					return 0;
-				} else {
-					if (soft_i2c_write(pGrpDev, (lpdata1  & 0xff)) == I2CSWM_NACK) {
-						soft_i2c_stop(pGrpDev);
-						return 0;
-					}
-				}
-
-
-			soft_i2c_start(pGrpDev);
-
-		if (lpdata2 != NULL) {
-			if (soft_i2c_write(pGrpDev, saddr | I2CSWM_DIRECTION_RX)
-					== I2CSWM_NACK) {
-				soft_i2c_stop(pGrpDev);
-				return 0;
-			}
-		    soft_i2c_set_wire_SCL (pGrpDev);		// SETSCL
-			int i;
-			for (i = 1; i < size2; i++) {
-				*lpdata2 = soft_i2c_read(pGrpDev, I2CSWM_ACK);
-				lpdata2++;
-			}
-			*lpdata2 = soft_i2c_read(pGrpDev, I2CSWM_NACK);
-			lpdata2++;
-		}
-		soft_i2c_stop(pGrpDev);
-		return 1;
-}
 

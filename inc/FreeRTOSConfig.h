@@ -87,7 +87,7 @@
 #define configUSE_IDLE_HOOK			1
 #define configUSE_TICK_HOOK			0
 #define configMAX_PRIORITIES		( 4 )
-#define configMINIMAL_STACK_SIZE	( ( unsigned short ) 200 )
+#define configMINIMAL_STACK_SIZE	( ( unsigned short ) 150 )
 #define configMAX_TASK_NAME_LEN		( 16 )
 #define configUSE_16_BIT_TICKS		0
 #define configIDLE_SHOULD_YIELD		1
@@ -112,7 +112,7 @@
 #define configUSE_TIMERS				1
 
 #define configTIMER_TASK_PRIORITY		( tskIDLE_PRIORITY + 3 )
-#define configTIMER_TASK_STACK_DEPTH	( ( unsigned short ) 300 )
+#define configTIMER_TASK_STACK_DEPTH	( ( unsigned short ) 250 )
 #define configTIMER_QUEUE_LENGTH		10
 
 /* Set the following definitions to 1 to include the API function, or zero
@@ -129,7 +129,7 @@ to exclude the API function. */
 #define INCLUDE_pcTaskGetTaskName	1
 
 #define configUSE_TRACE_FACILITY	1
-//#define configUSE_STATS_FORMATTING_FUNCTIONS	1
+#define configUSE_STATS_FORMATTING_FUNCTIONS	1
 
 /* This is the raw value as per the Cortex-M3 NVIC.  Values can be 255
 (lowest) to 0 (1?) (highest). */

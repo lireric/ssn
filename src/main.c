@@ -25,6 +25,7 @@
 #include "../inc/ini.h"
 #include "processor.h"
 #include <stdlib.h>
+#include "dev_memory.h"
 
 const int  __attribute__((used)) uxTopUsedPriority = configMAX_PRIORITIES;
 
@@ -38,7 +39,7 @@ const int  __attribute__((used)) uxTopUsedPriority = configMAX_PRIORITIES;
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2017-11-25:1"
+#define SSN_VERSION "2017-12-13:1"
 
 /* Global variables 			========================================== */
 
@@ -76,12 +77,14 @@ long lComState = pdFAIL;
 uint16_t	uiMC_SSNObject;	// local controller's object number
 uint16_t	uiLog_Object;	// object - receiver log messages
 
-sRoute routeArray[mainMAX_ROUTES];
+sRoute 		routeArray[mainMAX_ROUTES];
 uint8_t 	route_counter = 0;
 
-sDevice 	*uiMemoryDevsArray[mainMEMORY_DEV_MAX_QTY];
-uint8_t 	mem_devs_counter = 0;
-uint32_t 	uiLastSaveMemoryTick = 0;
+//sDevice 	*uiMemoryDevsArray[mainMEMORY_DEV_MAX_QTY];
+//uint8_t 	mem_devs_counter = 0;
+
+uint32_t 	uiLastSaveMemoryTick = 0; // last memory device update timestamp (for regular saving to persistent store)
+
 uint32_t 	uiLastHeartBeatTick = 0;
 uint32_t 	uiLastHeartBeatTS = 0;
 
@@ -397,50 +400,14 @@ int main(void)
 					goto skipLoadPrefs;
 				}
 
+// read preferences:
+res = restorePreferences(&xPrefsBuffer.buffer, &xPrefsBuffer.nBufSize);
 
-
-// first 2 byte in EEPROM consist size of JSON structure with SSN hardware and logic preferences, started from 5 byte
-
-// Read size of recorded JSON or INI:
-#ifdef PERSIST_EEPROM_I2C
-	res = eeprom_read(pGrpDev, EEPROM_ADDRESS, 0, (uint8_t*)&Rx1Buffer, 2);
-#endif
-#ifdef PERSIST_STM32FLASH
-	uint32_t i = STM32FLASH_BEGIN_ADDR;
-	memcpy(&Rx1Buffer, (void*)i, 2);
-//	memcpy(&Rx1Buffer, (void*)STM32FLASH_BEGIN_ADDR, 2);
-	res = pdTRUE;
-#endif
-
-	if (res) {
-		uint16_t nBufSize = Rx1Buffer[0] + (Rx1Buffer[1] << 8);
-		xPrefsBuffer.nBufSize = nBufSize;
-		if (nBufSize < xPortGetFreeHeapSize())
-			xPrefsBuffer.buffer = pvPortMalloc(nBufSize+1);
-
-		if (xPrefsBuffer.buffer) {
-#ifdef PERSIST_EEPROM_I2C
-			res = eeprom_read(pGrpDev, EEPROM_ADDRESS, 4, (uint8_t*) xPrefsBuffer.buffer, nBufSize);
-#endif
-#ifdef PERSIST_STM32FLASH
-			// simply copy into buffer data from flash memory where stored preferences
-			memcpy((void*)xPrefsBuffer.buffer, (void*)(i+4), nBufSize);
-//			memcpy((void*)xPrefsBuffer.buffer, (void*)(STM32FLASH_BEGIN_ADDR+4), nBufSize);
-			res = pdPASS;
-#endif
-			if (res) {
-				xPrefsBuffer.state = JSON_STATE_READY;
-				xPrefsBuffer.counter = nBufSize;
-				xPrefsBuffer.buffer[nBufSize]=0;
-#ifdef PERSIST_STM32FLASH
-				//sendBaseOut("\n\rConfiguration loaded from FLASH");
-				xprintfMsg("\n\rConfiguration loaded from FLASH");
-#else
-				//sendBaseOut("\n\rConfiguration loaded from EEPROM");
-				xprintfMsg("\n\rConfiguration loaded from EEPROM");
-#endif
-//		    	debugMsg((char *) &xPrefsBuffer.buffer);
-				// define format preferences: if first char = "{" than JSON, else INI
+if (res && xPrefsBuffer.buffer) {
+		xPrefsBuffer.state = JSON_STATE_READY;
+		xPrefsBuffer.counter = xPrefsBuffer.nBufSize;
+// begin preferences processing
+// define format preferences: if first char = "{" than JSON, else INI
 				if (xPrefsBuffer.buffer[0] != '{') {
 // INI format
 				    sIniHandlerData xIniHandlerData;
@@ -451,13 +418,13 @@ int main(void)
 				    xIniHandlerData.sLastSection[0] = 0;
 				    buffer_ctx ctx;
 				    ctx.ptr = (char*) xPrefsBuffer.buffer;
-				    ctx.bytes_left = nBufSize;
+				    ctx.bytes_left = xPrefsBuffer.nBufSize;
 				    res = ini_parse_stream((ini_reader)ini_buffer_reader, &ctx, handler, &xIniHandlerData);
 				    if (res != 0) {
 				    	xprintfMsg("\r\nErrors was in INI parsing, last error line: %d\r\n", res);
 				    } else {
-//				    	xprintfMsg("\r\nParsed INI format\r\n");
-				    	res = restoreMemDevs();
+				    	xprintfMsg("\r\nParsed INI format\r\n");
+				    	res = restoreAllMemDevs();
 				    	uiLastSaveMemoryTick = rtc_get_counter_val();
 				    	//res = pdPASS;
 				    }
@@ -466,31 +433,26 @@ int main(void)
 // skip JSON format!!!
 					res = pdFAIL;
 				}
-			}
-
 		res = refreshActions2DeviceCash();
 
 		vPortFree(xPrefsBuffer.buffer);
-		} else {
-			xprintfMsg("\n\rError preferences size info (EEPROM or FLASH)");
-		}
 	} else {
 		//error
-		xprintfMsg("\n\rError reading configuration from EEPROM or FLASH");
+		xprintfMsg("\r\nError reading configuration from EEPROM or FLASH");
 	}
 
 
 skipLoadPrefs:
 // ------------------------------------------------------------------------------
-	xReturn = xTaskCreate( prvBaseOutTask, ( char * ) "BaseOutTask", 300, NULL, mainBASEOUT_TASK_PRIORITY, &pTmpTask );
+	xReturn = xTaskCreate( prvBaseOutTask, ( char * ) "BaseOutTask", 210, NULL, mainBASEOUT_TASK_PRIORITY, &pTmpTask );
 	xBaseOutTaskHnd = (void*) pTmpTask;
-	xReturn = xTaskCreate( prvLogOutTask, ( char * ) "LogOutTask", 420, NULL, mainDEBUG_OUT_TASK_PRIORITY, NULL );
+	xReturn = xTaskCreate( prvLogOutTask, ( char * ) "LogOutTask", 150, NULL, mainDEBUG_OUT_TASK_PRIORITY, NULL );
 
 	xInputQueue = xQueueCreate( mainINPUT_QUEUE_SIZE, sizeof( xInputMessage ) );
 //	xSensorsQueue = xQueueCreate( mainSENSORS_QUEUE_SIZE, sizeof(void*) );
 	xSensorsQueue = xQueueCreate( mainSENSORS_QUEUE_SIZE, sizeof(xSensorMessage) );
 
-	xReturn = xTaskCreate( prvUSARTEchoTask, ( char * ) "Echo", 300, NULL, mainECHO_TASK_PRIORITY, &pTmpTask );
+	xReturn = xTaskCreate( prvUSARTEchoTask, ( char * ) "Echo", 250, NULL, mainECHO_TASK_PRIORITY, &pTmpTask );
 
 	xTimerHandle xTimer;
 (void) xTimer;
@@ -498,12 +460,12 @@ skipLoadPrefs:
 	xTimerStart(xTimer, 0);
 
 #ifdef DEBUG_S
-	xReturn = xTaskCreate( prvDebugStatTask, ( char * ) "Debug_S", 410, NULL, tskIDLE_PRIORITY + 2, &pTmpTask );
+	xReturn = xTaskCreate( prvDebugStatTask, ( char * ) "Debug_S", 210, NULL, tskIDLE_PRIORITY + 2, &pTmpTask );
 #endif
 
 	xReturn = xTaskCreate( prvInputTask, ( char * ) "InputTask", mainINPUT_TASK_STACK, NULL, mainINPUT_TASK_PRIORITY, &pTmpTask );
 
-	xReturn = xTaskCreate( prvCheckSensorMRTask, ( char * ) "CheckSensorMRTask", 400, devArray, mainCHECK_SENSOR_MR_TASK_PRIORITY, &pTmpTask );
+	xReturn = xTaskCreate( prvCheckSensorMRTask, ( char * ) "CheckSensorMRTask", 200, devArray, mainCHECK_SENSOR_MR_TASK_PRIORITY, &pTmpTask );
 	pCheckSensorMRTaskHnd = pTmpTask;
 
 
@@ -1089,7 +1051,7 @@ static void prvCronFunc( void *pvParameters )
 //		rtc_gettime(&rtc);
 
 		// check SSN protocol USART timeout
-		if ((uiMainTick > (xSSNPDU.uiLastTick + SSN_TIMEOUT/10))
+		if ((uiMainTick > (xSSNPDU.uiLastTick + SSN_TIMEOUT/100))
 				&& ((xSSNPDU.state == SSN_STATE_LOADING) || (xSSNPDU.state == SSN_STATE_DATA)))
 		{
 			xSSNPDU.state = SSN_STATE_ERROR;
@@ -1108,15 +1070,7 @@ static void prvCronFunc( void *pvParameters )
 		uiCurrentTick = rtc_get_counter_val();
 		if (uiCurrentTick > (uiLastSaveMemoryTick + mainMEMORY_DEV_SAVE_PERIOD))
 		{
-			for (uint8_t i = 0; i < mem_devs_counter; i++)
-			{
-				if (uiLastSaveMemoryTick > (uiMemoryDevsArray[i]->uiLastUpdate + mainMEMORY_DEV_SAVE_PERIOD))
-				{
-					res = storeMemDevs();
-					uiLastSaveMemoryTick = uiCurrentTick;
-					break;
-				}
-			}
+			res = storeAllMemDevs();
 		}
 
 // heartbeat tick:

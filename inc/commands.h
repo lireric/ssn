@@ -84,8 +84,10 @@ void 		heartBeatSend(uint32_t nCounter, uint32_t nTimestamp);
 void 		log_event (void* poldt, void* pnewt, uint32_t xTickCount);
 void 		log_event2 (char c, void* pt);
 uint16_t 	getCommandsByName(const char* sCmd);
-uint32_t 	storePreferences(char* sBuf, uint16_t nBufSize);
-int32_t 	storeMemDevs();
-int32_t 	restoreMemDevs();
+int32_t 	storePreferences(char* sBuf, uint16_t nBufSize);
+int32_t 	restorePreferences(char** sBuf, uint16_t *nBufSize);
+
+//int32_t 	storeMemDevs();
+//int32_t 	restoreMemDevs();
 
 #endif /* COMMANDS_H_ */

@@ -28,6 +28,7 @@
 #include "commands.h"
 #include "xprintf.h"
 #include <stdarg.h>
+#include "dev_memory.h"
 
 #include "utils.h"
 #ifdef PERSIST_STM32FLASH
@@ -146,7 +147,7 @@ void process_setdatetime(cJSON *json_data)
 	DS1307_time.min = rtc.min;
 	DS1307_time.sec = rtc.sec;
 	RTC_DS1307_adjust(pGrpDev2);
-	xprintfMsg("\n\rSet local & RTC DS1307 date/time from JSON");
+	xprintfMsg("\r\nSet local & RTC DS1307 date/time from JSON");
 
 }
 
@@ -232,21 +233,10 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 		// section "grp" --------------------------------------------
 		// check for new group
 		if (strcmp(pIniHandlerData->sLastSection, sSection) != 0) {
-//			if (grp_counter++ > mainMAX_DEV_GROUPS) {
-//							return pdFAIL;
-//						}
-//			grpArray[grp_counter] = (sGrpInfo*) pvPortMalloc(sizeof(sGrpInfo));
-//			if (!grpArray[grp_counter]) {
-//				return pdFAIL;
-//			}
 			pGrpInfo = newGrpInfo();
 			if (!pGrpInfo) {
 				return pdFAIL;
 			}
-
-//			grpArray[grp_counter]->uiObj = getMC_Object();
-//			grpArray[grp_counter]->iDevQty = 0;
-//			grpArray[grp_counter]->GrpDev.pTimer = 0;
 
 			pGrpInfo->uiObj = getMC_Object();
 			pGrpInfo->iDevQty = 0;
@@ -278,8 +268,6 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 			if (all_devs_counter > mainMAX_ALL_DEVICES) {
 				return pdFAIL;
 			}
-//			devArray[all_devs_counter] = (sDevice*) pvPortMalloc(sizeof(sDevice));
-//			memset (devArray[all_devs_counter],0,sizeof(sDevice)); // reset all device attributes
 			pDev = newDev();
 
 			if (!pDev) {
@@ -373,16 +361,19 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 		else if (pDev->ucType == device_TYPE_MEMORY) {
 			// memory element pseudo device
 			if (strcmp(sName, "e") == 0) {
-				pDev->pGroup->iDevQty = conv2d(sValue);
 				// allocate memory for memory elements array:
-				pDev->pDevStruct = (void*)pvPortMalloc(sizeof(uint32_t)*pDev->pGroup->iDevQty);
-				if (!pDev->pDevStruct) {
+				if (!MemoryDevInitStruct(pDev, conv2d(sValue)))
 					return pdFAIL;
-				}
-				if (mem_devs_counter <= mainMEMORY_DEV_MAX_QTY)
-					uiMemoryDevsArray[mem_devs_counter++]=pDev;
-				else
-					return pdFAIL;
+//				pDev->pGroup->iDevQty = conv2d(sValue);
+//				// allocate memory for memory elements array:
+//				pDev->pDevStruct = (void*)pvPortMalloc(sizeof(uint32_t)*pDev->pGroup->iDevQty);
+//				if (!pDev->pDevStruct) {
+//					return pdFAIL;
+//				}
+//				if (mem_devs_counter <= mainMEMORY_DEV_MAX_QTY)
+//					uiMemoryDevsArray[mem_devs_counter++]=pDev;
+//				else
+//					return pdFAIL;
 			}
 		} else if (pDev->ucType == device_TYPE_PWM) {
 			if (strcmp(sName, "ch") == 0) {
@@ -586,213 +577,68 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 }
 
 
-// store memory device into persistent storage:
-int32_t storeMemDevs()
+// read preferences string from EEPROM or Flash
+int32_t restorePreferences(char** sBuf, uint16_t *nBufSize)
 {
-	int32_t nRes = pdPASS;
-	uint16_t nBufSize = 5; // size(NUMDEVS=1)+size(CRC=2)+size(Addr=2)
-	uint8_t* puiBuf;
-	uint16_t calcCRC;
-	int32_t nValue;
-	int32_t *el;
-	uint16_t nIndex = 0;
-	uint16_t nAddr;
+	int32_t nRes = pdFAIL;
+//	uint8_t Rx1Buffer[4];
+	sPrefsMetaData sPMeta;
+//	sPrefsMetaData **pPMeta = &sPMeta;
 
-	// calculate buffer size:
-	for (uint8_t i = 0; i < mem_devs_counter; i++)
+// first 2 byte in EEPROM consist size of JSON structure with SSN hardware and logic preferences, started from 5 byte
+	nRes =  restorePersistentData(&sPMeta, (uint16_t)4, 0); // read first bytes with preferences string size
+	if (!nRes)
+		goto restorePreferencesEnd;
+
+//	*nBufSize = Rx1Buffer[0] + (Rx1Buffer[1] << 8);
+	*nBufSize = sPMeta.nPrefsSize;
+
+	if (*nBufSize < xPortGetFreeHeapSize())
 	{
-		if (uiMemoryDevsArray[i]) {
-			nBufSize += 2 + 1 + uiMemoryDevsArray[i]->pGroup->iDevQty * 4;
+		*sBuf = (char*)pvPortMalloc(*nBufSize+1);
+		if (*sBuf) {
+			nRes =  restorePersistentData(*sBuf, *nBufSize, 5); // read all preferences string
+			if (nRes) {
+				*(sBuf+*nBufSize)=0;
+			}
 		} else {
 			nRes = pdFAIL;
-			goto storeMemDevsEnd;
 		}
-//		uiMemoryDevsArray[i]->uiLastUpdate
-	}
-
-	puiBuf = pvPortMalloc(nBufSize);
-
-	if (puiBuf) {
-/* fill memDev data. Format:
-
-   NUMDEVS  DEV1  e1  Val_1    Val_2    Val_n    DEV2  e2   Val_1     Val_2     CRC    Addr
-   -------|------|--|--------|--------|--------|------|--|---------|----------|------|-------|
-      1b    2b    1b   4b        4b       4b      2b    1b    4b       4b       2b     2b
-
-*/
-		puiBuf[nIndex] = mem_devs_counter; // number of memory devices
-		nIndex += 1;
-		for (uint8_t i = 0; i < mem_devs_counter; i++)
-		{
-			// *((long long*)p) = a;
-			*((uint16_t*)(puiBuf+nIndex)) = (uint16_t)uiMemoryDevsArray[i]->nId;
-			nIndex += 2;
-			puiBuf[nIndex] = (uint8_t)uiMemoryDevsArray[i]->pGroup->iDevQty;
-			nIndex += 1;
-
-			for (uint8_t j = 0; j < uiMemoryDevsArray[i]->pGroup->iDevQty; j++)
-			{
-				el = (int32_t*)uiMemoryDevsArray[i]->pDevStruct;
-				nValue = el[j];
-
-				*((uint32_t*)(puiBuf+nIndex)) = (uint32_t)nValue;
-				nIndex += 4;
-			}
-		}
-
-		calcCRC = crc16((uint8_t*) puiBuf, nIndex);
-		*((uint16_t*)(puiBuf+nIndex)) = (uint16_t)calcCRC;
-		nIndex += 2;
-
-		// calculate EEPROM address: top EEPROM memory - nBufSize - 2 byte
-		nAddr = EEPROM_MAX_SIZE - nIndex-2;
-		*((uint16_t*)(puiBuf+nIndex)) = (uint16_t)nAddr;
-		nIndex += 2;
-		// TO DO: check with preferences overlapping..
-		sGrpInfo* pGrpInfo = getGrpInfo (0);
-		nRes = eeprom_write(&pGrpInfo->GrpDev, EEPROM_ADDRESS, nAddr, (uint8_t*)puiBuf, nIndex);
-		vPortFree((void*)puiBuf);
-
 	} else {
-		nRes = pdFAIL;
+		xprintfMsg("\r\nError preferences size info (EEPROM or FLASH): %d", *nBufSize);
 	}
 
-storeMemDevsEnd:
-	return nRes;
-}
-
-// restore memory device from persistent storage into RAM:
-int32_t restoreMemDevs()
-{
-	int32_t nRes = pdPASS;
-	uint16_t nBufSize = 0;
-	uint8_t* puiBuf;
-	uint16_t calcCRC, bufCRC;
-	int32_t nValue;
-	uint16_t nMemDevID;
-	uint8_t	 nMemDevElements;
-	uint16_t nIndex = 1;
-	uint16_t nAddr;
-	uint8_t sBuf1[2]; // array for address value storing
-	uint8_t nNumMemDevs = 0;
-	sGrpInfo* pGrpInfo = getGrpInfo (0);
-
-	nAddr = EEPROM_MAX_SIZE - 2; // last 2 bytes EEPROM - address of memoryDev block
-
-	nRes = eeprom_read(&pGrpInfo->GrpDev, EEPROM_ADDRESS, nAddr, (uint8_t*) &sBuf1, 2);
-
-	if (nRes) {
-
-		nAddr = (sBuf1[1] << 8) + sBuf1[0];
-		nBufSize = EEPROM_MAX_SIZE - nAddr;
-
-		puiBuf = pvPortMalloc(nBufSize);
-
-			if (puiBuf) {
-				nRes = eeprom_read(&pGrpInfo->GrpDev, EEPROM_ADDRESS, nAddr, (uint8_t*) puiBuf, nBufSize);
-				calcCRC = crc16((uint8_t*) puiBuf, nBufSize-4);
-				bufCRC = *(uint16_t*)(puiBuf+nBufSize-4); // last 2 bytes = CRC
-
-				if (calcCRC == bufCRC) {
-					nNumMemDevs = *(uint8_t*)(puiBuf);
-
-					for (uint8_t i = 0; i < nNumMemDevs; i++)
-					{
-						nMemDevID = *(uint16_t*)(puiBuf+nIndex);
-						nIndex += 2;
-						nMemDevElements = *(uint8_t*)(puiBuf+nIndex);
-						nIndex += 1;
-
-						for (uint8_t j = 0; j < nMemDevElements; j++)
-						{
-							nValue = *(int32_t*)(puiBuf+nIndex);
-							nIndex += 4;
-							setDevValueByID(nValue, j, nMemDevID, eElmInteger);
-						}
-					}
-
-				} else {
-					nRes = pdFAIL;
-				}
-				vPortFree((void*)puiBuf);
-			}
-	} else {
-		nRes = pdFAIL;
-	}
-
-//restoreMemDevsEnd:
+	restorePreferencesEnd:
 	return nRes;
 }
 
 // write preferences string into EEPROM or Flash
-uint32_t storePreferences(char* sBuf, uint16_t nBufSize)
+int32_t storePreferences(char* sBuf, uint16_t nBufSize)
 {
-	int32_t nRes = pdPASS; //pdFAIL;
+	int32_t nRes = pdFAIL;
+	void *pBufTmp = pvPortMalloc(nBufSize+4);
+	if (!pBufTmp)
+		goto storePreferencesEnd;
 
-#ifdef PERSIST_EEPROM_I2C
-// save into EEPROM
-	nRes = eeprom_write(&grpArray[0]->GrpDev, EEPROM_ADDRESS, 4, (uint8_t*)sBuf, nBufSize);	// res == 1 -> good!
-		if (nRes) {
-			uint8_t tmpBuf[2];
-			tmpBuf[0]=nBufSize & 0x000FF;
-			tmpBuf[1]=(nBufSize & 0x0FF00) >> 8;
-			delay_nus(&grpArray[0]->GrpDev, 1000);	// 10ms
-			nRes = eeprom_write(&grpArray[0]->GrpDev, EEPROM_ADDRESS, 0, (uint8_t*)tmpBuf, 2);
-			if (nRes) {
-				//sendBaseOut("\n\rNew preferences saved into EEPROM. Reboot");
-				xprintfMsg("\n\rNew preferences saved into EEPROM. Reboot");
-				delay_nus(&grpArray[0]->GrpDev, 10000);	// 10ms
+	// first 2 byte in EEPROM consist size of JSON structure with SSN hardware and logic preferences, started from 5 byte
+	memcpy((uint8_t*)(pBufTmp+5), sBuf, nBufSize);
+	*(uint16_t*)(pBufTmp) = nBufSize;
+
+	nRes = storePersistentData((void*)pBufTmp, nBufSize+4, 0);
+	if (nRes) {
+		xprintfMsg("\r\nNew preferences saved into EEPROM. Reboot");
 //			    SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
 //			    while (1);
-			}
+	} else {
+		xprintfMsg("\r\nError saving preferences into EEPROM");
+	}
 
-		} else {
-			//sendBaseOut("\n\rError saving preferences into EEPROM");
-			xprintfMsg("\n\rError saving preferences into EEPROM");
-		}
-#endif
-#ifdef PERSIST_STM32FLASH
-// save into STM32 flash
-		uint32_t i;
-		uint16_t j;
-		uint32_t data;
-		if (nBufSize > STM32FLASH_PREF_SIZE)
-			nRes = pdFALSE;
-		else {
-			flash_unlock();
-			// erase necessary flash pages
-			for (i = STM32FLASH_BEGIN_ADDR; i < (STM32FLASH_BEGIN_ADDR + STM32FLASH_PREF_SIZE); i+=STM32FLASH_PAGE_SIZE )
-			{
-				flash_erase_page(i);
-			}
-			// write data into flash
+	vPortFree(pBufTmp);
 
-			i = STM32FLASH_BEGIN_ADDR + 4;
-			for (j = 0; j < nBufSize; j+=4)
-			{
-				data = (uint32_t)sBuf[j+3]   << 24 |
-				       (uint32_t)sBuf[j+2] << 16 |
-				       (uint32_t)sBuf[j+1] << 8  |
-				       (uint32_t)sBuf[j];
+	sGrpInfo* pGrpInfo = getGrpInfo (0);
+	delay_nus(&pGrpInfo->GrpDev, 10000);	// 10ms
 
-				flash_program_word(i, data);
-				i += 4;
-			}
-
-			data = (uint32_t)nBufSize;
-			flash_program_word(STM32FLASH_BEGIN_ADDR, data);
-
-			nRes = pdTRUE;
-			flash_lock();
-
-//			sendBaseOut("\n\rNew preferences saved into EEPROM. Reboot");
-			sGrpInfo* pGrpInfo = getGrpInfo (0);
-			delay_nus(&pGrpInfo->GrpDev, 10000);	// 10ms
-//		    SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
-//		    while (1);
-
-		}
-#endif
+	storePreferencesEnd:
 	return nRes;
 }
 
@@ -800,77 +646,82 @@ uint32_t storePreferences(char* sBuf, uint16_t nBufSize)
 char* process_getdevvals(sDevice** devArray, uint16_t all_devs_counter, uint16_t nDevId)
 {
 	uint16_t j;
-	uint8_t ut;
-//	uint8_t i;
 	uint8_t nNumValTypes;
-	const uint16_t nBufSize = 512;
-	char* tele_data = pvPortMalloc(nBufSize);
-	char* tele_data2;
-	uint16_t	nStrCounter = 0;
+//	const uint16_t nBufSize = 512;
+//	char* tele_data = pvPortMalloc(nBufSize);
+//	char* tele_data2;
+//	char *buf = pvPortMalloc(mainMAX_MSG_LEN);
+
+	void *pBufDev;
+	void *pBufAll = pvPortMalloc(mainMAX_MSG_LEN); // = NULL;
+	void *pBufTmp;
 	uint16_t	uiBufLen;
-	uint8_t nExtBufCounter = 1;
-//	char buf [mainMAX_MSG_LEN];
-	char *buf = pvPortMalloc(mainMAX_MSG_LEN);
+	const char* pcTeleFooter = "{}]}}}";
+
+
+//	uint16_t	nStrCounter = 0;
+//	uint8_t nExtBufCounter = 1;
 	int32_t nDevValue;
 	uint32_t nDevLastUpdate;
 	sDevice * pDev;
-//	char comma = ',';
 
-	taskENTER_CRITICAL();
+//	taskENTER_CRITICAL();
 	{
-//		const char* pcTeleHeader = "{\"ssn\":{\"v\":1,\"ret\":\"getdevvals\", \"data\":{\"devs\":[";
-		xprintfMsgStr(buf, "{\"ssn\":{\"v\":1,\"obj\":%d,\"ret\":\"getdevvals\", \"data\":{\"devs\":[",  getMC_Object() );
-		uiBufLen = strlen(buf);
-		memcpy(tele_data, buf, uiBufLen);
-		nStrCounter+=uiBufLen;
+		xprintfMsgStr(pBufAll, "{\"ssn\":{\"v\":1,\"obj\":%d,\"ret\":\"getdevvals\", \"data\":{\"devs\":[",  getMC_Object() );
 
-		for (j = 0; j < all_devs_counter; j++) {
+		for (j = 0; j <= all_devs_counter; j++) {
 			pDev = getDevByNo(j);
-			if ((nDevId > 0) && (pDev->nId != nDevId)) {
-				continue;
-			}
-				ut = pDev->ucType;
-//				buf[0]=0;
-				*buf=0;
-				if ((ut == device_TYPE_MEMORY) || (ut == device_TYPE_BB1BIT_IO_AI)) {
-					nNumValTypes = pDev->pGroup->iDevQty;
-				} else {
-					nNumValTypes = getNumDevValCodes(ut);
+			if (pDev) {
+				if ((nDevId > 0) && (pDev->nId != nDevId)) {
+					continue;
 				}
-				for (uint8_t k=0; k<nNumValTypes; k++) {
+//				*buf = 0;
+				nNumValTypes = getNumberDevValues(pDev);
+				for (uint8_t k = 0; k < nNumValTypes; k++) {
 					getDevData(pDev, k, &nDevValue, &nDevLastUpdate);
-					xprintfMsgStr(buf, "{\"dev\":%d, \"n\":%d, \"i\":%d, \"val\":%d, \"updtime\":%ld},",  pDev->nId, nNumValTypes, k, nDevValue, nDevLastUpdate );
-					uiBufLen = strlen(buf);
-					if (uiBufLen > 0) {
-						if ((nStrCounter + uiBufLen) > nBufSize) {
-							nExtBufCounter++;
-							tele_data2 = pvPortMalloc(nExtBufCounter * nBufSize);
-							memcpy(tele_data2, tele_data, strlen(tele_data));
-							vPortFree(tele_data);
-							tele_data = tele_data2;
+					pBufDev = pvPortMalloc(mainMAX_MSG_LEN);
+					if (pBufDev) {
+						xprintfMsgStr(pBufDev,
+								"{\"dev\":%d, \"n\":%d, \"i\":%d, \"val\":%d, \"updtime\":%ld},",
+								pDev->nId, nNumValTypes, k, nDevValue,
+								nDevLastUpdate);
+
+						uiBufLen = strlen(pBufAll) + strlen(pBufDev) + strlen(pcTeleFooter);
+
+						pBufTmp = pvPortMalloc(uiBufLen);
+						if (pBufTmp) {
+
+							memcpy(pBufTmp, pBufAll, strlen(pBufAll));
+							memcpy(pBufTmp + strlen(pBufAll), pBufDev, strlen(pBufDev));
+							*(uint8_t*)(pBufTmp + strlen(pBufAll) + strlen(pBufDev)) = 0;
+
+							vPortFree(pBufAll);
+							vPortFree(pBufDev);
+							pBufAll = pBufTmp;
+						} else {
+							if (pBufAll)
+								vPortFree(pBufAll);
+							if (pBufDev)
+								vPortFree(pBufDev);
+							goto getdevvalsEnd;
 						}
-							memcpy(&tele_data[nStrCounter], buf, uiBufLen);
-							nStrCounter += uiBufLen;
-							tele_data[nStrCounter] = 0;
+					} else {
+						if (pBufAll)
+							vPortFree(pBufAll);
+						goto getdevvalsEnd;
 					}
 				}
+			}
 		}
-		const char* pcTeleFooter = "{}]}}}";
-		uiBufLen = strlen(pcTeleFooter);
-		if ((nStrCounter+uiBufLen) > nBufSize) {
-			nExtBufCounter++;
-			tele_data2 = pvPortMalloc(nExtBufCounter*nBufSize);
-			memcpy(tele_data2,tele_data,strlen(tele_data));
-			vPortFree(tele_data);
-			tele_data = tele_data2;
-		}
-			memcpy(&tele_data[nStrCounter], pcTeleFooter, uiBufLen);
-			nStrCounter+=uiBufLen;
-			tele_data[nStrCounter]=0;
+
+		uiBufLen = strlen(pBufAll);
+		memcpy(pBufAll + strlen(pBufAll), pcTeleFooter, strlen(pcTeleFooter));
+		*(uint8_t*)(pBufAll + uiBufLen + strlen(pcTeleFooter)) = 0;
+
+//	taskEXIT_CRITICAL();
 	}
-	taskEXIT_CRITICAL();
-	vPortFree(buf);
-	return tele_data;
+	getdevvalsEnd:
+	return pBufAll;
 }
 
 void vSendInputMessage (uint8_t version, uint16_t	uiDestObject, uint8_t xMessageType, uint16_t uiSrcObject, uint16_t xSourceDev, uint16_t xDestDev, void* pcMessage, uint16_t nSize, uint16_t nCommand)
@@ -905,6 +756,7 @@ void xprintfMsg (			/* Put a formatted string to the memory */
 	)
 	{
 		char* buff = pvPortMalloc(1024);			/* Pointer to the output buffer */
+		// to do: calculate memory more accurately
 		va_list arp;
 
 		va_start(arp, fmt);
@@ -1004,7 +856,7 @@ void vCommandSelector(sSSNCommand* xSSNCommand)
 				break;
 			}
 			case mainCOMMAND_MEMSAVE: {
-				storeMemDevs();
+				storeAllMemDevs();
 				break;
 			}
 			case mainCOMMAND_DISMODEMCHARGE: {
@@ -1048,7 +900,7 @@ void vCommandSelector(sSSNCommand* xSSNCommand)
 
 void main_reboot()
 {
-	storeMemDevs();
+	storeAllMemDevs();
 
     SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
     while (1);
@@ -1131,7 +983,6 @@ int32_t	UpdateAction(char* pcDevAction)
 
 void log_event (void* poldt, void* pnewt, uint32_t xTickCount)
 {
-//	char cBuffer [200];
 	xprintfMsg("\r\n***%s switched out, %s switched in, tick count = %u",
 			pcTaskGetTaskName((TaskHandle_t) poldt),
 			pcTaskGetTaskName((TaskHandle_t) pnewt),
@@ -1140,7 +991,6 @@ void log_event (void* poldt, void* pnewt, uint32_t xTickCount)
 
 void log_event2 (char c, void* pt)
 {
-//	char cBuffer [200];
 	xprintfMsg("\r\n***%c: task %s delay",c, pcTaskGetTaskName((TaskHandle_t) pt));
 }
 
@@ -1179,7 +1029,6 @@ void	logAction(uint16_t nActId, uint16_t nDevId, uint8_t nDevCmd, uint32_t nValu
 			// send log to logger object
 			pBuffer = pvPortMalloc(70*logActCounter+10);	// allocate memory for current log elements
 			if (!pBuffer) {
-				//sendBaseOut("\r\nError allocate memory for log data!");
 				xprintfMsg("\r\nError allocate memory for log data!");
 				return;
 			}

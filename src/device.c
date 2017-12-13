@@ -31,6 +31,7 @@
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/stm32/rcc.h>
+#include "dev_memory.h"
 
 #define M_DS18B20
 #define M_LCD
@@ -314,6 +315,12 @@ pwm_setup_ret:
 	return nRes;
 }
 
+uint8_t getAdcDevQty(sDevice* pDev) {
+	if (pDev) {
+		return pDev->pGroup->iDevQty;
+	}
+	return 0;
+}
 
 int32_t adc_setup(sDevice* pDev, char* psChannels)
 {
@@ -528,7 +535,7 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue,
 		uint32_t* nDevLastUpdate) {
 	int32_t nValue;
 	uint32_t nLastUpdate = 0;
-	int32_t *e;
+//	int32_t *e;
 	int32_t res = pdTRUE;
 
 	if (!dev) {
@@ -570,7 +577,10 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue,
 	case device_TYPE_STEPMOTOR:
 #ifdef  M_STEPMOTOR
 		if (dev->pDevStruct) {
-// if nValCode==0 return absolute position, 1: return relative position (%), 2: return target position, 3: return current state:
+// if nValCode == 0 return absolute position,
+// 1: return relative position (%)
+// 2: return target position,
+// 3: return current state:
 			switch (nValCode) {
 			case 0:
 			default:
@@ -598,15 +608,9 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue,
 		//nLastUpdate = dev->uiLastUpdate;
 		break;
 	case device_TYPE_MEMORY:
-		if (dev->pDevStruct) {
-			e = (int32_t*) dev->pDevStruct;
-			if (nValCode < dev->pGroup->iDevQty)
-				nValue = e[nValCode];
-			else {
-				res = pdFALSE;
-				goto finishGetDevData;
-			}
-		}
+
+		getMemoryDevValue(dev, nValCode, &nValue);
+
 		break;
 	case device_TYPE_BB1BIT_IO_AI:
 		if (dev->pDevStruct) {
@@ -622,6 +626,7 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue,
 
 	finishGetDevData: return res;
 }
+
 /* return number available value codes for device type */
 uint8_t getNumDevValCodes(uint8_t ucType)
 {
@@ -644,6 +649,23 @@ uint8_t getNumDevValCodes(uint8_t ucType)
 		n = 0;
 	}
 	return n;
+}
+
+/* return number available value codes by device*/
+uint8_t getNumberDevValues(sDevice* pDev) {
+	uint8_t nNumValTypes = 0;
+	if (pDev) {
+		if (pDev->ucType == device_TYPE_MEMORY) {
+			nNumValTypes = getMemoryDevQty(pDev);
+		} else
+			if (pDev->ucType == device_TYPE_BB1BIT_IO_AI) {
+			nNumValTypes = getAdcDevQty(pDev);
+		}
+		else {
+			nNumValTypes = getNumDevValCodes(pDev->ucType);
+		}
+	}
+	return nNumValTypes;
 }
 
 void setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t nDataType)
@@ -695,7 +717,7 @@ void setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t n
 
 void setDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nDataType)
 {
-	int32_t *e;
+//	int32_t *e;
 	switch (dev->ucType) {
 // ignore:
 	case device_TYPE_DS18B20:
@@ -711,14 +733,8 @@ void setDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nDataTyp
 		}
 		break;
 	case device_TYPE_MEMORY:
-		if (dev->pDevStruct) {
-			e = (int32_t*)dev->pDevStruct;
-			if (e && (nDevCmd < dev->pGroup->iDevQty)) {
-				e[nDevCmd] = nValue;
-				dev->uiLastUpdate = rtc_get_counter_val();
-				//= nValue;
-			}
-		}
+		setMemoryDevValue(dev, nDevCmd, nValue);
+		uiLastSaveMemoryTick = rtc_get_counter_val();
 		break;
 	case device_TYPE_PWM:
 		if (dev->pDevStruct) {
@@ -761,6 +777,83 @@ void setDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nDataTyp
 
 }
 
+// Scan thru all devices and store memory devices to persistent store:
+int32_t storeAllMemDevs()
+{
+	sDevice* pDev;
+	void *pBufDev = NULL;
+	void *pBufAll = NULL;
+	void *pBufTmp;
+	uint16_t nBufDevSize;
+	uint16_t nBufAllSize = 0;
+	uint16_t nNumMemDevs = 0;
+	int32_t nRes = pdPASS;
+
+	for (uint16_t j = 1; j <= all_devs_counter; j++) {
+		pDev = getDevByNo(j);
+		if (pDev) {
+			if (pDev->ucType == device_TYPE_MEMORY) {
+				nNumMemDevs++;
+				nRes = serializeMemDevs(pDev, &pBufDev, &nBufDevSize);
+				if (nRes) {
+					pBufTmp = pvPortMalloc(nBufAllSize + nBufDevSize);
+					if (pBufTmp) {
+						if (pBufAll) {
+							memcpy(pBufTmp,pBufAll,nBufAllSize);
+							vPortFree(pBufAll);
+						}
+						memcpy(pBufTmp+nBufAllSize,pBufDev,nBufDevSize);
+						vPortFree(pBufDev);
+						pBufAll = pBufTmp;
+						nBufAllSize+=nBufDevSize;
+					} else {
+						nRes = pdFAIL;
+					}
+				} else {
+					nRes = pdFAIL;
+				}
+			}
+		}
+	}
+
+	if (nRes && nNumMemDevs) {
+		// allocate memory for all device data and metadata:
+		/* Full memDev data structure:
+
+		   NUMDEVS  DEV1  e1  Val_1    Val_2    Val_n    DEV2  e2   Val_1     Val_2     CRC    Addr
+		   -------|------|--|--------|--------|--------|------|--|---------|----------|------|-------|
+		      2b    2b    2b   4b        4b       4b      2b    2b    4b       4b       2b     2b
+		 */
+		pBufTmp = pvPortMalloc(nBufAllSize+6);
+		if (pBufTmp) {
+			memcpy(pBufTmp+2,pBufAll,nBufAllSize);
+			*(uint16_t*)(pBufTmp)=nNumMemDevs;
+			vPortFree(pBufAll);
+			// CRC and EEPROM Addr calculate in storeMemDevs:
+			if (storeMemDevs(pBufTmp, nBufAllSize+6)) {
+				uiLastSaveMemoryTick = rtc_get_counter_val();
+				vPortFree(pBufTmp);
+			} else {
+				nRes = pdFAIL;
+			}
+		}
+	}
+	return nRes;
+}
+
+// Scan thru all devices and restore memory devices from persistent store:
+int32_t restoreAllMemDevs()
+{
+	sDevice* pDev;
+	for (uint16_t j = 1; j <= all_devs_counter; j++) {
+		pDev = getDevByNo(j);
+		if (pDev) {
+			if (pDev->ucType == device_TYPE_MEMORY)
+				return restoreMemDevs(pDev);
+		}
+	}
+	return pdFAIL;
+}
 
 void	clearActionsDeviceCash (sDevice* pDev)
 {

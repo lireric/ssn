@@ -133,6 +133,7 @@ extern uint16_t 	all_devs_counter;
 //extern sGrpInfo* 	grpArray[];
 extern sGrpInfo 	**grpArray;
 extern uint8_t 		grp_counter;
+extern uint32_t 	uiLastSaveMemoryTick;
 
 //xTaskHandle pDevInitTask;
 
@@ -143,33 +144,39 @@ sGrpInfo* getGrpInfo(unsigned char ucGrpNum);
 sGrpInfo* newGrpInfo();
 sGrpInfo* addGrpInfo(sGrpInfo* pnewGrpInfo);
 sGrpInfo* getCurrentGrp();
-sGrpInfo* 			getGroupByID (uint8_t nGrpID);
+sGrpInfo* 		getGroupByID (uint8_t nGrpID);
 
-sDevice* 			newDev();
-sDevice* 			addDev(sDevice* pnewDev);
-sDevice* 			getCurrentDev();
-sDevice*			getDeviceByID (uint16_t nDevID);
-sDevice* 			getDevByNo(uint16_t nDevNo);
+sDevice* 		newDev();
+sDevice* 		addDev(sDevice* pnewDev);
+sDevice* 		getCurrentDev();
+sDevice*		getDeviceByID (uint16_t nDevID);
+sDevice* 		getDevByNo(uint16_t nDevNo);
 
-uint8_t 			getNumDevValCodes(uint8_t ucType);
-int32_t 			getDevValueByID(uint8_t nValCode, uint16_t nDevID);
-int32_t 			getDevValue(uint8_t nValCode, sDevice* dev);
-uint32_t			getDevLastUpdate(uint8_t nValCode, sDevice* dev);
-int32_t				getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue, uint32_t* nLastUpdate);
+uint8_t 		getNumDevValCodes(uint8_t ucType);
+uint8_t 		getNumberDevValues(sDevice* dev);
 
-void 				setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t nDataType);
-void 				setDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nDataType);
-int16_t 			getDeviceObjByID (uint16_t nDevID);
-int32_t 			adc_setup(sDevice* pDev, char* psChannels);
-int32_t 			pwm_setup(sDevice* pDev, char* psChannels);
+int32_t 		getDevValueByID(uint8_t nValCode, uint16_t nDevID);
+int32_t 		getDevValue(uint8_t nValCode, sDevice* dev);
+uint32_t		getDevLastUpdate(uint8_t nValCode, sDevice* dev);
+int32_t			getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue, uint32_t* nLastUpdate);
 
-int32_t				refreshActions2DeviceCash ();
-void				clearActionsDeviceCash (sDevice* pDev);
-int32_t				scanDevActions (sDevice* dev);
+void 			setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t nDataType);
+void 			setDevValue(int32_t nValue, uint8_t nDevCmd, sDevice* dev, uint8_t nDataType);
+int16_t 		getDeviceObjByID (uint16_t nDevID);
 
-int32_t 			addInitDevRequest(uint16_t 	nDevId);
-void 				completeAllInit();
-void 				deviceInit(sDevice* dev);
+uint8_t 		getAdcDevQty(sDevice* pDev);
+int32_t 		adc_setup(sDevice* pDev, char* psChannels);
+int32_t 		pwm_setup(sDevice* pDev, char* psChannels);
+
+int32_t			refreshActions2DeviceCash ();
+void			clearActionsDeviceCash (sDevice* pDev);
+int32_t			scanDevActions (sDevice* dev);
+
+int32_t 		addInitDevRequest(uint16_t 	nDevId);
+void 			completeAllInit();
+void 			deviceInit(sDevice* dev);
+int32_t 		storeAllMemDevs();
+int32_t 		restoreAllMemDevs();
 
 #ifdef __cplusplus
 }

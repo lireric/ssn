@@ -7,7 +7,8 @@ obj_src=3;
 message_type=2;
 
 #jsonValue="{\"ssn\":{\"v\":1,\"obj\":4,\"cmd\":\"sdv\", \"data\": {\"adev\":10001,\"acmd\":0,\"aval\":\"Test\"}}}";
-jsonValue="{\"ssn\":{\"v\":1,\"obj\":4,\"cmd\":\"sdv\", \"data\": {\"adev\":6001,\"acmd\":0,\"aval\":-1000}}}";
+#jsonValue="{\"ssn\":{\"v\":1,\"obj\":4,\"cmd\":\"sdv\", \"data\": {\"adev\":6001,\"acmd\":0,\"aval\":-1000}}}";
+jsonValue="{\"ssn\":{\"v\":1,\"obj\":4,\"cmd\":\"sdv\", \"data\": {\"adev\":11,\"acmd\":1,\"aval\":10002}}}";
 len=${#jsonValue};
 
 crc=$(../crc16 "$jsonValue" $len);

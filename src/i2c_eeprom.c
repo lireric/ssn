@@ -72,7 +72,10 @@ uint8_t eeprom_write(sGrpDev* pGrpDev, uint8_t eeprom_addr, uint16_t addr, uint8
 
 //		rc = soft_i2c_send_ex(pGrpDev, eeprom_addr, (uint8_t*) &addr, sizeof(addr), buf, iBytes);
 //		rc = soft_i2c_send_ex2(pGrpDev, eeprom_addr, addr, buf, iBytes);
-		nRes = soft_i2c_WriteBufferAddress16 (pGrpDev,  eeprom_addr,  addr, buf, iBytes);
+
+//	    nRes = soft_i2c_WriteBufferAddress16 (pGrpDev,  eeprom_addr,  addr, buf, iBytes);
+		nRes = soft_i2c_WriteBufferAddress16(pGrpDev, eeprom_addr, addr, buf, iBytes);
+
 		delay_nus(pGrpDev, 10000);// delay 10ms for internal EEPROM write operation
 
 	    iCnt -=(int)iBytes;

@@ -194,7 +194,11 @@ int ini_parse_stream(ini_reader reader, void* stream, ini_handler handler,
             else if (!error) {
                 /* No '=' or ':' found on name[=:]value line */
                 error = lineno;
-                xprintfMsg("\r\nParsing INI format, error in line: %d, param: %s\n", lineno, name);
+                if (*name)
+                	xprintfMsg("\r\nParsing INI format, error in line: %d, param: %s\n", lineno, name);
+                else
+                    xprintfMsg("\r\nParsing INI format, error in line: %d, param: --\n", lineno);
+
             }
         }
 

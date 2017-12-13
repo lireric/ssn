@@ -53,7 +53,7 @@ typedef enum {FAILED = 0, PASSED = !FAILED} TestStatus;
  * timeout = 2 sec
  *
  * */
-#define SSN_TIMEOUT 	( 20000 )		// timeout 2000 ms
+#define SSN_TIMEOUT 	( 2000 )		// timeout 2000 ms
 #define SSN_MIN_SEND_TIMEOUT 	( 30 )	// minimum send after receive timeout - 30 ms
 
 /* -- SSN serial protocol states -----------------------------------------*/
@@ -94,7 +94,11 @@ typedef struct
 	uint16_t	nBufSize;
 } sPrefsBuffer;
 
-
+typedef struct
+{
+	uint16_t 	nPrefsSize;		// size of the preferences string
+	uint16_t	nReserve1;
+} sPrefsMetaData;
 
 /*-----------------------------------------------------------*/
 /* The types of message (xMessageType) that can be sent to the input queue. */

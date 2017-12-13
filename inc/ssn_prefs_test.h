@@ -51,7 +51,7 @@
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
 #define configTICK_RATE_HZ			( ( portTickType ) 100 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 45 * 1024 ) )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 55 * 1024 ) )
 
 /*-----------------------------------------------------------*/
 /* Hardware application settings */
@@ -78,8 +78,8 @@
 
 /* Persistence settings *
  * (select one) */
-//#define PERSIST_EEPROM_I2C
-#define PERSIST_STM32FLASH
+#define PERSIST_EEPROM_I2C
+//#define PERSIST_STM32FLASH
 
 
 /* EEPROM I2C ------------------------------------------------*/
@@ -132,7 +132,7 @@ was called. The recorded value is later compared to the task in the Running
 state when the traceTASK_SWITCHED_IN() macro is called to determine if the
 Running state task was changed. */
 
-//#define traceTASK_SWITCHED_OUT() xTaskThatWasRunning = (void*) pxCurrentTCB
+#define traceTASK_SWITCHED_OUT() xTaskThatWasRunning = (void*) pxCurrentTCB
 
 /* traceTASK_SWITCHED_OUT() is always called before a reschedule, and
 traceTASK_SWITCHED_IN() is always called after a reschedule. This definition
@@ -145,15 +145,12 @@ the Running state. The tick count value is also output.
 Note how the task handles are cast to tskTCB pointers to allow the macro to
 obtain the task names directly from the TCB structures. */
 
-/*
-#define traceTASK_SWITCHED_IN() \
+/*#define traceTASK_SWITCHED_IN() \
 if( (pxCurrentTCB != xTaskThatWasRunning ) && (pxCurrentTCB != xBaseOutTaskHnd) && (xTaskThatWasRunning != xBaseOutTaskHnd)) \
 { \
 log_event( (void*)xTaskThatWasRunning, (void*) pxCurrentTCB, xTickCount ); \
 }
-*/
 
-/*
 #define  traceTASK_DELAY() \
 	if (pxCurrentTCB != xBaseOutTaskHnd ) \
 		{ \

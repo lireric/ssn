@@ -51,6 +51,7 @@ void soft_i2c_PutByte(sGrpDev* pGrpDev, uint8_t data);
 uint8_t soft_i2c_GetByte(sGrpDev* pGrpDev);
 uint32_t soft_i2c_ReadBuffer (sGrpDev* pGrpDev, uint8_t chipAddress, uint8_t *buffer, uint32_t sizeOfBuffer);
 uint32_t soft_i2c_ReadBufferAddress (sGrpDev* pGrpDev, uint8_t chipAddress, uint8_t registerAddress, uint8_t *buffer, uint32_t sizeOfBuffer);
+
 uint32_t soft_i2c_ReadBufferAddress16 (sGrpDev* pGrpDev, uint8_t chipAddress, uint16_t registerAddress, uint8_t *buffer, uint32_t sizeOfBuffer);
 int soft_i2c_WriteBuffer (sGrpDev* pGrpDev,  uint8_t chipAddress, uint8_t *buffer, uint32_t sizeOfBuffer );
 int soft_i2c_WriteBufferAddress (sGrpDev* pGrpDev,  uint8_t chipAddress,  uint8_t registerAddress, uint8_t *buffer, uint32_t sizeOfBuffer);
@@ -60,10 +61,10 @@ int soft_i2c_WriteBufferAddress16 (sGrpDev* pGrpDev,  uint8_t chipAddress,  uint
 //uint8_t soft_i2c_write (sGrpDev* pGrpDev, uint8_t data);
 //uint8_t soft_i2c_read(sGrpDev* pGrpDev, uint8_t ack );
 void 	soft_i2c_reset(sGrpDev* pGrpDev);
-int 	soft_i2c_read_ex(sGrpDev* pGrpDev, const uint16_t saddr, uint8_t* lpdata1, uint32_t size1, uint8_t* lpdata2, uint32_t size2);
-int 	soft_i2c_send_ex(sGrpDev* pGrpDev, const uint16_t saddr, uint8_t* lpdata1, uint32_t size1, uint8_t* lpdata2, uint32_t size2);
-int 	soft_i2c_send_ex2(sGrpDev* pGrpDev, const uint16_t saddr, uint16_t lpdata1, uint8_t* lpdata2, uint32_t size2);
-int 	soft_i2c_read_ex2(sGrpDev* pGrpDev, const uint16_t saddr, uint16_t lpdata1, uint8_t* lpdata2, uint32_t size2);
-int 	soft_i2c_read_ex8(sGrpDev* pGrpDev, const uint8_t saddr, uint8_t lpdata1, uint8_t* lpdata2, uint32_t size2);
+//int 	soft_i2c_read_ex(sGrpDev* pGrpDev, const uint16_t saddr, uint8_t* lpdata1, uint32_t size1, uint8_t* lpdata2, uint32_t size2);
+//int 	soft_i2c_send_ex(sGrpDev* pGrpDev, const uint16_t saddr, uint8_t* lpdata1, uint32_t size1, uint8_t* lpdata2, uint32_t size2);
+//int 	soft_i2c_send_ex2(sGrpDev* pGrpDev, const uint16_t saddr, uint16_t lpdata1, uint8_t* lpdata2, uint32_t size2);
+//int 	soft_i2c_read_ex2(sGrpDev* pGrpDev, const uint16_t saddr, uint16_t lpdata1, uint8_t* lpdata2, uint32_t size2);
+//int 	soft_i2c_read_ex8(sGrpDev* pGrpDev, const uint8_t saddr, uint8_t lpdata1, uint8_t* lpdata2, uint32_t size2);
 
 #endif /* SOFT_I2C_H_ */
