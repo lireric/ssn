@@ -71,6 +71,7 @@
 #define device_TYPE_PWM					( 14 )	// PWM
 #define device_TYPE_BMP180				( 15 )	// BMP180 atmosphere pressure and temperature sensor
 #define device_TYPE_STEPMOTOR			( 16 )	// stepping motor device
+#define device_TYPE_BME280				( 17 )	// BME280 atmosphere pressure, humidity and temperature sensor
 
 
 #ifndef NULL
@@ -96,6 +97,8 @@ typedef struct
 	uint8_t 	iDevQty;		// device quantity in group
     sGrpDev 	GrpDev;			//  physical describing of the device group
 } sGrpInfo;
+
+#define DEV_DISABLE_FLAG	0x80
 
 typedef struct
 {

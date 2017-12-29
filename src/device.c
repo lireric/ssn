@@ -53,6 +53,11 @@
 #ifdef  M_BMP180
 	#include "bmp180.h"
 #endif
+#ifdef  M_BME280
+	#include "bme280.h"
+	#include "bme280dev.h"
+#endif
+
 #ifdef  M_GSM
 	#include "gsm.h"
 #endif
@@ -96,6 +101,7 @@ void completeAllInit() {
  * Usually it long time or complex and cannot be completed at apply preferences time
  */
 void deviceInit(sDevice* dev) {
+	int32_t nRes = pdPASS;
 
 	if (dev) {
 		switch (dev->ucType) {
@@ -106,13 +112,20 @@ void deviceInit(sDevice* dev) {
 			break;
 		case device_TYPE_DHT22:
 			if (dev->pDevStruct) {
-				dht_device_init(dev);
+				nRes = dht_device_init(dev);
 			}
 			break;
 		case device_TYPE_BMP180:
 #ifdef  M_BMP180
 			if (dev->pDevStruct) {
-				bmp180DeviceInit(dev);
+				nRes = bmp180DeviceInit(dev);
+			}
+#endif
+			break;
+		case device_TYPE_BME280:
+#ifdef  M_BME280
+			if (dev->pDevStruct) {
+				nRes = bme280DeviceInit(dev);
 			}
 #endif
 			break;
@@ -134,11 +147,15 @@ void deviceInit(sDevice* dev) {
 		case device_TYPE_STEPMOTOR:
 #ifdef  M_STEPMOTOR
 			if (dev->pDevStruct) {
-				StepMotorInitHW(dev);
+				nRes = StepMotorInitHW(dev);
 			}
 #endif
 		}
-		dev->nFlag &= 0x7F; // reset device disable flag
+		if (nRes > 0) {
+			dev->nFlag &= 0x7F; // reset device disable flag
+		} else {
+			dev->nFlag |= DEV_DISABLE_FLAG; // set device disable flag
+		}
 	}
 }
 
@@ -574,6 +591,27 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue,
 		}
 #endif
 		break;
+
+	case device_TYPE_BME280:
+#ifdef  M_BME280
+		if (dev->pDevStruct) {
+// if nValCode==0 return temperature, 1 - pressure, 2 - humidity:
+
+				if (nValCode == 0) {
+					nValue = ((bme280_t*) dev->pDevStruct)->iTemperature;
+					//nPrevVal = ((bme280_t*) dev->pDevStruct)->iPrevTemperature;
+				} else if (nValCode == 1) {
+					nValue = ((bme280_t*) dev->pDevStruct)->uiPressure;
+					//nPrevVal = ((bme280_t*) dev->pDevStruct)->uiPrevPressure;
+				} else {
+					nValue = ((bme280_t*) dev->pDevStruct)->uiHumidity;
+					//nPrevVal = ((bme280_t*) dev->pDevStruct)->uiPrevHumidity
+				}
+				nLastUpdate = ((bme280_t*) dev->pDevStruct)->uiLastUpdate;
+		}
+#endif
+		break;
+
 	case device_TYPE_STEPMOTOR:
 #ifdef  M_STEPMOTOR
 		if (dev->pDevStruct) {
@@ -641,6 +679,9 @@ uint8_t getNumDevValCodes(uint8_t ucType)
 	case device_TYPE_BB1BIT_IO_OD:
 	case device_TYPE_BB1BIT_IO_INPUT:
 		n = 1;
+		break;
+	case device_TYPE_BME280:
+		n = 3;
 		break;
 	case device_TYPE_STEPMOTOR:
 		n = 4;

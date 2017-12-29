@@ -30,6 +30,7 @@
 //#include "i2c_eeprom.h"
 #include "FreeRTOS.h"
 #include "../inc/ssn.h"
+#include "commands.h"
 
 BMP180_data_t* bmp180DeviceInitStruct()
 {
@@ -40,15 +41,28 @@ BMP180_data_t* bmp180DeviceInitStruct()
 }
 
 
-BMP180_data_t* bmp180DeviceInit(sDevice *pDev) {
-	BMP180_data_t* pBMP180Dev = NULL;
+int32_t bmp180DeviceInit(sDevice *pDev) {
 	sGrpDev* pGrpDev = &pDev->pGroup->GrpDev;
 	int32_t nRes;
 	uint8_t buf[22];
-	if (!pGrpDev->pPort || !pGrpDev->pTimer)
-		goto bmp180InitEnd; // error
 
-//	owi_device_init_i2c(pGrpDev);
+	if (!pDev) {
+		nRes = -1;
+		goto bmp180InitEnd; // error
+	}
+
+	if (!pGrpDev->pPort || !pGrpDev->pTimer) {
+		nRes = -2;
+		goto bmp180InitEnd; // error
+	}
+
+	BMP180_data_t* pBMP180Dev = (BMP180_data_t*)pDev->pDevStruct;
+	if (!pBMP180Dev) {
+		nRes = -3;
+		goto bmp180InitEnd; // error
+	}
+
+	//	owi_device_init_i2c(pGrpDev);
 	soft_i2c_init(pGrpDev);
 
 	nRes = soft_i2c_ReadBufferAddress(pGrpDev, pBMP180Dev->I2C_Addr, BMP180_REG_CHIP_ID, buf, 1); // read chip id. it must be 0x55
@@ -91,7 +105,13 @@ BMP180_data_t* bmp180DeviceInit(sDevice *pDev) {
 		}
 	}
 	bmp180InitEnd:
-	return pBMP180Dev;
+	if (nRes) {
+		xprintfMsg("\r\nOk. BMP180 device initialized: %d ", pDev->nId);
+	} else {
+		xprintfMsg("\r\nError! BMP180 device error code=%d: %d ", nRes, pDev->nId);
+	}
+
+	return nRes;
 
 }
 

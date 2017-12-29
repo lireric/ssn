@@ -299,6 +299,7 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 
 			} else if (pDev->ucType == device_TYPE_DHT22) {
 #ifdef  M_DHT
+				pDev->nFlag |= DEV_DISABLE_FLAG; // set device disable flag before initialization
 				pDev->pDevStruct = (void*) DHTInitStruct();
 				if (!addInitDevRequest(pDev->nId)) return pdFAIL; // add request for delayed initialization
 #endif
@@ -343,16 +344,23 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 
 		} else if (pDev->ucType == device_TYPE_BMP180) {
 #ifdef  M_BMP180
+			pDev->nFlag |= DEV_DISABLE_FLAG; // set device disable flag before initialization
 			pDev->pDevStruct = (void*) bmp180DeviceInitStruct();
+			if (!addInitDevRequest(pDev->nId)) return pdFAIL; // add request for delayed initialization
+#endif
+		} else if (pDev->ucType == device_TYPE_BME280) {
+#ifdef  M_BME280
+			pDev->nFlag |= DEV_DISABLE_FLAG; // set device disable flag before initialization
+			pDev->pDevStruct = (void*) bme280DeviceInitStruct(pDev);
 			if (!addInitDevRequest(pDev->nId)) return pdFAIL; // add request for delayed initialization
 #endif
 		}
 // ***************** step motor init structure:
 #ifdef  M_STEPMOTOR
 			else if (pDev->ucType == device_TYPE_STEPMOTOR) {
+					pDev->nFlag |= DEV_DISABLE_FLAG; // set device disable flag before initialization
 					StepMotorInitStruct(pDev);
 					if (!pDev->pDevStruct) return pdFAIL;
-					pDev->nFlag |= 0x80; // set device disable flag
 					if (!addInitDevRequest(pDev->nId)) return pdFAIL; // add request for delayed initialization
 				}
 #endif
@@ -364,16 +372,6 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 				// allocate memory for memory elements array:
 				if (!MemoryDevInitStruct(pDev, conv2d(sValue)))
 					return pdFAIL;
-//				pDev->pGroup->iDevQty = conv2d(sValue);
-//				// allocate memory for memory elements array:
-//				pDev->pDevStruct = (void*)pvPortMalloc(sizeof(uint32_t)*pDev->pGroup->iDevQty);
-//				if (!pDev->pDevStruct) {
-//					return pdFAIL;
-//				}
-//				if (mem_devs_counter <= mainMEMORY_DEV_MAX_QTY)
-//					uiMemoryDevsArray[mem_devs_counter++]=pDev;
-//				else
-//					return pdFAIL;
 			}
 		} else if (pDev->ucType == device_TYPE_PWM) {
 			if (strcmp(sName, "ch") == 0) {
@@ -409,8 +407,6 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 			if (strcmp(sName, "addr") == 0) {
 				if (pDev->pDevStruct)
 					((BMP180_data_t*)pDev->pDevStruct)->I2C_Addr = conv2d(sValue);
-//				bmp180_device_init(pDev, conv2d(sValue));
-//				if (!pDev->pDevStruct) return pdFAIL;
 			} else if (strcmp(sName, "oss") == 0) {
 				if (pDev->pDevStruct)
 					((BMP180_data_t*)pDev->pDevStruct)->P_Oversampling = conv2d(sValue);
@@ -421,7 +417,27 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 			}
 #endif
 		}
-		// ***************** step motor
+		else if (pDev->ucType == device_TYPE_BME280) {
+#ifdef  M_BME280
+			// delta temperature store in pDev->uiDeltaValue!
+			if (strcmp(sName, "addr") == 0) {
+				if (pDev->pDevStruct)
+					((bme280_t*)pDev->pDevStruct)->dev_addr = conv2d(sValue);
+			} else if (strcmp(sName, "oss") == 0) {
+				// oversampling: "0" - normal, "1" - force
+				if (pDev->pDevStruct)
+					((bme280_t*)pDev->pDevStruct)->oss = conv2d(sValue);
+			} else if (strcmp(sName, "dlp") == 0) {
+				// delta pressure
+				if (pDev->pDevStruct)
+					((bme280_t*)pDev->pDevStruct)->uiDeltaPressure = conv2d(sValue);
+			} else if (strcmp(sName, "dlh") == 0) {
+				// delta Humidity
+				if (pDev->pDevStruct)
+					((bme280_t*)pDev->pDevStruct)->uiDeltaHumidity = conv2d(sValue);
+			}
+#endif
+		}		// ***************** step motor
 		else if (pDev->ucType == device_TYPE_STEPMOTOR) {
 #ifdef  M_STEPMOTOR
 			if (pDev->pDevStruct) {

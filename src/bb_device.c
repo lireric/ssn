@@ -51,21 +51,21 @@ void delay_nus(sGrpDev* pGrpDev, uint32_t nCount) {
 }
 
 void delay_ms(sGrpDev* pGrpDev, uint32_t nCount) {
-	volatile uint16_t TIMCounter = nCount;
-	uint8_t cnt2;
+	volatile uint16_t TIMCounter;// = nCount;
+	uint16_t cnt2;
 	/* Counter enable. */
 	/* Reset prescaler value. */
 	timer_set_prescaler(pGrpDev->pTimer, 7200);
 	timer_direction_down(pGrpDev->pTimer);
 	timer_enable_counter(pGrpDev->pTimer);
-	for (cnt2=0; cnt2<10; cnt2++)
-	{
-	timer_set_counter(pGrpDev->pTimer, TIMCounter);
-	/* Start timer. */
-	TIM_CR1(pGrpDev->pTimer) |= TIM_CR1_CEN;
-	while (TIMCounter > 1) {
-		TIMCounter = timer_get_counter(pGrpDev->pTimer);
-	}
+	for (cnt2 = 0; cnt2 < 750; cnt2++) {
+		TIMCounter = nCount;
+		timer_set_counter(pGrpDev->pTimer, TIMCounter);
+		/* Start timer. */
+		TIM_CR1(pGrpDev->pTimer) |= TIM_CR1_CEN;
+		while (TIMCounter > 1) {
+			TIMCounter = timer_get_counter(pGrpDev->pTimer);
+		}
 	}
 	timer_disable_counter(pGrpDev->pTimer);
 }

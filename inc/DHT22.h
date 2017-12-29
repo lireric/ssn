@@ -33,10 +33,10 @@
 
 /* Exported constants --------------------------------------------------------*/
 #define MAX_TICS 10000
-#define DHT_OK 0
-#define DHT_NO_CONN 1
-#define DHT_CS_ERROR 2
-#define DHT_COM_ERROR 3
+#define DHT_OK 			1
+#define DHT_NO_CONN   (-1)
+#define DHT_CS_ERROR  (-2)
+#define DHT_COM_ERROR (-3)
 
 /* -- DH22 parameters --- */
 #define DHT_TBE 1000		// ms, Host the start signal down time
@@ -68,7 +68,7 @@ typedef struct{
 } DHT_data_t;
 
 DHT_data_t* 	DHTInitStruct();
-void		 	dht_device_init(sDevice* dev);
+int32_t		 	dht_device_init(sDevice* dev);
 void 			dht_device_delete(DHT_data_t* pDHTDev);
 uint32_t 		measure_period_nus(sGrpDev* pGrpDev, uint32_t nTimeout);
 uint32_t 		dht_get_data(sDevice* dev);

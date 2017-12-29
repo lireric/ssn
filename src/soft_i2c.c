@@ -40,6 +40,7 @@ static const uint8_t I2CSWM_DIRECTION_RX = 1;
 static const uint8_t I2CSWM_NACK = 1;
 static const uint8_t I2CSWM_ACK = 0;
 
+#define DELAY_TICS                          (12)
 
 void soft_i2c_init(sGrpDev* pGrpDev)
 {
@@ -138,14 +139,14 @@ uint8_t soft_i2c_start(sGrpDev* pGrpDev)
 
 	soft_i2c_set_wire_SDA(pGrpDev);		// SETSDA
 	soft_i2c_set_wire_SCL (pGrpDev);	// SETSCL
-	delay_nus (pGrpDev, 5);
+	delay_nus (pGrpDev, DELAY_TICS);
 	if (!soft_i2c_read_SDA(pGrpDev))
 			return pdFALSE;  // error is line down by slave
 	soft_i2c_clear_wire_SDA (pGrpDev); 	// SDA_LOW
-	delay_nus (pGrpDev, 5);
+	delay_nus (pGrpDev, DELAY_TICS);
 	if (soft_i2c_read_SDA(pGrpDev))
 			return pdFALSE;	// bus error
-	delay_nus (pGrpDev, 5);
+	delay_nus (pGrpDev, DELAY_TICS);
 //	soft_i2c_clear_wire_SCL(pGrpDev); //  SCL_LOW
 //	delay_nus (pGrpDev, 3);
 	return pdTRUE;
@@ -154,13 +155,13 @@ uint8_t soft_i2c_start(sGrpDev* pGrpDev)
 void soft_i2c_stop(sGrpDev* pGrpDev)
 {
 	soft_i2c_clear_wire_SCL (pGrpDev);  // SCL_LOW
-	delay_nus (pGrpDev, 5);
+	delay_nus (pGrpDev, DELAY_TICS);
 	soft_i2c_clear_wire_SDA (pGrpDev); 	//  SDA_LOW
-	delay_nus (pGrpDev, 5);
+	delay_nus (pGrpDev, DELAY_TICS);
 	soft_i2c_set_wire_SCL (pGrpDev);	// SETSCL
-	delay_nus (pGrpDev, 5);
+	delay_nus (pGrpDev, DELAY_TICS);
 	soft_i2c_set_wire_SDA(pGrpDev);		// SETSDA
-	delay_nus (pGrpDev, 5);
+	delay_nus (pGrpDev, DELAY_TICS);
 }
 
 
@@ -170,9 +171,9 @@ void soft_i2c_reset(sGrpDev* pGrpDev)
 		uint8_t i;
 		for (i = 0; i < 15; i++) {
 			soft_i2c_set_wire_SCL(pGrpDev);	// SETSCL
-			delay_nus(pGrpDev, 10);
+			delay_nus(pGrpDev, DELAY_TICS*2);
 			soft_i2c_clear_wire_SCL(pGrpDev); //  SCL_LOW
-			delay_nus(pGrpDev, 10);
+			delay_nus(pGrpDev, DELAY_TICS*2);
 		}
 		soft_i2c_set_wire_SDA(pGrpDev);			// SETSDA
 		soft_i2c_set_wire_SCL(pGrpDev);		// SETSCL
@@ -181,11 +182,11 @@ void soft_i2c_reset(sGrpDev* pGrpDev)
 void soft_i2c_ack(sGrpDev* pGrpDev)
 {
 	soft_i2c_clear_wire_SCL (pGrpDev);	// SCL_LOW
-	delay_nus (pGrpDev, 10);
+	delay_nus (pGrpDev, DELAY_TICS*2);
 	soft_i2c_clear_wire_SDA (pGrpDev); 	// SDA_LOW
-	delay_nus (pGrpDev, 10);
+	delay_nus (pGrpDev, DELAY_TICS*2);
 	soft_i2c_set_wire_SCL (pGrpDev);	// SETSCL
-	delay_nus (pGrpDev, 10);
+	delay_nus (pGrpDev, DELAY_TICS*2);
 	soft_i2c_clear_wire_SCL (pGrpDev); //  SCL_LOW
 //	soft_i2c_set_wire_SDA(pGrpDev);		// SETSDA
 //	delay_nus (pGrpDev, 5);
@@ -194,23 +195,23 @@ void soft_i2c_ack(sGrpDev* pGrpDev)
 void soft_i2c_NoAck(sGrpDev* pGrpDev)
 {
 	soft_i2c_clear_wire_SCL (pGrpDev);	// SCL_LOW
-	delay_nus (pGrpDev, 10);
+	delay_nus (pGrpDev, DELAY_TICS*2);
 	soft_i2c_set_wire_SDA(pGrpDev);		// SETSDA
-	delay_nus (pGrpDev, 10);
+	delay_nus (pGrpDev, DELAY_TICS*2);
 	soft_i2c_set_wire_SCL (pGrpDev);	// SETSCL
-	delay_nus (pGrpDev, 10);
+	delay_nus (pGrpDev, DELAY_TICS*2);
 	soft_i2c_clear_wire_SCL (pGrpDev); //  SCL_LOW
-	delay_nus (pGrpDev, 5);
+	delay_nus (pGrpDev, DELAY_TICS);
 }
 
 uint8_t soft_i2c_WaitAck(sGrpDev* pGrpDev)
 {
 	soft_i2c_clear_wire_SCL (pGrpDev);	// SCL_LOW
-	delay_nus (pGrpDev, 10);
+	delay_nus (pGrpDev, DELAY_TICS*2);
 	soft_i2c_set_wire_SDA(pGrpDev);		// SETSDA
-	delay_nus (pGrpDev, 10);
+	delay_nus (pGrpDev, DELAY_TICS*2);
 	soft_i2c_set_wire_SCL (pGrpDev);	// SETSCL
-	delay_nus (pGrpDev, 10);
+	delay_nus (pGrpDev, DELAY_TICS*2);
 	if (soft_i2c_read_SDA(pGrpDev)) {
 		soft_i2c_clear_wire_SCL (pGrpDev);	// SCL_LOW
 		return pdFALSE;
@@ -223,10 +224,10 @@ uint8_t soft_i2c_clock(sGrpDev* pGrpDev)
 {
     uint8_t l;
     soft_i2c_set_wire_SCL (pGrpDev);		// SETSCL
-    delay_nus (pGrpDev, 5);
+    delay_nus (pGrpDev, DELAY_TICS);
     l = soft_i2c_read_SDA(pGrpDev);
 	soft_i2c_clear_wire_SCL (pGrpDev);		// SCL_LOW
-    delay_nus (pGrpDev, 5);
+    delay_nus (pGrpDev, DELAY_TICS);
 	return l;
 
 
@@ -290,9 +291,9 @@ void soft_i2c_PutByte(sGrpDev* pGrpDev, uint8_t data)
         else
         	soft_i2c_clear_wire_SDA (pGrpDev); 	// SDA_LOW
         data <<= 1;
-        delay_nus (pGrpDev, 10);
+        delay_nus (pGrpDev, DELAY_TICS*2);
         soft_i2c_set_wire_SCL (pGrpDev);		// SETSCL
-        delay_nus (pGrpDev, 10);
+        delay_nus (pGrpDev, DELAY_TICS*2);
     }
     soft_i2c_clear_wire_SCL (pGrpDev);			// SCL_LOW
 }
@@ -306,9 +307,9 @@ uint8_t soft_i2c_GetByte(sGrpDev* pGrpDev)
     while ( i-- ) {
         data <<= 1;
         soft_i2c_clear_wire_SCL (pGrpDev);	// SCL_LOW
-        delay_nus (pGrpDev, 5);
+        delay_nus (pGrpDev, DELAY_TICS);
         soft_i2c_set_wire_SCL (pGrpDev);	// SETSCL
-        delay_nus (pGrpDev, 5);
+        delay_nus (pGrpDev, DELAY_TICS);
         if ( soft_i2c_read_SDA(pGrpDev) ) {
             data |= 0x01;
         }
@@ -317,6 +318,26 @@ uint8_t soft_i2c_GetByte(sGrpDev* pGrpDev)
     return data;
 }
 
+// try to connect device by given address for pDevice. Return True or False
+int32_t soft_i2c_TryAddress (sGrpDev* pGrpDev, uint8_t chipAddress)
+{
+    if ( !soft_i2c_start(pGrpDev) ) {
+    	// try once more
+    	soft_i2c_reset(pGrpDev);
+    	if ( !soft_i2c_start(pGrpDev) )
+    		return pdFALSE;
+    }
+
+    soft_i2c_PutByte(pGrpDev, chipAddress);
+    if ( !soft_i2c_WaitAck(pGrpDev) ) {
+    	soft_i2c_stop(pGrpDev);
+        return pdFALSE;
+    }
+    soft_i2c_stop(pGrpDev);
+    delay_nus (pGrpDev, 20);
+    return pdTRUE;
+
+}
 
 uint32_t soft_i2c_ReadBuffer (sGrpDev* pGrpDev, uint8_t chipAddress, uint8_t *buffer, uint32_t sizeOfBuffer)
 {

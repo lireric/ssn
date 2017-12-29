@@ -68,9 +68,10 @@ stepmotor_data_t* StepMotorInitStruct(sDevice* dev)
 	return pSMDev;
 }
 
-void StepMotorInitHW(sDevice* dev)
+int32_t StepMotorInitHW(sDevice* dev)
 {
 //	char msg[mainMAX_MSG_LEN];
+	int32_t nRes = pdPASS; // to do add some checks
 	stepmotor_data_t* pSMDev = (stepmotor_data_t*) dev->pDevStruct;
 
 	if (pSMDev) {
@@ -141,7 +142,7 @@ void StepMotorInitHW(sDevice* dev)
 		pSMDev->uiState = eSMReady; // device ready to next steps
 		xprintfMsg("\r\nStep motor device initialized: %d ", dev->nId);
 	}
-
+	return nRes;
 }
 
 /* Set/Reset phases:

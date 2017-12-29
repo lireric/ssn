@@ -34,6 +34,8 @@ OBJS+=bmp180.o
 OBJS+=stepmotor.o
 OBJS+=i2c_impl.o
 OBJS+=dev_memory.o
+OBJS+=bme280dev.o
+OBJS+=bme280.o
 
 all: src
 

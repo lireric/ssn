@@ -64,9 +64,9 @@ DHT_data_t* DHTInitStruct() {
 
 	return pDHTDev;
 }
-void dht_device_init(sDevice* dev) {
+int32_t dht_device_init(sDevice* dev) {
 
-	uint32_t res;
+	int32_t res = pdFAIL;
 	sGrpDev* pGrpDev = &dev->pGroup->GrpDev;
 //	char* msg = (char*)pvPortMalloc(mainMAX_MSG_LEN);
 
@@ -115,14 +115,14 @@ void dht_device_init(sDevice* dev) {
 	timer_one_shot_mode(pGrpDev->pTimer);
 
 	res = dht_get_data (dev);
-	if (!res) {
+	if (res > 0) {
 		xprintfMsg("\r\nOk. DHT device initialized: %d ", dev->nId);
 	} else {
 		xprintfMsg("\r\nError! DHT device error code=%d: %d ", res, dev->nId);
 	}
 
 	DhtEnd:
-	return;
+	return res;
 }
 
 void dht_device_delete(DHT_data_t* pDHTDev)
@@ -190,6 +190,6 @@ uint32_t dht_get_data (sDevice* dev) {
 
 	if ((uint8_t)data != check_sum) return DHT_CS_ERROR;
 
-	return DHT_OK;
+	return pdPASS;
 }
 

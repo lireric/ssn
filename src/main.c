@@ -39,7 +39,7 @@ const int  __attribute__((used)) uxTopUsedPriority = configMAX_PRIORITIES;
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2017-12-13:1"
+#define SSN_VERSION "2017-12-30:1"
 
 /* Global variables 			========================================== */
 
@@ -465,6 +465,9 @@ skipLoadPrefs:
 
 	xReturn = xTaskCreate( prvInputTask, ( char * ) "InputTask", mainINPUT_TASK_STACK, NULL, mainINPUT_TASK_PRIORITY, &pTmpTask );
 
+	completeAllInit(); // complete delayed device init procedures
+
+
 	xReturn = xTaskCreate( prvCheckSensorMRTask, ( char * ) "CheckSensorMRTask", 200, devArray, mainCHECK_SENSOR_MR_TASK_PRIORITY, &pTmpTask );
 	pCheckSensorMRTaskHnd = pTmpTask;
 
@@ -475,7 +478,6 @@ skipLoadPrefs:
 
 	xReturn = xTaskCreate( prvProcSensorTask, ( char * ) "ProcSensorTask", mainPROCSENSORS_TASK_STACK, devArray, mainPROC_SENSOR_TASK_PRIORITY, &pTmpTask );
 
-	completeAllInit(); // complete delayed device init procedures
 
 	( void ) xReturn;
 
@@ -747,6 +749,29 @@ processLocalMessages:
 											if (strcmp(cmd, "updateaction") == 0) {
 												UpdateActionJSON(json_data);
 											}
+								if (strcmp(cmd, "scani2c") == 0) {
+									if (json_data) {
+										uint16_t dev_id =
+												(uint16_t) cJSON_GetObjectItem(json_data, "adev")->valueint;
+										sDevice *pTmpDev = getDeviceByID(dev_id);
+										if (pTmpDev) {
+											uint8_t nCnt = 0;
+											uint8_t addr;
+
+											for (addr=0; addr<=254; addr++) {
+												int32_t nRes = soft_i2c_TryAddress (&pTmpDev->pGroup->GrpDev, addr);
+												if (nRes) {
+													nCnt++;
+													xprintfMsg("\r\nscani2c: Dev[%d] - i2c device found at address [%x]", dev_id, addr);
+												}
+											}
+											xprintfMsg("\r\nscani2c: Scan completed found devices [%d]", nCnt);
+										} else {
+											xprintfMsg("\r\nscani2c: Error - Dev not found [%d]", dev_id);
+										}
+									}
+								}
+
 											if (strcmp(cmd, "sdv") == 0) {
 												if (json_data) {
 													char* strVal 	= (char*) cJSON_GetObjectItem(json_data,"aval")->valuestring;
@@ -757,12 +782,12 @@ processLocalMessages:
 														// process string data type:
 														setDevValueByID((int32_t)strVal, dev_cmd, dev_id, eElmString);
 														logAction(0, dev_id, dev_cmd, dev_val);
-														xprintfMsg("\n\rSet dev[%d](%d)=%s", dev_id, dev_cmd, strVal);
+														xprintfMsg("\r\nSet dev[%d](%d)=%s", dev_id, dev_cmd, strVal);
 													} else {
 														// process numeric data type:
 														setDevValueByID(dev_val, dev_cmd, dev_id, eElmInteger);
 														logAction(0, dev_id, dev_cmd, dev_val);
-														xprintfMsg("\n\rSet dev[%d]=(%d)%d", dev_id, dev_cmd, dev_val);
+														xprintfMsg("\r\nSet dev[%d]=(%d)%d", dev_id, dev_cmd, dev_val);
 													}
 													// send notification about command executing:
 //													xsprintf(cPassMessage, "{\"status\":\"0\", \"comment\":\"set dev[%d](%d)=%d\"}", dev_id, dev_cmd, dev_val);
@@ -850,122 +875,191 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 		for (j = 1; j <= all_devs_counter; j++) {
 			pDev = getDevByNo(j);
 			if (pDev) {
-				ut = pDev->ucType;
-				sSensorMsg.pDev = pDev;
-				switch (ut) {
+				if (!(pDev->nFlag && DEV_DISABLE_FLAG)) {
+					ut = pDev->ucType;
+					sSensorMsg.pDev = pDev;
+					switch (ut) {
 
 #ifdef  M_DS18B20
-				case device_TYPE_DS18B20:
-					if (pDev->pDevStruct) {
+					case device_TYPE_DS18B20:
+						if (pDev->pDevStruct) {
 // check ds18b20 conversation status on this line (it's make only for one (first) device - if set for this group, than skip):
-						if (flag18b20_conv != pDev->pGroup->uiGroup) {
-							res = ds_start_convert_all(pDev->pGroup, j);     // start temperature measuring
-							flag18b20_conv = pDev->pGroup->uiGroup;
-						}
+							if (flag18b20_conv != pDev->pGroup->uiGroup) {
+								res = ds_start_convert_all(pDev->pGroup, j); // start temperature measuring
+								flag18b20_conv = pDev->pGroup->uiGroup;
+							}
 // if value changed send message into Sensors queue for next processing:
-						if (abs(
-								((ds18b20_device*) pDev->pDevStruct)->iDevValue
-										- ((ds18b20_device*) pDev->pDevStruct)->nDevPrevValue)
-								>= pDev->uiDeltaValue) {
-							sSensorMsg.nDevCmd = 0;
-							res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+							if (abs(
+									((ds18b20_device*) pDev->pDevStruct)->iDevValue
+											- ((ds18b20_device*) pDev->pDevStruct)->nDevPrevValue)
+									>= pDev->uiDeltaValue) {
+								sSensorMsg.nDevCmd = 0;
+								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
 //										res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
-							if (!res) {
-								xprintfMsg(
-										"\r\nError sending into Sensors Queue!");
+								if (!res) {
+									xprintfMsg(
+											"\r\nError sending into Sensors Queue!");
+								}
 							}
 						}
-					}
-					break;
+						break;
 #endif
 
 #ifdef  M_DHT
-				case device_TYPE_DHT22:
-					if (pDev->pDevStruct) {
+					case device_TYPE_DHT22:
+						if (pDev->pDevStruct) {
 //									taskENTER_CRITICAL(); {
-						res = dht_get_data(pDev);
+							res = dht_get_data(pDev);
 //									} taskEXIT_CRITICAL();
-						if ((abs(
-								((DHT_data_t*) pDev->pDevStruct)->humidity
-										- ((DHT_data_t*) pDev->pDevStruct)->nPrevHumidity)
-								>= ((DHT_data_t*) pDev->pDevStruct)->uiDeltaHumidity)) {
-							sSensorMsg.nDevCmd = 1;
-							res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
-						}
-						if (abs(
-								((DHT_data_t*) pDev->pDevStruct)->temperature
-										- ((DHT_data_t*) pDev->pDevStruct)->nPrevTemperature)
-								>= pDev->uiDeltaValue) {
-							sSensorMsg.nDevCmd = 0;
-							res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+							if ((abs(
+									((DHT_data_t*) pDev->pDevStruct)->humidity
+											- ((DHT_data_t*) pDev->pDevStruct)->nPrevHumidity)
+									>= ((DHT_data_t*) pDev->pDevStruct)->uiDeltaHumidity)) {
+								sSensorMsg.nDevCmd = 1;
+								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+							}
+							if (abs(
+									((DHT_data_t*) pDev->pDevStruct)->temperature
+											- ((DHT_data_t*) pDev->pDevStruct)->nPrevTemperature)
+									>= pDev->uiDeltaValue) {
+								sSensorMsg.nDevCmd = 0;
+								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
 //											res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
+							}
 						}
-					}
-					break;
+						break;
 #endif
 #ifdef  M_BMP180
-				case device_TYPE_BMP180:
-					if (pDev->pDevStruct) {
-						res = bmp180_get_data(pDev);
-						if (abs(
-								((BMP180_data_t*) pDev->pDevStruct)->iTemperature
-										- ((BMP180_data_t*) pDev->pDevStruct)->iPrevTemperature)
-								>= pDev->uiDeltaValue) {
-							sSensorMsg.nDevCmd = 0;
-							res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+					case device_TYPE_BMP180:
+						if (pDev->pDevStruct) {
+							res = bmp180_get_data(pDev);
+							if (abs(
+									((BMP180_data_t*) pDev->pDevStruct)->iTemperature
+											- ((BMP180_data_t*) pDev->pDevStruct)->iPrevTemperature)
+									>= pDev->uiDeltaValue) {
+								sSensorMsg.nDevCmd = 0;
+								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+
+							}
+							if (abs(
+									((BMP180_data_t*) pDev->pDevStruct)->uiPressure
+											- ((BMP180_data_t*) pDev->pDevStruct)->uiPrevPressure)
+									>= ((BMP180_data_t*) pDev->pDevStruct)->uiDeltaPressure) {
+								sSensorMsg.nDevCmd = 1;
+								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+							}
+						}
+						break;
+#endif
+#ifdef  M_BME280
+					case device_TYPE_BME280:
+						if (pDev->pDevStruct) {
+							s32 v_uncomp_pressure_s32;
+							s32 v_uncomp_temperature_s32;
+							s32 v_uncomp_humidity_s32;
+
+							if (((bme280_t*) pDev->pDevStruct)->oss == 0) {
+								// normal mode
+								res =
+										bme280_read_uncomp_pressure_temperature_humidity(
+												pDev, &v_uncomp_pressure_s32,
+												&v_uncomp_temperature_s32,
+												&v_uncomp_humidity_s32);
+							} else {
+								// force mode
+								res =
+										bme280_get_forced_uncomp_pressure_temperature_humidity(
+												pDev, &v_uncomp_pressure_s32,
+												&v_uncomp_temperature_s32,
+												&v_uncomp_humidity_s32);
+							}
+
+							if (res) {
+								pDev->uiLastUpdate = rtc_get_counter_val();
+
+								((bme280_t*) pDev->pDevStruct)->iPrevTemperature = ((bme280_t*) pDev->pDevStruct)->iTemperature;
+								((bme280_t*) pDev->pDevStruct)->iTemperature =
+										bme280_compensate_temperature_int32(
+												pDev, v_uncomp_temperature_s32);
+								((bme280_t*) pDev->pDevStruct)->uiPrevPressure = ((bme280_t*) pDev->pDevStruct)->uiPressure;
+								((bme280_t*) pDev->pDevStruct)->uiPressure =
+										bme280_compensate_pressure_int32(pDev,
+												v_uncomp_pressure_s32);
+								((bme280_t*) pDev->pDevStruct)->uiPrevHumidity = ((bme280_t*) pDev->pDevStruct)->uiHumidity;
+								((bme280_t*) pDev->pDevStruct)->uiHumidity =
+										bme280_compensate_humidity_int32(pDev,
+												v_uncomp_humidity_s32);
+							}
+
+							if (abs(
+									((bme280_t*) pDev->pDevStruct)->iTemperature
+											- ((bme280_t*) pDev->pDevStruct)->iPrevTemperature)
+									>= pDev->uiDeltaValue) {
+								sSensorMsg.nDevCmd = 0;
+								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+
+							}
+							if (abs(
+									((bme280_t*) pDev->pDevStruct)->uiPressure
+											- ((bme280_t*) pDev->pDevStruct)->uiPrevPressure)
+									>= ((bme280_t*) pDev->pDevStruct)->uiDeltaPressure) {
+								sSensorMsg.nDevCmd = 1;
+								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+							}
+							if (abs(
+									((bme280_t*) pDev->pDevStruct)->uiHumidity
+											- ((bme280_t*) pDev->pDevStruct)->uiPrevHumidity)
+									>= ((bme280_t*) pDev->pDevStruct)->uiDeltaHumidity) {
+								sSensorMsg.nDevCmd = 2;
+								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+							}
 
 						}
-						if (abs(
-								((BMP180_data_t*) pDev->pDevStruct)->uiPressure
-										- ((BMP180_data_t*) pDev->pDevStruct)->uiPrevPressure)
-								>= ((BMP180_data_t*) pDev->pDevStruct)->uiDeltaPressure) {
-							sSensorMsg.nDevCmd = 1;
-							res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
-						}
-					}
-					break;
+						break;
 #endif
-				case device_TYPE_BB1BIT_IO_AI:
-					if (pDev->pDevStruct) {
-						// ADC calculation:
-						adc_set_regular_sequence(ADC1, pDev->pGroup->iDevQty,
-								((sADC_data_t*) pDev->pDevStruct)->nChannelArray);
-						adc_start_conversion_direct(ADC1);
+					case device_TYPE_BB1BIT_IO_AI:
+						if (pDev->pDevStruct) {
+							// ADC calculation:
+							adc_set_regular_sequence(ADC1,
+									pDev->pGroup->iDevQty,
+									((sADC_data_t*) pDev->pDevStruct)->nChannelArray);
+							adc_start_conversion_direct(ADC1);
 //								adc_start_conversion_regular(ADC1);
 //								while (!adc_eoc(ADC1));
 //								nADCch_counter = 0;
-						pDev->nFlag &= 0b11111110;
+							pDev->nFlag &= 0b11111110;
 
-						for (uint8_t nch = 0; nch < pDev->pGroup->iDevQty;
-								nch++) {
-							uint16_t nTmpValue;
-							adc_set_regular_sequence(ADC1, 1,
-									((((sADC_data_t*) pDev->pDevStruct)->nChannelArray)
-											+ nch));
-							adc_start_conversion_direct(ADC1);
-							while (!adc_eoc(ADC1))
-								;
+							for (uint8_t nch = 0; nch < pDev->pGroup->iDevQty;
+									nch++) {
+								uint16_t nTmpValue;
+								adc_set_regular_sequence(ADC1, 1,
+										((((sADC_data_t*) pDev->pDevStruct)->nChannelArray)
+												+ nch));
+								adc_start_conversion_direct(ADC1);
+								while (!adc_eoc(ADC1))
+									;
 //									nADCch_counter = 0;
-							nTmpValue =
-									((sADC_data_t*) pDev->pDevStruct)->nADCValueArray[nch];
-							((sADC_data_t*) pDev->pDevStruct)->nADCValueArray[nch] =
-									adc_read_regular(ADC1);
-							if (abs(
-									nTmpValue
-											- ((sADC_data_t*) pDev->pDevStruct)->nADCValueArray[nch])
-									>= pDev->uiDeltaValue) {
-								pDev->nFlag |= 0b00000001; // value is changed
-								sSensorMsg.nDevCmd = nch;
-								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+								nTmpValue =
+										((sADC_data_t*) pDev->pDevStruct)->nADCValueArray[nch];
+								((sADC_data_t*) pDev->pDevStruct)->nADCValueArray[nch] =
+										adc_read_regular(ADC1);
+								if (abs(
+										nTmpValue
+												- ((sADC_data_t*) pDev->pDevStruct)->nADCValueArray[nch])
+										>= pDev->uiDeltaValue) {
+									pDev->nFlag |= 0b00000001; // value is changed
+									sSensorMsg.nDevCmd = nch;
+									res = xQueueSend(xSensorsQueue, &sSensorMsg,
+											0);
+								}
+								//((sADC_data_t*)devArray[j]->pDevStruct)->uiLastUpdate = rtc_get_counter_val();
+								pDev->uiLastUpdate = rtc_get_counter_val();
 							}
-							//((sADC_data_t*)devArray[j]->pDevStruct)->uiLastUpdate = rtc_get_counter_val();
-							pDev->uiLastUpdate = rtc_get_counter_val();
-						}
 //									if (devArray[j]->nFlag && 0b00000001) {
 //										res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
 //									}
-					}
-					break;
+						}
+						break;
 //							case device_TYPE_BB1BIT_IO_PP:
 //							case device_TYPE_BB1BIT_IO_OD:
 //								res = (int8_t) bb_read_wire_data_bit(&devArray[j]->pGroup->GrpDev);
@@ -974,11 +1068,13 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 //									xQueueSend(xSensorsQueue, (void*)&devArray[j], portMAX_DELAY);
 //								}
 //								break;
-				}
+					}
 //					}
+				}
 			}
 		}
-		taskYIELD();
+		taskYIELD()
+		;
 		vTaskDelayUntil(&xLastWakeTime, mainSensorRateMR);
 	}
 }
@@ -1126,7 +1222,20 @@ static void prvProcSensorTask( void *pvParameters )
 					}
 					break;
 #endif
-				case device_TYPE_BB1BIT_IO_AI:
+#ifdef  M_BME280
+				case device_TYPE_BME280:
+					if (dev->pDevStruct) {
+						if (sSensorMsg.nDevCmd == 0)
+							logAction(0, dev->nId, 0, ((bme280_t*) dev->pDevStruct)->iTemperature);
+						else if (sSensorMsg.nDevCmd == 1)
+							logAction(0, dev->nId, 1, ((bme280_t*) dev->pDevStruct)->uiPressure);
+						else
+							logAction(0, dev->nId, 2, ((bme280_t*) dev->pDevStruct)->uiHumidity);
+					}
+					break;
+
+#endif
+					case device_TYPE_BB1BIT_IO_AI:
 					if (dev->pDevStruct) {
 //						for (uint8_t ch=0; ch < dev->pGroup->iDevQty; ch++) {
 						logAction(0, dev->nId, sSensorMsg.nDevCmd, ((sADC_data_t*)dev->pDevStruct)->nADCValueArray[sSensorMsg.nDevCmd]);

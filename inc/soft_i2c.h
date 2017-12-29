@@ -41,6 +41,8 @@ uint8_t soft_i2c_start(sGrpDev* pGrpDev);
 uint8_t soft_i2c_write (sGrpDev* pGrpDev, uint8_t data);
 uint8_t soft_i2c_read(sGrpDev* pGrpDev, uint8_t ack );
 
+int32_t soft_i2c_TryAddress (sGrpDev* pGrpDev, uint8_t chipAddress);
+
 //void 	soft_i2c_start(sGrpDev* pGrpDev);
 uint8_t soft_i2c_clock(sGrpDev* pGrpDev);
 void 	soft_i2c_stop(sGrpDev* pGrpDev);

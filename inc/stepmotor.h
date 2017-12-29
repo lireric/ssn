@@ -72,7 +72,7 @@ typedef struct{
 } stepmotor_data_t;
 
 stepmotor_data_t* 	StepMotorInitStruct(sDevice* dev);
-void 				StepMotorInitHW(sDevice* dev);
+int32_t				StepMotorInitHW(sDevice* dev);
 void 				StepMotorSetPhase(sDevice* dev, uint8_t uiPhaseNum, uint8_t ubValue);
 void 				StepMotorSetAllPhases(sDevice* dev);
 void 				StepMotorCalibrate(sDevice* dev);

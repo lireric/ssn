@@ -83,6 +83,9 @@
 #ifdef  M_BMP180
 	#include "bmp180.h"
 #endif
+#ifdef  M_BME280
+	#include "bme280.h"
+#endif
 
 #ifdef  M_STEPMOTOR
 #include "stepmotor.h"
