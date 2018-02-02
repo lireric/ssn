@@ -29,10 +29,10 @@
 #ifndef INC_SSN_PREFS_H_
 #define INC_SSN_PREFS_H_
 
-#define CONF_TEST
+//#define CONF_TEST
 //#define CONF_RELEASE
-//#define CONF_PROD2
-//#define CONF_PROD1
+//#define CONF_PROD2 	// Kokorino
+#define CONF_PROD1 		// Lobnja
 
 
 #ifdef CONF_TEST
@@ -67,10 +67,10 @@
 #define mainINPUT_TASK_PRIORITY				( tskIDLE_PRIORITY + 1 )
 #define gsmGSM_TASK_START_PRIORITY			( tskIDLE_PRIORITY + 1 )
 #define mainCHECK_SENSOR_MR_TASK_PRIORITY	( tskIDLE_PRIORITY + 1 )
-#define mainCHECK_SENSOR_HR_TASK_PRIORITY	( tskIDLE_PRIORITY + 3 )
-#define mainPROC_SENSOR_TASK_PRIORITY		( tskIDLE_PRIORITY + 2 )
-#define mainECHO_TASK_PRIORITY				( tskIDLE_PRIORITY + 2 )
-#define mainBASEOUT_TASK_PRIORITY			( tskIDLE_PRIORITY + 2 )
+#define mainCHECK_SENSOR_HR_TASK_PRIORITY	( tskIDLE_PRIORITY + 2 )
+#define mainPROC_SENSOR_TASK_PRIORITY		( tskIDLE_PRIORITY + 3 )
+#define mainECHO_TASK_PRIORITY				( tskIDLE_PRIORITY + 1 )
+#define mainBASEOUT_TASK_PRIORITY			( tskIDLE_PRIORITY + 1 )
 
 #define  devMAX_MSG_LEN				(127)
 
@@ -84,7 +84,7 @@
 #define mainBASECOM_Priority				(200)
 
 #define mainMINMEMORYALLOCATE				( 8 ) // minimum memory size for allocate
-#define mainACTIONSARRAYTIMEOUT				(30)	// timeout submitting actions log (sec)
+#define mainACTIONSARRAYTIMEOUT				(10)	// timeout submitting actions log (sec)
 
 /* FLASH prefs: */
 /* Define the STM32F10x FLASH Page Size depending on the used STM32 device */

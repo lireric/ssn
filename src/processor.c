@@ -1291,18 +1291,72 @@ int32_t	calcAndDoAction (sAction* pAct)
 }
 
 
-sAction* getActionByID (uint16_t nActId)
+// -------------------------------- Actions array operations:
+sAction* newAction()
 {
-	sAction* pAct = 0;
-	uint16_t i;
-	for (i=0; i<act_counter; i++) {
-		if (actArray[i]->nActId == nActId) {
-			pAct = actArray[i];
-			break;
-		}
+	sAction *pAct = NULL;
+	if (++act_counter > mainMAX_ACTIONS) {
+		return NULL;
 	}
+	pAct = (sAction*)pvPortMalloc(sizeof(sAction));
+	*(sAction**)(actArray + act_counter) = pAct;
+	memset (pAct,0,sizeof(sAction)); 					// reset all action attributes
+
 	return pAct;
 }
+
+
+sAction* addAction(sAction* pNewAction)
+{
+	sAction* pAct = newAction();
+
+	memcpy(pAct, pNewAction, sizeof(sAction));
+
+	return pAct;
+}
+
+// Get action by number in array:
+sAction* getActionByNo(uint16_t nActNo)
+{
+	if (nActNo <= act_counter)
+		return *(sAction**)(actArray+nActNo);
+	else
+		return NULL;
+}
+
+sAction* getCurrentAction()
+{
+	return *(sAction**)(actArray+act_counter);
+}
+
+// Get action by ID (from preferences):
+sAction* getActionByID (uint16_t nActID)
+{
+	uint16_t i;
+	sAction* pAct = NULL;
+
+	for (i = 1; i <= act_counter; i++) {
+		pAct = getActionByNo(i);
+			if (pAct->nActId == nActID) {
+				return pAct;
+				break;
+			}
+	}
+	return NULL;
+}
+//
+//sAction* getActionByID (uint16_t nActId)
+//{
+//	sAction* pAct = 0;
+//	uint16_t i;
+//	for (i=0; i<act_counter; i++) {
+//		if (actArray[i]->nActId == nActId) {
+//			pAct = actArray[i];
+//			break;
+//		}
+//	}
+//	return pAct;
+//}
 
 
 /* process operational stack to out stack:
@@ -1550,8 +1604,8 @@ int32_t	setAction (uint16_t nActId, char* pAStr, uint32_t arep, uint16_t nFlags)
 	sActElm* 	pActElm;
 	uint8_t		nSizeElm;
 
-	if (!pAStr) return pdFALSE;
-	if (strlen(pAStr) == 0) return pdFALSE;
+	if (!pAStr) return pdFAIL;
+	if (strlen(pAStr) == 0) return pdFAIL;
 
 	sAction* pAct = getActionByID(nActId);
 
@@ -1578,17 +1632,23 @@ int32_t	setAction (uint16_t nActId, char* pAStr, uint32_t arep, uint16_t nFlags)
 
 
 	} else {
-		if (act_counter < mainMAX_ACTIONS)
-			{
-				pAct = pvPortMalloc(sizeof(sAction));
-				if (pAct) {
-					actArray[act_counter++] = pAct;
-					pAct->nActId = nActId;
-				} else
-					return pdFALSE;
-			} else {
-				return pdFALSE;
-			}
+
+		pAct = newAction();
+		if (!pAct) {
+			return pdFAIL;
+		}
+
+//		if (act_counter < mainMAX_ACTIONS)
+//			{
+//				pAct = pvPortMalloc(sizeof(sAction));
+//				if (pAct) {
+//					actArray[act_counter++] = pAct;
+//					pAct->nActId = nActId;
+//				} else
+//					return pdFALSE;
+//			} else {
+//				return pdFALSE;
+//			}
 	}
 
 		pAct->nActRepeat = arep;
@@ -1599,7 +1659,7 @@ int32_t	setAction (uint16_t nActId, char* pAStr, uint32_t arep, uint16_t nFlags)
 // fill stack of parsed elements and get stack's head:
 		pEvtElm = parseActionString(pAStr);
 
-		if (!pEvtElm) return pdFALSE;
+		if (!pEvtElm) return pdFAIL;
 
 // search first element and set pointer to parent Action for eElmAction types elements:
 		pFirstEvtElm = pEvtElm;
@@ -1622,7 +1682,7 @@ int32_t	setAction (uint16_t nActId, char* pAStr, uint32_t arep, uint16_t nFlags)
 		if (nSizeElm > 0) {
 			res = processRPN(pAct, pFirstEvtElm, &pEvtElm, nSizeElm);
 		}
-		if (!res) return pdFALSE;
+		if (!res) return pdFAIL;
 
 
 		return res;

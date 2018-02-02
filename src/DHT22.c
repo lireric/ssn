@@ -59,6 +59,10 @@ DHT_data_t* DHTInitStruct() {
 
 	pDHTDev = (DHT_data_t*) pvPortMalloc(sizeof(DHT_data_t));
 	pDHTDev->uiLastUpdate = 0;
+	pDHTDev->humidity = 0;
+	pDHTDev->nPrevHumidity = 0;
+	pDHTDev->nPrevTemperature = 0;
+	pDHTDev->temperature = 0;
 
 	if (!pDHTDev) return NULL;
 
@@ -135,6 +139,7 @@ void dht_device_delete(DHT_data_t* pDHTDev)
  * return 0 if success or error code
  */
 uint32_t dht_get_data (sDevice* dev) {
+//return pdPASS;
 	sGrpDev* pGrpDev = &dev->pGroup->GrpDev;
 	DHT_data_t* dht_data = dev->pDevStruct;
 	uint64_t data = 0;

@@ -39,7 +39,7 @@ const int  __attribute__((used)) uxTopUsedPriority = configMAX_PRIORITIES;
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2017-12-30:1"
+#define SSN_VERSION "2018-02-02.1"
 
 /* Global variables 			========================================== */
 
@@ -65,7 +65,8 @@ uint8_t		grp_counter = -1;
 sDevice 	**devArray;
 uint16_t 	all_devs_counter = -1;
 
-sAction *actArray[mainMAX_ACTIONS];
+//sAction *actArray[mainMAX_ACTIONS];
+sAction 	**actArray;
 uint16_t 	act_counter = 0;
 
 slogAction	logActionsArray[mainLOG_ACTIONS_SIZE];
@@ -195,10 +196,12 @@ static int handler(void* user, const char* section, const char* name,
 //					for (i = 0; i < act_counter; i++) {
 //						vPortFree(actArray[i]);
 //					}
-					grp_counter = 0;
-					all_devs_counter = 0;
-					act_counter = 0;
-					route_counter = 0;
+
+
+//					grp_counter = -1;
+//					all_devs_counter = -1;
+//					act_counter = 0;
+//					route_counter = 0;
 
 				}
 			} else {
@@ -316,6 +319,7 @@ int main(void)
 
   grpArray = (sGrpInfo **) pvPortMalloc(mainMAX_DEV_GROUPS * sizeof(void*));
   devArray = (sDevice **) pvPortMalloc(mainMAX_ALL_DEVICES * sizeof(void*));
+  actArray = (sAction **) pvPortMalloc(mainMAX_ACTIONS * sizeof(void*));
 
   ulIdleCycleCount = 0UL;
   portBASE_TYPE xReturn;
@@ -424,10 +428,12 @@ if (res && xPrefsBuffer.buffer) {
 				    	xprintfMsg("\r\nErrors was in INI parsing, last error line: %d\r\n", res);
 				    } else {
 				    	xprintfMsg("\r\nParsed INI format\r\n");
-				    	res = restoreAllMemDevs();
-				    	uiLastSaveMemoryTick = rtc_get_counter_val();
 				    	//res = pdPASS;
 				    }
+			    	res = restoreAllMemDevs();
+			    	uiLastSaveMemoryTick = rtc_get_counter_val();
+			    	xprintfMsg("\r\nLoaded devices: %d\r\n", all_devs_counter);
+			    	xprintfMsg("\r\nLoaded actions: %d\r\n", act_counter);
 				} else {
 // JSON format
 // skip JSON format!!!
@@ -718,13 +724,13 @@ processLocalMessages:
 								cJSON *json_ssn;
 								json_root=cJSON_Parse(jsonMsg);
 								if (!json_root) {
-									xprintfMsg("\n\rError before: [%s]\n\r",cJSON_GetErrorPtr());
+									xprintfMsg("\r\nError before: [%s]\r\n",cJSON_GetErrorPtr());
 								}
 								else
 								{
 									json_ssn=cJSON_GetObjectItem(json_root,"ssn");
 									if (!json_ssn) {
-										xprintfMsg("\n\rJSON error before: [%s]\n\r",cJSON_GetErrorPtr());
+										xprintfMsg("\r\nJSON error before: [%s]\r\n",cJSON_GetErrorPtr());
 									} else {
 // now processing command:
 										int version = cJSON_GetObjectItem(json_ssn,"v")->valueint;
@@ -733,7 +739,7 @@ processLocalMessages:
 											uint16_t nObjDest = (uint16_t) cJSON_GetObjectItem(json_ssn,"obj")->valueint;
 //											uint16_t nObjSrc  = (uint16_t) cJSON_GetObjectItem(json_ssn,"obj_src")->valueint;
 
-											xprintfMsg("\n\rProcess JSON command: %s", cmd );
+											xprintfMsg("\r\nProcess JSON command: %s", cmd );
 
 											cJSON *json_data = cJSON_GetObjectItem(json_ssn,"data");
 
@@ -843,7 +849,7 @@ processLocalMessages:
 			} // switch
 			} // if - routing
 	} // if - message version
-		xprintfMsg("\r\nFreeHeap:=%d =INPUTTSK===", xPortGetFreeHeapSize());
+//		xprintfMsg("\r\nFreeHeap:=%d =INPUTTSK===", xPortGetFreeHeapSize());
 //		taskYIELD();
 	} // while
 }
@@ -875,7 +881,7 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 		for (j = 1; j <= all_devs_counter; j++) {
 			pDev = getDevByNo(j);
 			if (pDev) {
-				if (!(pDev->nFlag && DEV_DISABLE_FLAG)) {
+				if (!(pDev->nFlag & DEV_DISABLE_FLAG)) {
 					ut = pDev->ucType;
 					sSensorMsg.pDev = pDev;
 					switch (ut) {
@@ -1082,7 +1088,8 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 /* The process High Rate sensors data task. */
 static void prvCheckSensorHRTask(void *pvParameters) {
 	(void) pvParameters;
-	uint8_t res, ut;
+	volatile uint8_t res;
+	uint8_t ut;
 	uint16_t j;
 	xSensorMessage sSensorMsg;
 	sDevice * pDev;
@@ -1356,6 +1363,12 @@ uint16_t calcCRC;
 			break;
 		case SSN_STATE_DATA:
 			if (xSSNPDU.counter < xSSNPDU.nDataSize) {
+				if ((cChar== 0x0A)&&(SSN_SKIP_0A)) { // skip 0x0A chars
+					break;
+				}
+				if ((cChar== 0x0D)&&(SSN_SKIP_0D)) { // skip 0x0D chars
+					break;
+				}
 				xSSNPDU.buffer[xSSNPDU.counter++] = cChar;
 			} else {
 				if ((xSSNPDU.counter >= xSSNPDU.nDataSize) && (xSSNPDU.counter < xSSNPDU.nDataSize + 4)) {

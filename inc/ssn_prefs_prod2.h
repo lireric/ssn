@@ -38,14 +38,15 @@
 #define M_USART
 #define M_DS18B20
 #define M_DHT
-#define M_GSM
+//#define M_GSM
 #define M_BMP180
 #define M_STEPMOTOR
+#define M_BME280
 
 /* Persistence settings *
  * (select one) */
-//#define PERSIST_EEPROM_I2C
-#define PERSIST_STM32FLASH
+#define PERSIST_EEPROM_I2C
+//#define PERSIST_STM32FLASH
 
 #define WATCHDOG
 #define WATCHDOG_PERIOD 10000	// period of watchdog timer (ms)
@@ -54,21 +55,22 @@
 
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
-#define configTICK_RATE_HZ			( ( portTickType ) 300 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 46 * 1024 ) )
+#define configTICK_RATE_HZ			( ( portTickType ) 100 )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 51 * 1024 ) )
 
 /*-----------------------------------------------------------*/
 /* Hardware application settings */
 #define mainMAX_DEV_GROUPS				(20) 	// max number sensor groups
-#define mainMAX_GRP_DEVICES				(7) 	// default max number devices on one group
+#define mainMAX_GRP_DEVICES				(8) 	// default max number devices on one group
 #define mainMAX_ALL_DEVICES				(30) 	// default max number of all devices
-#define mainMAX_DHT_DEVICES				(3) 	// default max number of dht devices
+#define mainMAX_DHT_DEVICES				(2) 	// default max number of dht devices
 #define mainMAX_ROUTES					(2)		// max number routing interfaces
+
+// Heartbeat period (sec)
+#define mainHEARTBEAT_PERIOD	30
 
 // memory type device saving period (sec)
 #define mainMEMORY_DEV_SAVE_PERIOD		36000
-// maximum quantity of memory devices. Usually enough 1 element
-#define mainMEMORY_DEV_MAX_QTY			2
 
 // skip preferences loading button:
 #define mainSKIP_PREF_PIN		13		//	PB13
@@ -90,14 +92,14 @@
 #define SOFTI2C_1_GRP			( 0 )
 #define SOFTI2C_1_MAXDEVS		( 2 )
 
-#define mainBAUD_RATE						( 19200 )
-//#define mainBAUD_RATE						( 57600 )
-#define mainBASECOM							( mainCOM0 )
+#define mainBAUD_RATE						( 115200 )
+//#define mainBAUD_RATE						( 38400 )
+#define mainBASECOM							( mainCOM1 )
 
 /* Maximum elements number in parsed action formula string */
 #define MAX_ACTION_ARRAY_SIZE			(50)
 #define mainMAX_ACTIONS					(50) 	// max number of actions
 
-#define mainLOG_ACTIONS_SIZE			(10) 	// size of log actions array
+#define mainLOG_ACTIONS_SIZE			(50) 	// size of log actions array
 
 #endif /* INC_SSN_PREFS_PROD2_H_ */

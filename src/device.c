@@ -388,17 +388,6 @@ adc_setup_ret:
 }
 
 
-
-//sGrpInfo* getGrpInfo(unsigned char ucGrpNum)
-//{
-//	unsigned char i;
-//	for(i=0; i < mainMAX_DEV_GROUPS; i++)
-//	{
-//		if (((sGrpInfo*)(grpArray+i))->uiGroup == ucGrpNum) return (sGrpInfo*)(grpArray+i);
-//	}
-//	return (sGrpInfo*)0;
-//}
-
 // -------------------------------- Device array operations:
 sDevice* newDev()
 {
@@ -711,31 +700,35 @@ uint8_t getNumberDevValues(sDevice* pDev) {
 
 void setDevValueByID(int32_t nValue, uint8_t nDevCmd, uint16_t nDevID, uint8_t nDataType)
 {
-	uint16_t i;
 	sDevice * pDev;
 
 // if DevID == 0 then search action with ActID == nValue, else search device:
 
 	if (nDevID == 0) {
-		for (i=0; i<act_counter;i++) {
-			if (actArray[i]->nActId == nValue) {
-				vMainStartTimer(actArray[i]);
-			}
-		}
+		vMainStartTimer(getActionByID(nValue));
+
+//		for (i=0; i<act_counter;i++) {
+//			if (actArray[i]->nActId == nValue) {
+//				vMainStartTimer(actArray[i]);
+//			}
+//		}
 	} else {
-		for (i = 1; i < all_devs_counter; i++) {
-			pDev = getDevByNo(i);
-			if (pDev->nId == nDevID) {
-				if (nDataType == eElmDevValue) {
-					nValue = getDevValueByID(nDevCmd, (uint16_t) nValue); // for eElmDevValue datatype nValue = devID
-				} else {
-					setDevValue(nValue, nDevCmd, pDev, nDataType);
-				}
-				break;
-			}
-		}
+		pDev = getDeviceByID(nDevID);
+//		for (i = 1; i < all_devs_counter; i++) {
+//			pDev = getDevByNo(i);
+//			if (pDev->nId == nDevID) {
+//				if (nDataType == eElmDevValue) {
+//					nValue = getDevValueByID(nDevCmd, (uint16_t) nValue); // for eElmDevValue datatype nValue = devID
+//				} else {
+//					setDevValue(nValue, nDevCmd, pDev, nDataType);
+//				}
+//				break;
+//			}
+//		}
 		// if local device array not contain this device, send to input queue for routing
-		if (i >= all_devs_counter)
+		if (pDev) {
+			setDevValue(nValue, nDevCmd, pDev, nDataType);
+		} else
 		{
 //			char msg[mainMAX_MSG_LEN];
 			char *msg = pvPortMalloc(mainMAX_MSG_LEN);
@@ -923,16 +916,17 @@ int32_t	refreshActions2DeviceCash ()
 
 	vTaskSuspendAll();
 
-	for (nDevIndex = 1; nDevIndex <= all_devs_counter; nDevIndex++)
+	for (nDevIndex = 0; nDevIndex <= all_devs_counter; nDevIndex++)
 	{
 		pDev = getDevByNo(nDevIndex);
 		if (pDev) {
 			clearActionsDeviceCash(pDev);
 			nTmpArrayIndex = 0;
 			// scan all actions for this device
-			for (nActIndex = 0; nActIndex < act_counter; nActIndex++)
+			for (nActIndex = 0; nActIndex <= act_counter; nActIndex++)
 			{
-				pAct = actArray[nActIndex];
+//				pAct = actArray[nActIndex];
+				pAct = getActionByNo(nActIndex);
 				if (pAct) {
 					pEvtElm = pAct->pStartElmEvents;
 					do {

@@ -141,7 +141,7 @@ int32_t restoreMemDevs(sDevice* pDev)
 	uint8_t* puiBuf;
 	uint16_t calcCRC, bufCRC;
 	int32_t nValue;
-	uint16_t nMemDevID;
+//	uint16_t nMemDevID;
 	uint8_t	 nMemDevElements;
 	uint16_t nIndex = 2;
 	uint16_t nAddr;
@@ -169,7 +169,7 @@ int32_t restoreMemDevs(sDevice* pDev)
 
 					for (uint8_t i = 0; i < nNumMemDevs; i++)
 					{
-						nMemDevID = *(uint16_t*)(puiBuf+nIndex);
+//						nMemDevID = *(uint16_t*)(puiBuf+nIndex); // to do - ???
 						nIndex += 2;
 						nMemDevElements = *(uint8_t*)(puiBuf+nIndex);
 						nIndex += 2;
@@ -178,7 +178,8 @@ int32_t restoreMemDevs(sDevice* pDev)
 						{
 							nValue = *(int32_t*)(puiBuf+nIndex);
 							nIndex += 4;
-							setDevValueByID(nValue, j, nMemDevID, eElmInteger);
+//							setDevValueByID(nValue, j, nMemDevID, eElmInteger);
+							setDevValue(nValue, j, pDev, eElmInteger);
 						}
 					}
 

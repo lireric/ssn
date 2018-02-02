@@ -33,6 +33,9 @@
 #define M_DS18B20
 #define M_DHT
 //#define M_GSM
+#define M_BMP180
+#define M_BME280
+#define M_STEPMOTOR
 
 /* Persistence settings *
  * (select one) */
@@ -40,7 +43,7 @@
 //#define PERSIST_STM32FLASH
 
 #define WATCHDOG
-#define WATCHDOG_PERIOD 5000	// period of watchdog timer (ms)
+#define WATCHDOG_PERIOD 10000	// period of watchdog timer (ms)
 
 //#define DEBUG_S	// debug task statistics
 
@@ -49,20 +52,21 @@
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
 #define configTICK_RATE_HZ			( ( portTickType ) 100 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 45 * 1024 ) )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 52 * 1024 ) )
 
 /*-----------------------------------------------------------*/
 /* Hardware application settings */
 #define mainMAX_DEV_GROUPS				(20) 	// max number sensor groups
 #define mainMAX_GRP_DEVICES				(7) 	// default max number devices on one group
 #define mainMAX_ALL_DEVICES				(30) 	// default max number of all devices
-#define mainMAX_DHT_DEVICES				(3) 	// default max number of dht devices
+#define mainMAX_DHT_DEVICES				(1) 	// default max number of dht devices
 #define mainMAX_ROUTES					(3)		// max number routing interfaces
+
+// Heartbeat period (sec)
+#define mainHEARTBEAT_PERIOD	30
 
 // memory type device saving period (sec)
 #define mainMEMORY_DEV_SAVE_PERIOD		36000
-// maximum quantity of memory devices. Usually enough 1 element
-#define mainMEMORY_DEV_MAX_QTY			2
 
 
 // skip preferences loading button:

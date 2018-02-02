@@ -106,11 +106,17 @@ typedef enum
 	eOpSC		/* )	*/
 } eOper;
 
-extern sAction* 		actArray[];
+//extern sAction* 		actArray[];
+extern sAction** 		actArray;
 extern uint16_t 		act_counter;
 extern void	logAction(uint16_t nActId, uint16_t nDevId, uint8_t nDevCmd, uint32_t nValue);
 
+sAction* 			newAction();
 sAction* 			getActionByID (uint16_t nActId);
+sAction* 			addAction(sAction* pNewAction);
+sAction* 			getActionByNo(uint16_t nActNo);
+sAction* 			getCurrentAction();
+
 int32_t				setAction (uint16_t nActId, char* pAStr, uint32_t arep, uint16_t nFlags);
 uint16_t 			lookForCalcStrLimit(char* pAStr, uint16_t kStart);
 int32_t 			parseCalcString(char* pAStr, uint16_t kStart, uint16_t kLimit, sEvtElm** 	pEvtElmHead, uint16_t* kEnd);
