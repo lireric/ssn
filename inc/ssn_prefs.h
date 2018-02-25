@@ -29,10 +29,10 @@
 #ifndef INC_SSN_PREFS_H_
 #define INC_SSN_PREFS_H_
 
-//#define CONF_TEST
+#define CONF_TEST
 //#define CONF_RELEASE
 //#define CONF_PROD2 	// Kokorino
-#define CONF_PROD1 		// Lobnja
+//#define CONF_PROD1 		// Lobnja
 
 
 #ifdef CONF_TEST

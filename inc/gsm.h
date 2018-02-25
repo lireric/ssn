@@ -187,6 +187,7 @@ typedef union
 } uToken;
 
 //static void print_gsm_debug (const char *str);
+void 		deviceProcAttributes_gsm(sDevice* pDev, char* sName, char* sValue);
 void		gsm_hw_init_pwrkey();
 int32_t 	gsm_hw_init(int boud);
 sGSMDevice* gsm_preinit (cJSON *devitem, xQueueHandle xDebugQueue);

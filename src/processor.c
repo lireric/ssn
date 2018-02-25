@@ -1637,6 +1637,7 @@ int32_t	setAction (uint16_t nActId, char* pAStr, uint32_t arep, uint16_t nFlags)
 		if (!pAct) {
 			return pdFAIL;
 		}
+		pAct->nActId = nActId;
 
 //		if (act_counter < mainMAX_ACTIONS)
 //			{

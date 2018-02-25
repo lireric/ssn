@@ -288,6 +288,52 @@ void gsm_preinit_ini (sGSMDevice* pGSMDev, xQueueHandle xDebugQueue)
 
 }
 
+void deviceProcAttributes_gsm(sDevice* pDev, char* sName, char* sValue) {
+	sGSMDevice* ptGSMDev = (sGSMDevice*)pDev->pDevStruct;
+
+	if (strcmp(sName, "PortDTR") == 0) {
+		ptGSMDev->uiPortDTR = get_port_by_name(sValue);
+	} else if (strcmp(sName, "PinDTR") == 0) {
+		ptGSMDev->uiPinDTR = conv2d(sValue);
+	} else if (strcmp(sName, "PortPwrKey") == 0) {
+		ptGSMDev->uiPortPwrKey = get_port_by_name(sValue);
+	} else if (strcmp(sName, "PinPwrKey") == 0) {
+		ptGSMDev->uiPortPwrKey = conv2d(sValue);
+	} else if (strcmp(sName, "PortChgCtrl") == 0) {
+		ptGSMDev->uiPortChgCtrl = get_port_by_name(sValue);
+	} else if (strcmp(sName, "PinChgCtrl") == 0) {
+		ptGSMDev->uiPinChgCtrl = conv2d(sValue);
+	} else if (strcmp(sName, "PortRTS") == 0) {
+		ptGSMDev->uiPortRTS = get_port_by_name(sValue);
+	} else if (strcmp(sName, "PinRTS") == 0) {
+		ptGSMDev->uiPinRTS = conv2d(sValue);
+	} else if (strcmp(sName, "USART") == 0) {
+		ptGSMDev->uiUSART = conv2d(sValue);
+	} else if (strcmp(sName, "acc") == 0) {
+		ptGSMDev->uiSSNAcc = conv2d(sValue);
+	} else if (strcmp(sName, "v") == 0) {
+		strncpy0(ptGSMDev->chip, sValue, strlen(sValue)+1);
+	} else if (strcmp(sName, "APN") == 0) {
+		strncpy0(ptGSMDev->cAPN, sValue, strlen(sValue)+1);
+	} else if (strcmp(sName, "SrvAddr") == 0) {
+		strncpy0(ptGSMDev->cSrvAddr, sValue, strlen(sValue)+1);
+	} else if (strcmp(sName, "SrvPort") == 0) {
+		ptGSMDev->uiSrvPort = conv2d(sValue);
+	} else if (strcmp(sName, "SMSNumber") == 0) {
+		strncpy0(ptGSMDev->cSMSNumber, sValue, strlen(sValue)+1);
+	} else if (strcmp(sName, "PriDNS") == 0) {
+		strncpy0(ptGSMDev->cPriDNS, sValue, strlen(sValue)+1);
+	} else if (strcmp(sName, "SecDNS") == 0) {
+		strncpy0(ptGSMDev->cSecDNS, sValue, strlen(sValue)+1);
+	} else if (strcmp(sName, "GUser") == 0) {
+		strncpy0(ptGSMDev->cGPRSUserID, sValue, strlen(sValue));
+	} else if (strcmp(sName, "GUserPswd") == 0) {
+		strncpy0(ptGSMDev->cGPRSUserPassw, sValue, strlen(sValue)+1);
+	} else if (strcmp(sName, "AESKey") == 0) {
+		strncpy0(ptGSMDev->cAESKey, sValue, strlen(sValue)+1);
+	}
+}
+
 sGSMDevice* gsm_preinit (cJSON *devitem, xQueueHandle xDebugQueue)
 {
 	char* pc;

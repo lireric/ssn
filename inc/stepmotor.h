@@ -71,6 +71,7 @@ typedef struct{
     uint8_t ucPinPhase[4];		// 0 - pin phase A, 1 - pin phase B, 2 - pin phase C, 3 - pin phase D
 } stepmotor_data_t;
 
+void 				deviceProcAttributes_StepMotor(sDevice* pDev, char* sName, char* sValue);
 stepmotor_data_t* 	StepMotorInitStruct(sDevice* dev);
 int32_t				StepMotorInitHW(sDevice* dev);
 void 				StepMotorSetPhase(sDevice* dev, uint8_t uiPhaseNum, uint8_t ubValue);

@@ -34,6 +34,7 @@
 #include "stdint.h"
 #include "bme280dev.h"
 
+void 			deviceProcAttributes_bme280(sDevice* pDev, char* sName, char* sValue);
 bme280_t* 		bme280_device_init(sDevice *pDev, uint8_t nAddr);
 void 			bme280_device_delete(sDevice *pDev);
 int32_t 		bme280_get_data(sDevice *pDev);

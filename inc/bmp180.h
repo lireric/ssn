@@ -160,6 +160,7 @@ typedef struct{
 	uint32_t UP;
 } BMP180_data_t;
 
+void 			deviceProcAttributes_bmp180(sDevice* pDev, char* sName, char* sValue);
 BMP180_data_t* 	bmp180DeviceInitStruct();
 int32_t		 	bmp180DeviceInit(sDevice *pDev);
 void 			bmp180_device_delete(sDevice *pDev);

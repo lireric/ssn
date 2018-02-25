@@ -31,6 +31,7 @@
 #include "FreeRTOS.h"
 #include "../inc/ssn.h"
 #include "commands.h"
+#include "utils.h"
 
 BMP180_data_t* bmp180DeviceInitStruct()
 {
@@ -40,6 +41,23 @@ BMP180_data_t* bmp180DeviceInitStruct()
 	return pBMP180Dev;
 }
 
+void deviceProcAttributes_bmp180(sDevice* pDev, char* sName, char* sValue) {
+
+	if (strcmp(sName, "addr") == 0) {
+		if (pDev->pDevStruct)
+			((BMP180_data_t*) pDev->pDevStruct)->I2C_Addr = conv2d(
+					sValue);
+	} else if (strcmp(sName, "oss") == 0) {
+		if (pDev->pDevStruct)
+			((BMP180_data_t*) pDev->pDevStruct)->P_Oversampling =
+					conv2d(sValue);
+		// delta pressure
+	} else if (strcmp(sName, "dlp") == 0) {
+		if (pDev->pDevStruct)
+			((BMP180_data_t*) pDev->pDevStruct)->uiDeltaPressure =
+					conv2d(sValue);
+	}
+}
 
 int32_t bmp180DeviceInit(sDevice *pDev) {
 	sGrpDev* pGrpDev = &pDev->pGroup->GrpDev;

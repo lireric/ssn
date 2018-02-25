@@ -72,6 +72,7 @@
 #define device_TYPE_BMP180				( 15 )	// BMP180 atmosphere pressure and temperature sensor
 #define device_TYPE_STEPMOTOR			( 16 )	// stepping motor device
 #define device_TYPE_BME280				( 17 )	// BME280 atmosphere pressure, humidity and temperature sensor
+#define device_TYPE_MHZ19				( 18 )	// MH-Z19 CO2 sensor
 
 
 #ifndef NULL
@@ -177,6 +178,7 @@ int32_t			scanDevActions (sDevice* dev);
 
 int32_t 		addInitDevRequest(uint16_t 	nDevId);
 void 			completeAllInit();
+int32_t 		devicePreInit(sDevice* dev, char* sName, char* sValue);
 void 			deviceInit(sDevice* dev);
 int32_t 		storeAllMemDevs();
 int32_t 		restoreAllMemDevs();

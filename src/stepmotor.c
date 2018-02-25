@@ -29,6 +29,7 @@
 #include "FreeRTOS.h"
 #include "../inc/ssn.h"
 #include "commands.h"
+#include "utils.h"
 
 //extern static void 	StepMotorTimerFunction(void* pParam);
 
@@ -41,6 +42,50 @@ static void StepMotorTimerFunction(void* pParam)
 	StepMotorNextStep(dev);
 }
 
+void deviceProcAttributes_StepMotor(sDevice* pDev, char* sName, char* sValue) {
+	if (pDev->pDevStruct) {
+		// step period (ms):
+		if (strcmp(sName, "st") == 0) {
+			((stepmotor_data_t*) pDev->pDevStruct)->uiStepTime = conv2d(
+					sValue);
+		}
+		// step motor type:
+		else if (strcmp(sName, "smtype") == 0) {
+			((stepmotor_data_t*) pDev->pDevStruct)->sm_type = conv2d(
+					sValue);
+		}
+		// step motor pin phase A:
+		else if (strcmp(sName, "pina") == 0) {
+			((stepmotor_data_t*) pDev->pDevStruct)->ucPinPhase[0] =
+					conv2d(sValue);
+		}
+		// step motor pin phase B:
+		else if (strcmp(sName, "pinb") == 0) {
+			((stepmotor_data_t*) pDev->pDevStruct)->ucPinPhase[1] =
+					conv2d(sValue);
+		}
+		// step motor pin phase C:
+		else if (strcmp(sName, "pinc") == 0) {
+			((stepmotor_data_t*) pDev->pDevStruct)->ucPinPhase[2] =
+					conv2d(sValue);
+		}
+		// step motor pin phase D:
+		else if (strcmp(sName, "pind") == 0) {
+			((stepmotor_data_t*) pDev->pDevStruct)->ucPinPhase[3] =
+					conv2d(sValue);
+		}
+		// Flag:
+		else if (strcmp(sName, "f") == 0) {
+			((stepmotor_data_t*) pDev->pDevStruct)->uiFlag = conv2d(
+					sValue);
+		}
+		// manual max position:
+		else if (strcmp(sName, "pmax") == 0) {
+			((stepmotor_data_t*) pDev->pDevStruct)->iPositionPrefMax =
+					conv2d(sValue);
+		}
+	}
+}
 
 /*
  * Hardware init and memory allocation for device structure

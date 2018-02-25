@@ -97,6 +97,171 @@ void completeAllInit() {
 }
 
 /*
+ * Perform parsing initialization parameters from preferences processor handler
+ * take dev pointer, parameter name and parameter value
+ */
+int32_t devicePreInit(sDevice* pDev, char* sName, char* sValue) {
+//	int32_t nRes = pdPASS;
+	if (pDev) {
+		if (strcmp(sName, "devid") == 0) {
+			pDev->nId = conv2d(sValue);
+
+		} else if (strcmp(sName, "dl") == 0) {
+			pDev->uiDeltaValue = conv2d(sValue);
+
+		} else if (strcmp(sName, "devtype") == 0) {
+			// section "dev:devtype" --------------------------------------------
+			pDev->ucType = conv2d(sValue);
+
+			if (pDev->ucType == device_TYPE_DS18B20) {
+				pDev->pDevStruct = NULL;
+
+			} else if (pDev->ucType == device_TYPE_DHT22) {
+#ifdef  M_DHT
+				pDev->nFlag |= DEV_DISABLE_FLAG; // set device disable flag before initialization
+				pDev->pDevStruct = (void*) DHTInitStruct();
+				if (!addInitDevRequest(pDev->nId))
+					return pdFAIL; // add request for delayed initialization
+#endif
+			} else if (pDev->ucType == device_TYPE_BB1BIT_IO_OD) {
+				gpio_set_mode(pDev->pGroup->GrpDev.pPort,
+						GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_OPENDRAIN,
+						1 << pDev->pGroup->GrpDev.ucPin);
+				gpio_set(pDev->pGroup->GrpDev.pPort,
+						1 << pDev->pGroup->GrpDev.ucPin); // set high value line
+
+			} else if (pDev->ucType == device_TYPE_BB1BIT_IO_PP) {
+				gpio_set_mode(pDev->pGroup->GrpDev.pPort,
+						GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL,
+						1 << pDev->pGroup->GrpDev.ucPin);
+
+			} else if (pDev->ucType == device_TYPE_BB1BIT_IO_INPUT) {
+				gpio_set_mode(pDev->pGroup->GrpDev.pPort, GPIO_MODE_INPUT,
+						GPIO_CNF_INPUT_FLOAT, 1 << pDev->pGroup->GrpDev.ucPin);
+
+			} else if (pDev->ucType == device_TYPE_BB1BIT_IO_AO) {
+				// to do:
+
+			} else if (pDev->ucType == device_TYPE_PWM) {
+
+				pDev->pDevStruct = pvPortMalloc(sizeof(sPWM_data_t));
+
+			} else if (pDev->ucType == device_TYPE_BB1BIT_IO_AI) {
+
+				pDev->pDevStruct = pvPortMalloc(sizeof(sADC_data_t));
+				if (!pDev->pDevStruct) {
+					return pdFAIL;
+				}
+
+			} else if (pDev->ucType == device_TYPE_GSM) {
+#ifdef  M_GSM
+				dpDev->pDevStruct = pvPortMalloc(sizeof(sGSMDevice));
+				if (!pDev->pDevStruct) {
+					return pdFAIL;
+				}
+				//gsm_preinit_ini ((sGSMDevice*) devArray[all_devs_counter]->pDevStruct, xBaseOutQueue);
+				nRes = vMainStartGSMTask((void*)pDev);
+				if (!nRes)
+				return pdFAIL;
+#endif
+
+			} else if (pDev->ucType == device_TYPE_BMP180) {
+#ifdef  M_BMP180
+				pDev->nFlag |= DEV_DISABLE_FLAG; // set device disable flag before initialization
+				pDev->pDevStruct = (void*) bmp180DeviceInitStruct();
+				if (!addInitDevRequest(pDev->nId))
+					return pdFAIL; // add request for delayed initialization
+#endif
+			} else if (pDev->ucType == device_TYPE_BME280) {
+#ifdef  M_BME280
+				pDev->nFlag |= DEV_DISABLE_FLAG; // set device disable flag before initialization
+				pDev->pDevStruct = (void*) bme280DeviceInitStruct(pDev);
+				if (!addInitDevRequest(pDev->nId))
+					return pdFAIL; // add request for delayed initialization
+#endif
+			}
+// ***************** step motor init structure:
+#ifdef  M_STEPMOTOR
+			else if (pDev->ucType == device_TYPE_STEPMOTOR) {
+				pDev->nFlag |= DEV_DISABLE_FLAG; // set device disable flag before initialization
+				StepMotorInitStruct(pDev);
+				if (!pDev->pDevStruct)
+					return pdFAIL;
+				if (!addInitDevRequest(pDev->nId))
+					return pdFAIL; // add request for delayed initialization
+			}
+#endif
+		}
+// ---- other dev attributes: -----------------------------------------
+		else if (pDev->ucType == device_TYPE_MEMORY) {
+			// memory element pseudo device
+			if (strcmp(sName, "e") == 0) {
+				// allocate memory for memory elements array:
+				if (!MemoryDevInitStruct(pDev, conv2d(sValue)))
+					return pdFAIL;
+			}
+		} else if (pDev->ucType == device_TYPE_PWM) {
+			if (strcmp(sName, "ch") == 0) {
+				if (!pwm_setup(pDev, sValue)) {
+					return pdFAIL;
+				}
+			} else if (strcmp(sName, "freq") == 0) {
+				((sPWM_data_t*) pDev->pDevStruct)->nFreq = conv2d(sValue);
+			}
+
+		} else if (pDev->ucType == device_TYPE_BB1BIT_IO_AI) {
+			if (strcmp(sName, "ch") == 0) {
+				if (!adc_setup(pDev, sValue)) {
+					return pdFAIL;
+				}
+			}
+		}
+// ***************** DHT22 sensor
+		else if (pDev->ucType == device_TYPE_DHT22) {
+#ifdef  M_DHT
+			// delta humidity
+			if (strcmp(sName, "dlh") == 0) {
+				if (!pDev->pDevStruct)
+					return pdFAIL;
+				else {
+					((DHT_data_t*) pDev->pDevStruct)->uiDeltaHumidity = conv2d(
+							sValue);
+				}
+			}
+#endif
+		}		// ***************** BMP180 sensor
+		else if (pDev->ucType == device_TYPE_BMP180) {
+#ifdef  M_BMP180
+			deviceProcAttributes_bmp180(pDev, sName, sValue);
+#endif
+		} else if (pDev->ucType == device_TYPE_BME280) {
+#ifdef  M_BME280
+			deviceProcAttributes_bme280(pDev, sName, sValue);
+#endif
+		}		// ***************** step motor
+		else if (pDev->ucType == device_TYPE_STEPMOTOR) {
+#ifdef  M_STEPMOTOR
+			deviceProcAttributes_StepMotor(pDev, sName, sValue);
+
+#endif
+		} else if (pDev->ucType == device_TYPE_DS18B20) {
+#ifdef  M_DS18B20
+			if (strcmp(sName, "romid") == 0) {
+				pDev->pDevStruct = (void*) ds18b20_init(pDev->pGroup, sValue);
+			}
+#endif
+		} else if (pDev->ucType == device_TYPE_GSM) {
+#ifdef  M_GSM
+			deviceProcAttributes_gsm(pDev, sName, sValue);
+#endif
+		}
+		return pdPASS;
+	} else {
+		return pdFAIL;
+	}
+}
+
+/*
  * Perform device initialization procedure.
  * Usually it long time or complex and cannot be completed at apply preferences time
  */
@@ -916,14 +1081,14 @@ int32_t	refreshActions2DeviceCash ()
 
 	vTaskSuspendAll();
 
-	for (nDevIndex = 0; nDevIndex <= all_devs_counter; nDevIndex++)
+	for (nDevIndex = 1; nDevIndex <= all_devs_counter; nDevIndex++)
 	{
 		pDev = getDevByNo(nDevIndex);
 		if (pDev) {
 			clearActionsDeviceCash(pDev);
 			nTmpArrayIndex = 0;
 			// scan all actions for this device
-			for (nActIndex = 0; nActIndex <= act_counter; nActIndex++)
+			for (nActIndex = 1; nActIndex <= act_counter; nActIndex++)
 			{
 //				pAct = actArray[nActIndex];
 				pAct = getActionByNo(nActIndex);
@@ -956,8 +1121,13 @@ int32_t	refreshActions2DeviceCash ()
 											}
 								   	  }
 								}
-							// scan left to right
-							pEvtElm = pEvtElm->pPrevElm;
+							// scan left to right:
+							//      check cyclic loop:
+							if (pEvtElm == pEvtElm->pPrevElm) {
+								pEvtElm = NULL;
+							} else {
+								pEvtElm = pEvtElm->pPrevElm;
+							}
 						}
 					} while (pEvtElm);
 				}

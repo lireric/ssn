@@ -32,6 +32,7 @@
 #include "FreeRTOS.h"
 #include "../inc/ssn.h"
 #include "commands.h"
+#include "utils.h"
 
 s8 BME280_I2C_bus_write(sDevice* pDev, u8 reg_addr, u8 *reg_data, u8 cnt)
 {
@@ -68,6 +69,29 @@ bme280_t* bme280DeviceInitStruct(sDevice *pDev)
 		pBME280Dev->pDevice = pDev;
 	}
 	return pBME280Dev;
+}
+
+void deviceProcAttributes_bme280(sDevice* pDev, char* sName, char* sValue) {
+
+	// delta temperature store in pDev->uiDeltaValue!
+	if (strcmp(sName, "addr") == 0) {
+		if (pDev->pDevStruct)
+			((bme280_t*) pDev->pDevStruct)->dev_addr = conv2d(sValue);
+	} else if (strcmp(sName, "oss") == 0) {
+		// oversampling: "0" - normal, "1" - force
+		if (pDev->pDevStruct)
+			((bme280_t*) pDev->pDevStruct)->oss = conv2d(sValue);
+	} else if (strcmp(sName, "dlp") == 0) {
+		// delta pressure
+		if (pDev->pDevStruct)
+			((bme280_t*) pDev->pDevStruct)->uiDeltaPressure = conv2d(
+					sValue);
+	} else if (strcmp(sName, "dlh") == 0) {
+		// delta Humidity
+		if (pDev->pDevStruct)
+			((bme280_t*) pDev->pDevStruct)->uiDeltaHumidity = conv2d(
+					sValue);
+	}
 }
 
 
