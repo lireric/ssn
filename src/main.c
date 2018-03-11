@@ -39,7 +39,7 @@ const int  __attribute__((used)) uxTopUsedPriority = configMAX_PRIORITIES;
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2018-02-25.1"
+#define SSN_VERSION "2018-03-03.2"
 
 /* Global variables 			========================================== */
 
@@ -55,6 +55,10 @@ void* xBaseOutTaskHnd;
 
 #ifdef  M_STEPMOTOR
 
+#endif
+
+#ifdef  M_MHZ19
+#include "../inc/mh-z19b.h"
 #endif
 
 //sGrpInfo *grpArray[mainMAX_DEV_GROUPS];
@@ -1066,6 +1070,12 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 //									}
 						}
 						break;
+#ifdef  M_MHZ19
+						case device_TYPE_MHZ19:
+							res = mhz19DeviceSendCommandReadCO2(pDev);
+						break;
+#endif
+
 //							case device_TYPE_BB1BIT_IO_PP:
 //							case device_TYPE_BB1BIT_IO_OD:
 //								res = (int8_t) bb_read_wire_data_bit(&devArray[j]->pGroup->GrpDev);
@@ -1241,6 +1251,11 @@ static void prvProcSensorTask( void *pvParameters )
 					}
 					break;
 
+#endif
+#ifdef  M_MHZ19
+				case device_TYPE_MHZ19:
+					logAction(0, dev->nId, 0, (uint32_t) dev->pDevStruct);
+				break;
 #endif
 					case device_TYPE_BB1BIT_IO_AI:
 					if (dev->pDevStruct) {

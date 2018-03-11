@@ -36,6 +36,7 @@
 #define M_BMP180
 #define M_BME280
 #define M_STEPMOTOR
+#define M_MHZ19
 
 /* Persistence settings *
  * (select one) */

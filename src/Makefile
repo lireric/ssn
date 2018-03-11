@@ -36,6 +36,7 @@ OBJS+=i2c_impl.o
 OBJS+=dev_memory.o
 OBJS+=bme280dev.o
 OBJS+=bme280.o
+OBJS+=mh-z19b.o
 
 all: src
 

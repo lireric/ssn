@@ -29,10 +29,10 @@
 #ifndef INC_SSN_PREFS_H_
 #define INC_SSN_PREFS_H_
 
-#define CONF_TEST
+//#define CONF_TEST
 //#define CONF_RELEASE
 //#define CONF_PROD2 	// Kokorino
-//#define CONF_PROD1 		// Lobnja
+#define CONF_PROD1 		// Lobnja
 
 
 #ifdef CONF_TEST
@@ -75,11 +75,11 @@
 #define  devMAX_MSG_LEN				(127)
 
 /* COM ports */
-#define mainCOM0							( 0 )
-#define mainCOM1							( 1 )
-#define mainCOM2							( 2 )
-#define mainCOM3							( 3 )
-#define mainCOM4							( 4 )
+#define mainCOM0							( 0 ) // USART1
+#define mainCOM1							( 1 ) // USART2
+#define mainCOM2							( 2 ) // USART3
+#define mainCOM3							( 3 ) // UART4
+#define mainCOM4							( 4 ) // UART5
 
 #define mainBASECOM_Priority				(200)
 

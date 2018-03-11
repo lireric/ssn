@@ -40,6 +40,7 @@
 #define M_BMP180
 #define M_BME280
 #define M_STEPMOTOR
+#define M_MHZ19
 
 //#define WATCHDOG
 
@@ -102,7 +103,7 @@
 
 /* COM port and baud rate used by the base out task. */
 #define mainBAUD_RATE						( 57600 )
-#define mainBASECOM							( mainCOM1 )
+#define mainBASECOM							( mainCOM0 )
 //#define mainBASECOM_USE_RTS					( 1 ) // if 1, than we use hardware RTS ___ to do
 
 

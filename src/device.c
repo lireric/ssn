@@ -64,6 +64,9 @@
 #ifdef  M_STEPMOTOR
 	#include "stepmotor.h"
 #endif
+#ifdef  M_MHZ19
+	#include "mh-z19b.h"
+#endif
 
 /* The devices initialization task */
 static void pDevInitTask( void *pvParameters ) {
@@ -191,8 +194,17 @@ int32_t devicePreInit(sDevice* pDev, char* sName, char* sValue) {
 					return pdFAIL; // add request for delayed initialization
 			}
 #endif
+#ifdef  M_MHZ19
+			 else if (pDev->ucType == device_TYPE_MHZ19) {
+						pDev->nFlag |= DEV_DISABLE_FLAG; // set device disable flag before initialization
+						pDev->pDevStruct = NULL; // not use any structures
+						if (!addInitDevRequest(pDev->nId))
+							return pdFAIL; // add request for delayed initialization
+#endif
+					}
 		}
 // ---- other dev attributes: -----------------------------------------
+//---------------------------------------------------------------------
 		else if (pDev->ucType == device_TYPE_MEMORY) {
 			// memory element pseudo device
 			if (strcmp(sName, "e") == 0) {
@@ -228,6 +240,11 @@ int32_t devicePreInit(sDevice* pDev, char* sName, char* sValue) {
 							sValue);
 				}
 			}
+#endif
+		}		// ***************** MHZ19 sensor
+		else if (pDev->ucType == device_TYPE_MHZ19) {
+#ifdef  M_MHZ19
+			deviceProcAttributes_mhz19(pDev, sName, sValue);
 #endif
 		}		// ***************** BMP180 sensor
 		else if (pDev->ucType == device_TYPE_BMP180) {
@@ -292,6 +309,11 @@ void deviceInit(sDevice* dev) {
 			if (dev->pDevStruct) {
 				nRes = bme280DeviceInit(dev);
 			}
+#endif
+			break;
+		case device_TYPE_MHZ19:
+#ifdef  M_MHZ19
+				nRes = mhz19DeviceInit(dev);
 #endif
 			break;
 		case device_TYPE_BB1BIT_IO_PP:
@@ -746,6 +768,13 @@ int32_t getDevData(sDevice* dev, uint8_t nValCode, int32_t* nDevValue,
 #endif
 		break;
 
+	case device_TYPE_MHZ19:
+#ifdef  M_MHZ19
+			nValue = (int32_t) dev->pDevStruct;
+			nLastUpdate = dev->uiLastUpdate;
+#endif
+		break;
+
 	case device_TYPE_BME280:
 #ifdef  M_BME280
 		if (dev->pDevStruct) {
@@ -832,6 +861,7 @@ uint8_t getNumDevValCodes(uint8_t ucType)
 	case device_TYPE_BB1BIT_IO_PP:
 	case device_TYPE_BB1BIT_IO_OD:
 	case device_TYPE_BB1BIT_IO_INPUT:
+	case device_TYPE_MHZ19:
 		n = 1;
 		break;
 	case device_TYPE_BME280:
