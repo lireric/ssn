@@ -39,7 +39,7 @@ const int  __attribute__((used)) uxTopUsedPriority = configMAX_PRIORITIES;
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2018-03-03.2"
+#define SSN_VERSION "2018-04-08.1"
 
 /* Global variables 			========================================== */
 
@@ -866,7 +866,7 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 	portTickType xLastWakeTime;
 	uint16_t j;
 	uint8_t ut;
-	uint32_t res;
+	int32_t res;
 //	uint32_t nLastVal;
 	(void) res;
 //	uint8_t channel_array[16];
@@ -964,43 +964,49 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 #ifdef  M_BME280
 					case device_TYPE_BME280:
 						if (pDev->pDevStruct) {
-							s32 v_uncomp_pressure_s32;
-							s32 v_uncomp_temperature_s32;
-							s32 v_uncomp_humidity_s32;
+//							u32 v_uncomp_pressure_s32;
+//							s32 v_uncomp_temperature_s32;
+//							u32 v_uncomp_humidity_s32;
 
-							if (((bme280_t*) pDev->pDevStruct)->oss == 0) {
-								// normal mode
-								res =
-										bme280_read_uncomp_pressure_temperature_humidity(
-												pDev, &v_uncomp_pressure_s32,
-												&v_uncomp_temperature_s32,
-												&v_uncomp_humidity_s32);
-							} else {
-								// force mode
-								res =
-										bme280_get_forced_uncomp_pressure_temperature_humidity(
-												pDev, &v_uncomp_pressure_s32,
-												&v_uncomp_temperature_s32,
-												&v_uncomp_humidity_s32);
-							}
+//							if (((bme280_t*) pDev->pDevStruct)->oss == 0) {
+//								// normal mode
+//								res =
+//										bme280_read_uncomp_pressure_temperature_humidity(
+//												pDev, &v_uncomp_pressure_s32,
+//												&v_uncomp_temperature_s32,
+//												&v_uncomp_humidity_s32);
+//							} else {
+//								// force mode
+//								res =
+//										bme280_get_forced_uncomp_pressure_temperature_humidity(
+//												pDev, &v_uncomp_pressure_s32,
+//												&v_uncomp_temperature_s32,
+//												&v_uncomp_humidity_s32);
+//							}
 
-							if (res) {
+//							if (res) {
 								pDev->uiLastUpdate = rtc_get_counter_val();
 
 								((bme280_t*) pDev->pDevStruct)->iPrevTemperature = ((bme280_t*) pDev->pDevStruct)->iTemperature;
-								((bme280_t*) pDev->pDevStruct)->iTemperature =
-										bme280_compensate_temperature_int32(
-												pDev, v_uncomp_temperature_s32);
+//								((bme280_t*) pDev->pDevStruct)->iTemperature =
+//										bme280_compensate_temperature_int32(
+//												pDev, v_uncomp_temperature_s32);
 								((bme280_t*) pDev->pDevStruct)->uiPrevPressure = ((bme280_t*) pDev->pDevStruct)->uiPressure;
-								((bme280_t*) pDev->pDevStruct)->uiPressure =
-										bme280_compensate_pressure_int32(pDev,
-												v_uncomp_pressure_s32);
+//								((bme280_t*) pDev->pDevStruct)->uiPressure =
+//										bme280_compensate_pressure_int32(pDev,
+//												v_uncomp_pressure_s32);
 								((bme280_t*) pDev->pDevStruct)->uiPrevHumidity = ((bme280_t*) pDev->pDevStruct)->uiHumidity;
-								((bme280_t*) pDev->pDevStruct)->uiHumidity =
-										bme280_compensate_humidity_int32(pDev,
-												v_uncomp_humidity_s32);
-							}
+//								((bme280_t*) pDev->pDevStruct)->uiHumidity =
+//										bme280_compensate_humidity_int32(pDev,
+//												v_uncomp_humidity_s32);
 
+								res = bme280_read_pressure_temperature_humidity(pDev,
+								&((bme280_t*) pDev->pDevStruct)->uiPressure,
+								&((bme280_t*) pDev->pDevStruct)->iTemperature,
+								&((bme280_t*) pDev->pDevStruct)->uiHumidity);
+//							}
+
+							if (res) {
 							if (abs(
 									((bme280_t*) pDev->pDevStruct)->iTemperature
 											- ((bme280_t*) pDev->pDevStruct)->iPrevTemperature)
@@ -1023,7 +1029,10 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 								sSensorMsg.nDevCmd = 2;
 								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
 							}
-
+							} else {
+								xprintfMsg("\r\nError reading BME280 data! Try to reinit device");
+								res = bme280DeviceInit(pDev);
+							}
 						}
 						break;
 #endif

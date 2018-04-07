@@ -144,9 +144,11 @@ int32_t bme280DeviceInit(sDevice *pDev) {
 			// normal mode
 			nRes += bme280_set_oversamp_pressure(pDev, BME280_OVERSAMP_16X);
 			nRes += bme280_set_oversamp_temperature(pDev, BME280_OVERSAMP_2X);
-			nRes += bme280_set_oversamp_humidity(pDev, BME280_OVERSAMP_1X);
+			nRes += bme280_set_oversamp_humidity(pDev, BME280_OVERSAMP_16X);
+//			nRes += bme280_set_oversamp_humidity(pDev, BME280_OVERSAMP_1X);
 
-			nRes += bme280_set_standby_durn(pDev, BME280_STANDBY_TIME_1_MS);
+			nRes += bme280_set_standby_durn(pDev, BME280_STANDBY_TIME_125_MS);
+//			nRes += bme280_set_standby_durn(pDev, BME280_STANDBY_TIME_1_MS);
 			nRes += bme280_set_filter(pDev, BME280_FILTER_COEFF_16);
 
 			nRes += bme280_set_power_mode(pDev, BME280_NORMAL_MODE);
