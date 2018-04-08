@@ -41,6 +41,7 @@
 #include "../inc/ssn.h"
 #include "commands.h"
 #include "utils.h"
+#include <stdlib.h>
 
 #define ser_CHAR_DELAY		( 10 / portTICK_RATE_MS )
 
@@ -97,9 +98,13 @@ xSensorMessage sSensorMsg;
 			if (mhz19Buff[0] == 0xFF && mhz19Buff[1] == 0x86 && mhz19Buff[8] == nCrc) {
 				nPpm = (256*(uint16_t)mhz19Buff[2]) + (uint16_t)mhz19Buff[3];
 				pDev->pDevStruct = (void*)(uint32_t)nPpm; // instead void* in this attribute store actual value!
-				pDev->uiLastUpdate = rtc_get_counter_val();
 
-				nRes = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+				if (abs((uint32_t)pDev->pDevStruct - pDev->nLastPinValue) >= pDev->uiDeltaValue) {
+					pDev->nLastPinValue = (uint32_t)pDev->pDevStruct;
+					pDev->uiLastUpdate = rtc_get_counter_val();
+
+					nRes = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
+				}
 			}
 		}
 

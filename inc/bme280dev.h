@@ -830,8 +830,8 @@ typedef struct {
 	struct bme280_calibration_param_t cal_param;
 	/**< calibration parameters*/
 
-	int32_t 	iTemperature;
-	int32_t 	iPrevTemperature;
+	int16_t 	iTemperature;
+	int16_t 	iPrevTemperature;
 	uint32_t	uiPressure;
 	uint32_t	uiPrevPressure;
 	uint32_t	uiHumidity;

@@ -145,8 +145,8 @@ int32_t bmp180_get_data(sDevice *pDev) {
 	BMP180_data_t* pBMP180Dev = pDev->pDevStruct;
 
 	// save previous values
-	pBMP180Dev->iPrevTemperature = pBMP180Dev->iTemperature;
-	pBMP180Dev->uiPrevPressure = pBMP180Dev->uiPressure;
+//	pBMP180Dev->iPrevTemperature = pBMP180Dev->iTemperature;
+//	pBMP180Dev->uiPrevPressure = pBMP180Dev->uiPressure;
 	// read and calculate temperature:
 
 	nRes = bmp180_read_raw_temperature(pDev);

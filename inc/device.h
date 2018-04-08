@@ -105,10 +105,10 @@ typedef struct
 {
 	uint16_t 	nId;			// unique ID of device
 	uint16_t	nDevObj;		// object with this device
+	uint32_t		nLastPinValue;	// previous device value (only for 1 pin i/o devices)
 	uint8_t 	ucType;			// device type
-	uint8_t		nLastPinValue;	// previous device value (only for 1 pin i/o devices)
 	uint8_t 	nActionsCashSize;	// number of actions in array
-	uint8_t 	nFlag;			//	1-st bit - one of the device channels values is changed; 8 bit - 1: device disabled, 0: device enabled;
+	uint16_t 	nFlag;			//	1-st bit - one of the device channels values is changed; 8 bit - 1: device disabled, 0: device enabled;
     uint32_t 	uiDeltaValue;	// device value change delta tolerance
     uint32_t 	uiLastUpdate;	// last update device timestamp
 	uint32_t	nEventTime;		// number of sec/10 from event (setDevEvent)
@@ -120,6 +120,7 @@ typedef struct
 // structure for ADC device:
 typedef struct{
 	int16_t 	nADCValueArray[16]; // array of measured values
+	int16_t 	nADCValueArrayPrev[16]; // array of measured values
 	uint8_t 	nChannelArray[16];	// array of used channels
 //    uint32_t 	uiLastUpdate;		// last update device value
 } sADC_data_t;

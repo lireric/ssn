@@ -39,7 +39,7 @@ const int  __attribute__((used)) uxTopUsedPriority = configMAX_PRIORITIES;
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2018-04-08.1"
+#define SSN_VERSION "2018-04-08.2"
 
 /* Global variables 			========================================== */
 
@@ -903,6 +903,7 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 									((ds18b20_device*) pDev->pDevStruct)->iDevValue
 											- ((ds18b20_device*) pDev->pDevStruct)->nDevPrevValue)
 									>= pDev->uiDeltaValue) {
+								((ds18b20_device*) pDev->pDevStruct)->nDevPrevValue = ((ds18b20_device*) pDev->pDevStruct)->iDevValue;
 								sSensorMsg.nDevCmd = 0;
 								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
 //										res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
@@ -925,6 +926,7 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 									((DHT_data_t*) pDev->pDevStruct)->humidity
 											- ((DHT_data_t*) pDev->pDevStruct)->nPrevHumidity)
 									>= ((DHT_data_t*) pDev->pDevStruct)->uiDeltaHumidity)) {
+								((DHT_data_t*) pDev->pDevStruct)->nPrevHumidity = ((DHT_data_t*) pDev->pDevStruct)->humidity;
 								sSensorMsg.nDevCmd = 1;
 								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
 							}
@@ -932,6 +934,7 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 									((DHT_data_t*) pDev->pDevStruct)->temperature
 											- ((DHT_data_t*) pDev->pDevStruct)->nPrevTemperature)
 									>= pDev->uiDeltaValue) {
+								((DHT_data_t*) pDev->pDevStruct)->nPrevTemperature = ((DHT_data_t*) pDev->pDevStruct)->temperature;
 								sSensorMsg.nDevCmd = 0;
 								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
 //											res = xQueueSend(xSensorsQueue, (void*)&devArray[j], 0);
@@ -947,6 +950,9 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 									((BMP180_data_t*) pDev->pDevStruct)->iTemperature
 											- ((BMP180_data_t*) pDev->pDevStruct)->iPrevTemperature)
 									>= pDev->uiDeltaValue) {
+								// save previous values
+								((BMP180_data_t*) pDev->pDevStruct)->iPrevTemperature = ((BMP180_data_t*) pDev->pDevStruct)->iTemperature;
+
 								sSensorMsg.nDevCmd = 0;
 								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
 
@@ -955,6 +961,7 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 									((BMP180_data_t*) pDev->pDevStruct)->uiPressure
 											- ((BMP180_data_t*) pDev->pDevStruct)->uiPrevPressure)
 									>= ((BMP180_data_t*) pDev->pDevStruct)->uiDeltaPressure) {
+								((BMP180_data_t*) pDev->pDevStruct)->uiPrevPressure = ((BMP180_data_t*) pDev->pDevStruct)->uiPressure;
 								sSensorMsg.nDevCmd = 1;
 								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
 							}
@@ -964,53 +971,51 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 #ifdef  M_BME280
 					case device_TYPE_BME280:
 						if (pDev->pDevStruct) {
-//							u32 v_uncomp_pressure_s32;
-//							s32 v_uncomp_temperature_s32;
-//							u32 v_uncomp_humidity_s32;
+							s32 v_uncomp_pressure_s32;
+							s32 v_uncomp_temperature_s32;
+							s32 v_uncomp_humidity_s32;
 
-//							if (((bme280_t*) pDev->pDevStruct)->oss == 0) {
-//								// normal mode
-//								res =
-//										bme280_read_uncomp_pressure_temperature_humidity(
-//												pDev, &v_uncomp_pressure_s32,
-//												&v_uncomp_temperature_s32,
-//												&v_uncomp_humidity_s32);
-//							} else {
-//								// force mode
-//								res =
-//										bme280_get_forced_uncomp_pressure_temperature_humidity(
-//												pDev, &v_uncomp_pressure_s32,
-//												&v_uncomp_temperature_s32,
-//												&v_uncomp_humidity_s32);
+							if (((bme280_t*) pDev->pDevStruct)->oss == 0) {
+								// normal mode
+								res =
+										bme280_read_uncomp_pressure_temperature_humidity(
+												pDev, &v_uncomp_pressure_s32,
+												&v_uncomp_temperature_s32,
+												&v_uncomp_humidity_s32);
+							} else {
+								// force mode
+								res =
+										bme280_get_forced_uncomp_pressure_temperature_humidity(
+												pDev, &v_uncomp_pressure_s32,
+												&v_uncomp_temperature_s32,
+												&v_uncomp_humidity_s32);
+							}
+
+							if (res) {
+								pDev->uiLastUpdate = rtc_get_counter_val();
+
+								((bme280_t*) pDev->pDevStruct)->iTemperature =
+										bme280_compensate_temperature_int32(
+												pDev, v_uncomp_temperature_s32);
+								((bme280_t*) pDev->pDevStruct)->uiPressure =
+										bme280_compensate_pressure_int32(pDev,
+												v_uncomp_pressure_s32);
+								((bme280_t*) pDev->pDevStruct)->uiHumidity =
+										bme280_compensate_humidity_int32(pDev,
+												v_uncomp_humidity_s32);
+
+//								res = bme280_read_pressure_temperature_humidity(pDev,
+//								&((bme280_t*) pDev->pDevStruct)->uiPressure,
+//								&((bme280_t*) pDev->pDevStruct)->iTemperature,
+//								&((bme280_t*) pDev->pDevStruct)->uiHumidity);
 //							}
 
 //							if (res) {
-								pDev->uiLastUpdate = rtc_get_counter_val();
-
-								((bme280_t*) pDev->pDevStruct)->iPrevTemperature = ((bme280_t*) pDev->pDevStruct)->iTemperature;
-//								((bme280_t*) pDev->pDevStruct)->iTemperature =
-//										bme280_compensate_temperature_int32(
-//												pDev, v_uncomp_temperature_s32);
-								((bme280_t*) pDev->pDevStruct)->uiPrevPressure = ((bme280_t*) pDev->pDevStruct)->uiPressure;
-//								((bme280_t*) pDev->pDevStruct)->uiPressure =
-//										bme280_compensate_pressure_int32(pDev,
-//												v_uncomp_pressure_s32);
-								((bme280_t*) pDev->pDevStruct)->uiPrevHumidity = ((bme280_t*) pDev->pDevStruct)->uiHumidity;
-//								((bme280_t*) pDev->pDevStruct)->uiHumidity =
-//										bme280_compensate_humidity_int32(pDev,
-//												v_uncomp_humidity_s32);
-
-								res = bme280_read_pressure_temperature_humidity(pDev,
-								&((bme280_t*) pDev->pDevStruct)->uiPressure,
-								&((bme280_t*) pDev->pDevStruct)->iTemperature,
-								&((bme280_t*) pDev->pDevStruct)->uiHumidity);
-//							}
-
-							if (res) {
 							if (abs(
 									((bme280_t*) pDev->pDevStruct)->iTemperature
 											- ((bme280_t*) pDev->pDevStruct)->iPrevTemperature)
 									>= pDev->uiDeltaValue) {
+								((bme280_t*) pDev->pDevStruct)->iPrevTemperature = ((bme280_t*) pDev->pDevStruct)->iTemperature;
 								sSensorMsg.nDevCmd = 0;
 								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
 
@@ -1019,6 +1024,7 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 									((bme280_t*) pDev->pDevStruct)->uiPressure
 											- ((bme280_t*) pDev->pDevStruct)->uiPrevPressure)
 									>= ((bme280_t*) pDev->pDevStruct)->uiDeltaPressure) {
+								((bme280_t*) pDev->pDevStruct)->uiPrevPressure = ((bme280_t*) pDev->pDevStruct)->uiPressure;
 								sSensorMsg.nDevCmd = 1;
 								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
 							}
@@ -1026,6 +1032,7 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 									((bme280_t*) pDev->pDevStruct)->uiHumidity
 											- ((bme280_t*) pDev->pDevStruct)->uiPrevHumidity)
 									>= ((bme280_t*) pDev->pDevStruct)->uiDeltaHumidity) {
+								((bme280_t*) pDev->pDevStruct)->uiPrevHumidity = ((bme280_t*) pDev->pDevStruct)->uiHumidity;
 								sSensorMsg.nDevCmd = 2;
 								res = xQueueSend(xSensorsQueue, &sSensorMsg, 0);
 							}
@@ -1046,11 +1053,11 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 //								adc_start_conversion_regular(ADC1);
 //								while (!adc_eoc(ADC1));
 //								nADCch_counter = 0;
-							pDev->nFlag &= 0b11111110;
+//							pDev->nFlag &= 0b11111110;
 
 							for (uint8_t nch = 0; nch < pDev->pGroup->iDevQty;
 									nch++) {
-								uint16_t nTmpValue;
+//								uint16_t nTmpValue;
 								adc_set_regular_sequence(ADC1, 1,
 										((((sADC_data_t*) pDev->pDevStruct)->nChannelArray)
 												+ nch));
@@ -1058,15 +1065,16 @@ static void prvCheckSensorMRTask(void *pvParameters) {
 								while (!adc_eoc(ADC1))
 									;
 //									nADCch_counter = 0;
-								nTmpValue =
-										((sADC_data_t*) pDev->pDevStruct)->nADCValueArray[nch];
+//								nTmpValue =
+//										((sADC_data_t*) pDev->pDevStruct)->nADCValueArray[nch];
 								((sADC_data_t*) pDev->pDevStruct)->nADCValueArray[nch] =
 										adc_read_regular(ADC1);
 								if (abs(
-										nTmpValue
-												- ((sADC_data_t*) pDev->pDevStruct)->nADCValueArray[nch])
+										((sADC_data_t*) pDev->pDevStruct)->nADCValueArray[nch]
+												- ((sADC_data_t*) pDev->pDevStruct)->nADCValueArrayPrev[nch])
 										>= pDev->uiDeltaValue) {
-									pDev->nFlag |= 0b00000001; // value is changed
+									((sADC_data_t*) pDev->pDevStruct)->nADCValueArrayPrev[nch] = ((sADC_data_t*) pDev->pDevStruct)->nADCValueArray[nch];
+//									pDev->nFlag |= 0b00000001; // value is changed
 									sSensorMsg.nDevCmd = nch;
 									res = xQueueSend(xSensorsQueue, &sSensorMsg,
 											0);
