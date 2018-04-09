@@ -1097,8 +1097,7 @@ void	clearActionsDeviceCash (sDevice* pDev)
 
 
 /* clear old cash info, reallocate memory and fill new arrays */
-int32_t	refreshActions2DeviceCash ()
-{
+int32_t refreshActions2DeviceCash() {
 	uint16_t nActIndex;
 	uint16_t nDevIndex;
 	sDevice* pDev;
@@ -1111,15 +1110,13 @@ int32_t	refreshActions2DeviceCash ()
 
 	vTaskSuspendAll();
 
-	for (nDevIndex = 1; nDevIndex <= all_devs_counter; nDevIndex++)
-	{
+	for (nDevIndex = 0; nDevIndex <= all_devs_counter; nDevIndex++) {
 		pDev = getDevByNo(nDevIndex);
 		if (pDev) {
 			clearActionsDeviceCash(pDev);
 			nTmpArrayIndex = 0;
 			// scan all actions for this device
-			for (nActIndex = 1; nActIndex <= act_counter; nActIndex++)
-			{
+			for (nActIndex = 1; nActIndex <= act_counter; nActIndex++) {
 //				pAct = actArray[nActIndex];
 				pAct = getActionByNo(nActIndex);
 				if (pAct) {
@@ -1130,27 +1127,25 @@ int32_t	refreshActions2DeviceCash ()
 								// skip action if interval type
 								break;
 							}
-							if ((pEvtElm->nElmType == eElmDevValue) && (pEvtElm->nElmData1 == pDev->nId)) {
+							if ((pEvtElm->nElmType == eElmDevValue)
+									&& (pEvtElm->nElmData1 == pDev->nId)) {
 								// minimum once use this device in action -> add to array and break scan thru other elements
 								pTmpActArray[nTmpArrayIndex++] = pAct;
 								break;
-							} else
-								// search time events for abstract device[0]
-								if (pDev->nId == 0)
-								{
-								   	  switch(pEvtElm->nElmType)
-								   	  {
-											case  eElmTimeValue:
-											case  eElmDateYear:
-											case  eElmDateMonth:
-											case  eElmDateDay:
-											case  eElmDateDayWeek:
-											{
-												pTmpActArray[nTmpArrayIndex++] = pAct;
-												break;
-											}
-								   	  }
+							}
+							// search time events for abstract device[0]
+							if (pDev->nId == 0) {
+								switch (pEvtElm->nElmType) {
+								case eElmTimeValue:
+								case eElmDateYear:
+								case eElmDateMonth:
+								case eElmDateDay:
+								case eElmDateDayWeek: {
+									pTmpActArray[nTmpArrayIndex++] = pAct;
+									break;
 								}
+								}
+							}
 							// scan left to right:
 							//      check cyclic loop:
 							if (pEvtElm == pEvtElm->pPrevElm) {
@@ -1163,12 +1158,12 @@ int32_t	refreshActions2DeviceCash ()
 				}
 			}
 			// if find any action for this device, than add it to cash
-			if (nTmpArrayIndex > 0)
-			{
-				pDev->pActionsCash = pvPortMalloc(nTmpArrayIndex * sizeof(sAction*));
+			if (nTmpArrayIndex > 0) {
+				pDev->pActionsCash = pvPortMalloc(
+						nTmpArrayIndex * sizeof(sAction*));
 				pDev->nActionsCashSize = nTmpArrayIndex;
-				for (i=0; i < nTmpArrayIndex; i++) {
-					((sAction**)pDev->pActionsCash)[i] = pTmpActArray[i];
+				for (i = 0; i < nTmpArrayIndex; i++) {
+					((sAction**) pDev->pActionsCash)[i] = pTmpActArray[i];
 				}
 			}
 		}

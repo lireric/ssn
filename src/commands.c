@@ -140,6 +140,7 @@ void process_setdatetime(cJSON *json_data)
 	rtc.min = (uint8_t) cJSON_GetObjectItem(json_data, "min")->valueint;
 	rtc.sec = (uint8_t) cJSON_GetObjectItem(json_data, "sec")->valueint;
 	rtc_settime(&rtc);
+#if defined M_RTC_DS1307
 	DS1307_time.year = rtc.year - 2000;
 	DS1307_time.month = rtc.month;
 	DS1307_time.day = rtc.mday;
@@ -147,7 +148,8 @@ void process_setdatetime(cJSON *json_data)
 	DS1307_time.min = rtc.min;
 	DS1307_time.sec = rtc.sec;
 	RTC_DS1307_adjust(pGrpDev2);
-	xprintfMsg("\r\nSet local & RTC DS1307 date/time from JSON");
+#endif
+	xprintfMsg("\r\nSet local date/time from JSON: %d-%d-%d %d:%d:%d", rtc.year, rtc.month, rtc.mday, rtc.hour, rtc.min, rtc.sec);
 
 }
 

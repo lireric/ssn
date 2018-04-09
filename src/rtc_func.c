@@ -49,27 +49,30 @@ static const uint8_t DaysInMonth[] = { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 3
 *******************************************************************************/
 static uint8_t isDST( const RTC_t *t )
 {
-	uint8_t wday, month;		// locals for faster access
 
-	month = t->month;
+	return 0; // forever winter time!!!
 
-	if( month < 3 || month > 10 ) {		// month 1, 2, 11, 12
-		return 0;					// -> Winter
-	}
+//	uint8_t wday, month;		// locals for faster access
 
-	wday  = t->wday;
-
-	if( t->mday - wday >= 25 && (wday || t->hour >= 2) ) { // after last Sunday 2:00
-		if( month == 10 ) {				// October -> Winter
-			return 0;
-		}
-	} else {							// before last Sunday 2:00
-		if( month == 3 ) {				// March -> Winter
-			return 0;
-		}
-	}
-
-	return 1;
+//	month = t->month;
+//
+//	if( month < 3 || month > 10 ) {		// month 1, 2, 11, 12
+//		return 0;					// -> Winter
+//	}
+//
+//	wday  = t->wday;
+//
+//	if( t->mday - wday >= 25 && (wday || t->hour >= 2) ) { // after last Sunday 2:00
+//		if( month == 10 ) {				// October -> Winter
+//			return 0;
+//		}
+//	} else {							// before last Sunday 2:00
+//		if( month == 3 ) {				// March -> Winter
+//			return 0;
+//		}
+//	}
+//
+//	return 1;
 }
 
 /*******************************************************************************
@@ -293,9 +296,6 @@ void rtc_settime (const RTC_t *rtc)
 		}
 
 		rtc_set_counter_val(cnt);
-	//	PWR_BackupAccessCmd(ENABLE);
-	//	my_RTC_SetCounter( cnt );
-	//	PWR_BackupAccessCmd(DISABLE);
 	}
 }
 

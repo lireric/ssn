@@ -39,7 +39,7 @@ const int  __attribute__((used)) uxTopUsedPriority = configMAX_PRIORITIES;
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2018-04-08.2"
+#define SSN_VERSION "2018-04-09.1"
 
 /* Global variables 			========================================== */
 
