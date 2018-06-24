@@ -98,7 +98,7 @@
 /* Queues are used to hold characters that are waiting to be transmitted.  This
 constant sets the maximum number of characters that can be contained in such a
 queue at any one time. */
-#define serTX_QUEUE_LEN					( 10 )
+#define serTX_QUEUE_LEN					( 5 )
 
 /* Queues are used to hold characters that have been received but not yet 
 processed.  This constant sets the maximum number of characters that can be 
@@ -174,13 +174,18 @@ long lReturn = pdFAIL;
 			nvic_set_priority(NVIC_USART1_IRQ, priority);
 
 			/* Setup GPIO pin GPIO_USART1_RE_TX on GPIO port B for transmit. */
-			gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
-				      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART1_TX | GPIO12);
 //			gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
-//					GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO12); // RTS - PA12
+//				      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART1_TX | GPIO12);
+			gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
+				      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART1_TX);
+			gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
+					GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);
 			gpio_clear(GPIOA, GPIO12);
+			gpio_clear(GPIOA, GPIO_USART1_TX); // clear DI
 
 			/* Setup GPIO pin GPIO_USART1_RE_RX on GPIO port B for receive. */
+//			gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
+//				      GPIO_CNF_INPUT_FLOAT, GPIO_USART1_RX);
 			gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
 				      GPIO_CNF_INPUT_FLOAT, GPIO_USART1_RX);
 
@@ -190,7 +195,7 @@ long lReturn = pdFAIL;
 			usart_set_stopbits(USART1, USART_STOPBITS_1);
 			usart_set_parity(USART1, USART_PARITY_NONE);
 			usart_set_flow_control(USART1, USART_FLOWCONTROL_NONE);
-//			usart_set_flow_control(USART1, USART_FLOWCONTROL_RTS);
+//			usart_set_flow_control(USART1, USART_FLOWCONTROL_RTS_CTS);
 			usart_set_mode(USART1, USART_MODE_TX_RX);
 
 			/* Enable USART1 Receive interrupt. */
@@ -292,7 +297,7 @@ long lReturn = pdFAIL;
 			usart_set_flow_control(USART3, USART_FLOWCONTROL_NONE);
 			usart_set_mode(USART3, USART_MODE_TX_RX);
 
-			/* Enable USART1 Receive interrupt. */
+			/* Enable USART3 Receive interrupt. */
 			USART_CR1(USART3) |= USART_CR1_RXNEIE;
 			USART_CR1(USART3) |= USART_CR1_TCIE;
 
@@ -378,10 +383,17 @@ long lReturn;
 }
 /*-----------------------------------------------------------*/
 
-void usart1_isr(void)
-{
+void usart1_isr(void) {
 	long xHigherPriorityTaskWoken = pdFALSE;
 	char cChar;
+
+	// ----- transmission complete:
+	if (usart_get_flag(USART1, USART_SR_TC) == true) {
+		gpio_clear(GPIOA, GPIO12); // clear RTS
+		gpio_clear(GPIOA, GPIO_USART1_TX); // clear DI
+		USART_SR(USART1) &= ~USART_SR_TC;	// reset flag TC
+		usart_disable_tx_interrupt(USART1);
+	}
 
 	if (usart_get_flag(USART1, USART_SR_TXE) == true) {
 		/* The interrupt was caused by the THR becoming empty.  Are there any
@@ -394,19 +406,15 @@ void usart1_isr(void)
 			usart_send(USART1, (uint8_t) cChar);
 		} else {
 //			gpio_clear(GPIOA, GPIO12); // clear RTS
-			usart_disable_tx_interrupt(USART1);
+//			usart_disable_tx_interrupt(USART1);
+//			USART_SR(USART1) &= ~USART_SR_TXE;	// reset flag TXE
+//			USART_CR1(USART1) |= USART_CR1_TCIE;
 		}
 	}
 
 	if (usart_get_flag(USART1, USART_SR_RXNE) == true) {
 		cChar = (char) usart_recv(USART1);
 		xQueueSendFromISR(xRxedChars[0], &cChar, &xHigherPriorityTaskWoken);
-	}
-
-// ----- transmission complete:
-	if (usart_get_flag(USART1, USART_SR_TC) == true) {
-		gpio_clear(GPIOA, GPIO12); // clear RTS
-		USART_SR(USART1) &= ~USART_SR_TC;	// reset flag TC
 	}
 
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
@@ -429,7 +437,6 @@ void usart2_isr(void)
 			usart_send(USART2, (uint8_t) cChar);
 		} else {
 //			gpio_clear(GPIOA, GPIO_USART2_RTS); // clear RTS
-			usart_disable_tx_interrupt(USART2);
 		}
 	}
 
@@ -442,6 +449,7 @@ void usart2_isr(void)
 	if (usart_get_flag(USART2, USART_SR_TC) == true) {
 		gpio_clear(GPIOA, GPIO_USART2_RTS); // clear RTS
 		USART_SR(USART2) &= ~USART_SR_TC;	// reset flag TC
+		usart_disable_tx_interrupt(USART2);
 	}
 
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
@@ -464,7 +472,6 @@ void usart3_isr(void)
 			usart_send(USART3, (uint8_t) cChar);
 		} else {
 //			gpio_clear(GPIO_BANK_USART3_RTS, GPIO_USART3_RTS); // clear RTS
-			usart_disable_tx_interrupt(USART3);
 		}
 	}
 
@@ -477,6 +484,7 @@ void usart3_isr(void)
 	if (usart_get_flag(USART3, USART_SR_TC) == true) {
 		gpio_clear(GPIO_BANK_USART3_RTS, GPIO_USART3_RTS); // clear RTS
 		USART_SR(USART3) &= ~USART_SR_TC;	// reset flag TC
+		usart_disable_tx_interrupt(USART3);
 	}
 
 	portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);

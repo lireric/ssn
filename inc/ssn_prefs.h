@@ -48,7 +48,8 @@
 #endif
 
 #ifdef CONF_PROD1
-	#include "ssn_prefs_prod1.h"
+//	#include "ssn_prefs_prod1.h"
+	#include "ssn_prefs_v1_p2.h"
 #endif
 
 #ifdef CONF_PROD2

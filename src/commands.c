@@ -129,9 +129,6 @@ uint32_t delObjRoute(uint16_t	nDestObj)
 void process_setdatetime(cJSON *json_data)
 {
 	RTC_t rtc;
-	sGrpInfo* pGrpInfo = getGrpInfo(SOFTI2C_1_GRP);
-	sGrpDev* pGrpDev2 = &pGrpInfo->GrpDev;
-
 	//												counter_to_struct( dtsec, &rtc );
 	rtc.year = (uint16_t) cJSON_GetObjectItem(json_data, "y")->valueint;
 	rtc.month = (uint8_t) cJSON_GetObjectItem(json_data, "m")->valueint;
@@ -141,6 +138,8 @@ void process_setdatetime(cJSON *json_data)
 	rtc.sec = (uint8_t) cJSON_GetObjectItem(json_data, "sec")->valueint;
 	rtc_settime(&rtc);
 #if defined M_RTC_DS1307
+	sGrpInfo* pGrpInfo = getGrpInfo(SOFTI2C_1_GRP);
+	sGrpDev* pGrpDev2 = &pGrpInfo->GrpDev;
 	DS1307_time.year = rtc.year - 2000;
 	DS1307_time.month = rtc.month;
 	DS1307_time.day = rtc.mday;

@@ -39,7 +39,7 @@ const int  __attribute__((used)) uxTopUsedPriority = configMAX_PRIORITIES;
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2018-04-09.1"
+#define SSN_VERSION "2018-06-24.1"
 
 /* Global variables 			========================================== */
 
@@ -321,6 +321,15 @@ int main(void)
 //  debug();
 #endif
 
+	/* NVIC Configuration *******************************************************/
+		NVIC_Configuration();
+	/* System Clocks Configuration **********************************************/
+		RCC_Configuration();
+
+		//  initialise_rtc();
+		//  rtc_awake_from_off(LSE);
+		  rtc_awake_from_off(LSI);
+
   grpArray = (sGrpInfo **) pvPortMalloc(mainMAX_DEV_GROUPS * sizeof(void*));
   devArray = (sDevice **) pvPortMalloc(mainMAX_ALL_DEVICES * sizeof(void*));
   actArray = (sAction **) pvPortMalloc(mainMAX_ACTIONS * sizeof(void*));
@@ -342,16 +351,12 @@ int main(void)
   xLogOutQueue = xQueueCreate( mainDEBUG_QUEUE_SIZE, mainMAX_MSG_LEN);
   xDevInitQueue = xQueueCreate( mainDEVINIT_QUEUE_SIZE, sizeof(uint16_t));
 
-/* System Clocks Configuration **********************************************/
-	RCC_Configuration();
-/* NVIC Configuration *******************************************************/
-	NVIC_Configuration();
 
 #ifdef  M_LCD
 	xReturn = lcd_init();
 #endif
 
-  initialise_rtc();
+
 
 /* Initialize base COM */
 #ifdef  M_USART
