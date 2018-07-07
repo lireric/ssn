@@ -529,6 +529,7 @@ uint8_t getAdcDevQty(sDevice* pDev) {
 int32_t adc_setup(sDevice* pDev, char* psChannels)
 {
 	int i=0;
+	uint32_t adcPortsArray[] = {GPIOA,GPIOA,GPIOA,GPIOA,GPIOA,GPIOA,GPIOA,GPIOA, GPIOB,GPIOB, GPIOC,GPIOC,GPIOC,GPIOC,GPIOC,GPIOC};
 	int32_t nRes = pdPASS;
 	sGrpInfo* pGrp = pDev->pGroup;
 
@@ -541,8 +542,9 @@ int32_t adc_setup(sDevice* pDev, char* psChannels)
 
 	for (i = 0; i < pGrp->iDevQty; i++)
 	{
-		gpio_set_mode(pGrp->GrpDev.pPort, GPIO_MODE_INPUT,
-					GPIO_CNF_INPUT_ANALOG, 1 << ((sADC_data_t*)pDev->pDevStruct)->nChannelArray[i]);
+		uint8_t nIndex = ((sADC_data_t*)pDev->pDevStruct)->nChannelArray[i];
+		gpio_set_mode(adcPortsArray[nIndex], GPIO_MODE_INPUT,
+					GPIO_CNF_INPUT_ANALOG, 1 << nIndex);
 	}
 
 	rcc_periph_clock_enable(RCC_ADC1);

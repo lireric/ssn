@@ -98,7 +98,7 @@
 /* Queues are used to hold characters that are waiting to be transmitted.  This
 constant sets the maximum number of characters that can be contained in such a
 queue at any one time. */
-#define serTX_QUEUE_LEN					( 5 )
+#define serTX_QUEUE_LEN					( 22 )
 
 /* Queues are used to hold characters that have been received but not yet 
 processed.  This constant sets the maximum number of characters that can be 

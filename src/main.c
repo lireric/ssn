@@ -39,7 +39,7 @@ const int  __attribute__((used)) uxTopUsedPriority = configMAX_PRIORITIES;
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2018-06-24.1"
+#define SSN_VERSION "2018-07-03.1"
 
 /* Global variables 			========================================== */
 
@@ -266,24 +266,27 @@ void RCC_Configuration(void)
 
 	// TO DO: move to device init...
 	/* Enable GPIOs clock */
+
+// periph. clocks enabling in device init functions
+
 	rcc_periph_clock_enable(RCC_GPIOA);
 	rcc_periph_clock_enable(RCC_GPIOB);
 	rcc_periph_clock_enable(RCC_GPIOC);
 	rcc_periph_clock_enable(RCC_GPIOD);
 	rcc_periph_clock_enable(RCC_GPIOE);
-	rcc_periph_clock_enable(RCC_GPIOF);
-	rcc_periph_clock_enable(RCC_GPIOG);
-
-
-	/* Enable clocks for special ports  */
+//	rcc_periph_clock_enable(RCC_GPIOF);
+//	rcc_periph_clock_enable(RCC_GPIOG);
+//
+//
+//	/* Enable clocks for special ports  */
 	rcc_periph_clock_enable(RCC_USART1);
 	rcc_periph_clock_enable(RCC_USART2);
 	rcc_periph_clock_enable(RCC_AFIO);
 	rcc_periph_clock_enable(RCC_SDIO);
-	rcc_periph_clock_enable(RCC_DMA1);
-	rcc_periph_clock_enable(RCC_FSMC);
-
-	rcc_periph_clock_enable(RCC_ADC3); // to do: make it pref from TS_ADC...
+//	rcc_periph_clock_enable(RCC_DMA1);
+//	rcc_periph_clock_enable(RCC_FSMC);
+//
+//	rcc_periph_clock_enable(RCC_ADC3); // to do: make it pref from TS_ADC...
 
 }
 
@@ -328,7 +331,8 @@ int main(void)
 
 		//  initialise_rtc();
 		//  rtc_awake_from_off(LSE);
-		  rtc_awake_from_off(LSI);
+		//  rtc_awake_from_off(LSI);
+		  rtc_auto_awake(LSE, 0x7FFF); // prescale set 1s
 
   grpArray = (sGrpInfo **) pvPortMalloc(mainMAX_DEV_GROUPS * sizeof(void*));
   devArray = (sDevice **) pvPortMalloc(mainMAX_ALL_DEVICES * sizeof(void*));
