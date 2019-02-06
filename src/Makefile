@@ -1,6 +1,6 @@
 include ../Makefile.common
 
-OBJS+=newlib_stubs.o
+#OBJS+=newlib_stubs.o
 OBJS+=main.o
 #OBJS+=drv_pcd8544.o
 #OBJS+=drv_pcd8544_l.o

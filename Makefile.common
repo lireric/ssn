@@ -48,7 +48,7 @@ FREERTOSDIR=$(LIBDIR)/FreeRTOS
 TypeOfMCU=STM32F10X_HD 
 Chipset=STM32F1
 
-TC=arm-none-eabi
+TC=/home/eric/opt/gcc-arm-none-eabi-6-2017-q2-update/bin/arm-none-eabi
 CC=$(TC)-gcc
 LD=$(TC)-ld -v 
 OBJCOPY=$(TC)-objcopy
@@ -60,7 +60,7 @@ INCLUDE+=-I$(OPENCM3_DIR)/include
 INCLUDE+=-I$(FREERTOSDIR)/Source/include
 INCLUDE+=-I$(FREERTOSDIR)/Source/portable/GCC/ARM_CM3
 
-COMMONFLAGS=-g -mcpu=cortex-m3 -mthumb -Wno-char-subscripts -std=c99
+COMMONFLAGS=-g -mcpu=cortex-m3 -mthumb -Wno-char-subscripts -std=c99 -specs=nano.specs -specs=nosys.specs
 COMMONFLAGSlib=$(COMMONFLAGS)
 
 #Commands for general Makefile and src Makefile

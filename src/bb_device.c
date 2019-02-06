@@ -258,7 +258,7 @@ OWI_device*  owi_device_init(sGrpDev* pGrpDev) {
 			GPIO_CNF_INPUT_FLOAT, 1 << pGrpDev->ucPin);
 
 /* Reset timer peripheral. */
-	timer_reset(pGrpDev->pTimer);
+//	timer_reset(pGrpDev->pTimer);
 	timer_set_mode(pGrpDev->pTimer, TIM_CR1_CKD_CK_INT,
 		       TIM_CR1_CMS_EDGE, TIM_CR1_DIR_DOWN);
 

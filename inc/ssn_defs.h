@@ -56,7 +56,7 @@ typedef enum {FAILED = 0, PASSED = !FAILED} TestStatus;
 #define SSN_TIMEOUT 	( 2000 )		// timeout 2000 ms
 #define SSN_MIN_SEND_TIMEOUT 	( 30 )	// minimum send after receive timeout - 30 ms
 #define SSN_SKIP_0A		(0) // if 1 skip 0x0A char from input message body
-#define SSN_SKIP_0D		(1) // if 1 skip 0x0A char from input message body
+#define SSN_SKIP_0D		(0) // if 1 skip 0x0A char from input message body
 
 /* -- SSN serial protocol states -----------------------------------------*/
 #define SSN_STATE_INIT		0	// header ready for loading

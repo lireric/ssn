@@ -222,10 +222,6 @@ int32_t restorePersistentData(void* pBuf, uint16_t nBufSize, uint32_t nBeginAddr
 {
 	int32_t nRes = pdFAIL;
 	if (pBuf) {
-		if ((nBufSize > (nBeginAddr + STM32FLASH_PREF_SIZE)) || (nBeginAddr >= STM32FLASH_PREF_SIZE)) {
-			xprintfMsg("\r\nError: request data > EEPROM size!");
-			nRes = pdFAIL;
-		} else {
 
 #ifdef PERSIST_EEPROM_I2C
 			sDevice* pDev = getDevByNo(0); // get virtual i2c device
@@ -235,14 +231,17 @@ int32_t restorePersistentData(void* pBuf, uint16_t nBufSize, uint32_t nBeginAddr
 			}
 #endif
 #ifdef PERSIST_STM32FLASH
+			if ((nBufSize > (nBeginAddr + STM32FLASH_PREF_SIZE)) || (nBeginAddr >= STM32FLASH_PREF_SIZE)) {
+				xprintfMsg("\r\nError: request data > EEPROM size!");
+				nRes = pdFAIL;
+			} else {
 			// simply copy into buffer data from flash memory where stored preferences
 			uint32_t i = STM32FLASH_BEGIN_ADDR + nBeginAddr;
 			memcpy(pBuf, (void*) (i), nBufSize);
 			nRes = pdPASS;
 			xprintfMsg("\r\nData loaded from FLASH: from %d, %d bytes",nBeginAddr, nBufSize);
+			}
 #endif
-
-		}
 	}
 	return nRes;
 }

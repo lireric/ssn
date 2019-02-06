@@ -1074,7 +1074,7 @@ static void prvGSMSendTask( void *pvParameters )
 
 	while (1) {
 		/* Wait for a message from GSM send queue */
-		while( xQueueReceive( pGSMDev->pvQueueSend, &buf, portMAX_DELAY ) != pdPASS );
+		while( xQueueReceive( pGSMDev->pvQueueSend, &buf, portMAX_DELAY ) != pdPASS ) {};
 		// wait while current GSMData will be processed or timeout
 			if (GSMData.uiState != gsmDATA_INIT) {
 				vTaskDelay(gsmWAIT_DATA_TIMEOUT );

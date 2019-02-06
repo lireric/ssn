@@ -316,7 +316,8 @@ int initialise_rtc(void)
 	 * Otherwise enable it with the LSE as clock source and 32767 as
 	 * prescale value.
 	 */
-	rtc_auto_awake(LSE, 32767);
+//	rtc_auto_awake(LSE, 32767);
+	rtc_auto_awake(RCC_LSE, 32767);
 
 
 

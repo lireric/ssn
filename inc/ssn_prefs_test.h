@@ -44,7 +44,7 @@
 
 //#define WATCHDOG
 
-#define WATCHDOG_PERIOD 10000	// period of watchdog timer (ms)
+//#define WATCHDOG_PERIOD 10000	// period of watchdog timer (ms)
 
 //#define DEBUG_S	// debug task statistics
 
@@ -53,14 +53,14 @@
 // hardware specific FREERTOS settings
 #define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
 #define configTICK_RATE_HZ			( ( portTickType ) 100 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 51 * 1024 ) )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 40 * 1024 ) )
 
 /*-----------------------------------------------------------*/
 /* Hardware application settings */
 #define mainMAX_DEV_GROUPS				(20) 	// max number sensor groups
 #define mainMAX_GRP_DEVICES				(8) 	// default max number devices on one group
 #define mainMAX_ALL_DEVICES				(30) 	// default max number of all devices
-#define mainMAX_DHT_DEVICES				(3) 	// default max number of dht devices
+#define mainMAX_DHT_DEVICES				(2) 	// default max number of dht devices
 #define mainMAX_ROUTES					(2)		// max number routing interfaces
 
 // Heartbeat period (sec)
@@ -90,6 +90,7 @@
 #define EEPROM_ADDRESS        	0xA0	// at24c32
 #define EEPROM_PAGE_SIZE      	32
 #define EEPROM_MAX_SIZE      	4096	//
+#define DS1307_ADDRESS        	0xD0	// rtc ds1307 address
 
 
 /* soft i2c hardware settings */
@@ -103,7 +104,7 @@
 
 /* COM port and baud rate used by the base out task. */
 #define mainBAUD_RATE						( 57600 )
-#define mainBASECOM							( mainCOM0 )
+#define mainBASECOM							( mainCOM1 )
 //#define mainBASECOM_USE_RTS					( 1 ) // if 1, than we use hardware RTS ___ to do
 
 
@@ -118,13 +119,13 @@
 //#define configUSE_TRACE_FACILITY 1
 //#define configUSE_STATS_FORMATTING_FUNCTIONS 1
 
-extern void log_event (void* poldt, void* pnewt, uint32_t xTickCount);
-extern void log_event2 (char c, void* pt);
+//extern void log_event (void* poldt, void* pnewt, uint32_t xTickCount);
+//extern void log_event2 (char c, void* pt);
 
 
 /* xTaskThatWasRunning is defined in main.c. */
-extern void* xTaskThatWasRunning;
-extern void* xBaseOutTaskHnd;
+//extern void* xTaskThatWasRunning;
+//extern void* xBaseOutTaskHnd;
 //extern char cBuffer[];
 
 /* traceTASK_SWITCHED_OUT() is always called before a reschedule, and
@@ -134,7 +135,7 @@ was called. The recorded value is later compared to the task in the Running
 state when the traceTASK_SWITCHED_IN() macro is called to determine if the
 Running state task was changed. */
 
-#define traceTASK_SWITCHED_OUT() xTaskThatWasRunning = (void*) pxCurrentTCB
+//#define traceTASK_SWITCHED_OUT() xTaskThatWasRunning = (void*) pxCurrentTCB
 
 /* traceTASK_SWITCHED_OUT() is always called before a reschedule, and
 traceTASK_SWITCHED_IN() is always called after a reschedule. This definition

@@ -3,7 +3,7 @@
 //#include <sys/times.h>
 //#include <sys/unistd.h>
 //#include <stdint.h>
-#include "libopencmsis/core_cm3.h"
+//#include "libopencmsis/core_cm3.h"
 #include "newlib_stubs.h"
 //#include <stm32f10x.h>
 
@@ -43,6 +43,7 @@
 //  mrs r0, msp
 //  bx lr
 //}
+/*
 __INLINE uint32_t __get_MSP(void)
 {
 //	register bool old;
@@ -51,6 +52,7 @@ __INLINE uint32_t __get_MSP(void)
   __asm__ __volatile__ ("mrs %0, msp" : "=r" (__regMainStackPointer));
   return(__regMainStackPointer);
 }
+*/
 //#endif
 
 
@@ -166,6 +168,7 @@ int _getpid()
  sbrk - увеличить размер области данных, использутся для malloc
  */
 //caddr_t _sbrk(int incr)
+/*
 void * _sbrk(int incr)
 {
 //    extern char _end;
@@ -181,8 +184,8 @@ void * _sbrk(int incr)
     }
     prev_heap_end = heap_end;
 
-    char * stack = (char*) __get_MSP();
-//    char * stack = (char*) __asm__("MSP");
+//    char * stack = (char*) __get_MSP();
+    char * stack = (char*) __asm__("MSP");
 
     if (heap_end + incr > stack)
     {
@@ -198,6 +201,7 @@ void * _sbrk(int incr)
     return (void *) prev_heap_end;
 
 }
+*/
 
 /*
  read - чтение из файла, у нас пока для чтения есть только stdin

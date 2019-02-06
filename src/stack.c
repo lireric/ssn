@@ -11,16 +11,15 @@
 // Common stack functions for work with pointers
 
 
-int32_t initStack(sCommonStack* psStack, uint8_t nMaxSize)
-{
+int32_t initStack(sCommonStack* psStack, uint8_t nMaxSize) {
 	int32_t res = pdFALSE;
-	if (psStack)
-	{
+	if (psStack) {
 		psStack->pStackArray = pvPortMalloc(nMaxSize * sizeof(void*));
-		if (psStack->pStackArray)
+		if (psStack->pStackArray) {
 			psStack->top = 0;
 			psStack->nMaxSize = nMaxSize;
 			res = pdTRUE;
+		}
 	}
 	return res;
 }
@@ -63,16 +62,15 @@ uint8_t getCurrentStackSize(sCommonStack* psStack)
 // ************************************************************************
 // RPN stack functions for work with values
 
-int32_t resetRS(sRPNStack* pRPNStack, uint8_t nMaxSize)
-{
+int32_t resetRS(sRPNStack* pRPNStack, uint8_t nMaxSize) {
 	int32_t res = pdFALSE;
-	if (pRPNStack)
-	{
-		pRPNStack->stack = (int32_t*)pvPortMalloc(nMaxSize * sizeof(int32_t));
-		if (pRPNStack->stack)
+	if (pRPNStack) {
+		pRPNStack->stack = (int32_t*) pvPortMalloc(nMaxSize * sizeof(int32_t));
+		if (pRPNStack->stack) {
 			pRPNStack->top = 0;
 			pRPNStack->nMaxSize = nMaxSize;
 			res = pdTRUE;
+		}
 	}
 	return res;
 //	pRPNStack->top = 0;

@@ -97,7 +97,7 @@
 
 #define countof(a) (sizeof(a) / sizeof(*(a)))
 
-uint8_t Rx1Buffer[BUFFER1_SIZE];
+//uint8_t Rx1Buffer[BUFFER1_SIZE];
 
 
 #ifndef  mainINPUT_QUEUE_SIZE

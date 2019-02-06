@@ -327,12 +327,11 @@ s32 *v_uncomp_pressure_s32)
  *  @return Return the actual pressure output as u32
  *
 */
-u32 bme280_compensate_pressure_int32(sDevice* pDev, s32 v_uncomp_pressure_s32)
-{
+u32 bme280_compensate_pressure_int32(sDevice* pDev, s32 v_uncomp_pressure_s32) {
 	/* assign BME280 ptr */
 	bme280_t * p_bme280;
 	if (pDev)
-		p_bme280 = (bme280_t*)pDev->pDevStruct;
+		p_bme280 = (bme280_t*) pDev->pDevStruct;
 	else
 		return -1; // error
 
@@ -341,68 +340,61 @@ u32 bme280_compensate_pressure_int32(sDevice* pDev, s32 v_uncomp_pressure_s32)
 	u32 v_pressure_u32 = BME280_INIT_VALUE;
 
 	/* calculate x1*/
-	v_x1_u32 = (((s32)p_bme280->cal_param.t_fine)
-	>> BME280_SHIFT_BIT_POSITION_BY_01_BIT) - (s32)64000;
+	v_x1_u32 = (((s32) p_bme280->cal_param.t_fine)
+			>> BME280_SHIFT_BIT_POSITION_BY_01_BIT) - (s32) 64000;
 	/* calculate x2*/
 	v_x2_u32 = (((v_x1_u32 >> BME280_SHIFT_BIT_POSITION_BY_02_BITS)
-	* (v_x1_u32 >> BME280_SHIFT_BIT_POSITION_BY_02_BITS)
-	) >> BME280_SHIFT_BIT_POSITION_BY_11_BITS)
-	* ((s32)p_bme280->cal_param.dig_P6);
+			* (v_x1_u32 >> BME280_SHIFT_BIT_POSITION_BY_02_BITS))
+			>> BME280_SHIFT_BIT_POSITION_BY_11_BITS)
+			* ((s32) p_bme280->cal_param.dig_P6);
 	/* calculate x2*/
-	v_x2_u32 = v_x2_u32 + ((v_x1_u32 *
-	((s32)p_bme280->cal_param.dig_P5))
-	<< BME280_SHIFT_BIT_POSITION_BY_01_BIT);
+	v_x2_u32 = v_x2_u32
+			+ ((v_x1_u32 * ((s32) p_bme280->cal_param.dig_P5))
+					<< BME280_SHIFT_BIT_POSITION_BY_01_BIT);
 	/* calculate x2*/
-	v_x2_u32 = (v_x2_u32 >> BME280_SHIFT_BIT_POSITION_BY_02_BITS) +
-	(((s32)p_bme280->cal_param.dig_P4)
-	<< BME280_SHIFT_BIT_POSITION_BY_16_BITS);
+	v_x2_u32 = (v_x2_u32 >> BME280_SHIFT_BIT_POSITION_BY_02_BITS)
+			+ (((s32) p_bme280->cal_param.dig_P4)
+					<< BME280_SHIFT_BIT_POSITION_BY_16_BITS);
 	/* calculate x1*/
-	v_x1_u32 = (((p_bme280->cal_param.dig_P3 *
-	(((v_x1_u32 >> BME280_SHIFT_BIT_POSITION_BY_02_BITS) *
-	(v_x1_u32 >> BME280_SHIFT_BIT_POSITION_BY_02_BITS))
-	>> BME280_SHIFT_BIT_POSITION_BY_13_BITS))
-	>> BME280_SHIFT_BIT_POSITION_BY_03_BITS) +
-	((((s32)p_bme280->cal_param.dig_P2) *
-	v_x1_u32) >> BME280_SHIFT_BIT_POSITION_BY_01_BIT))
-	>> BME280_SHIFT_BIT_POSITION_BY_18_BITS;
+	v_x1_u32 = (((p_bme280->cal_param.dig_P3
+			* (((v_x1_u32 >> BME280_SHIFT_BIT_POSITION_BY_02_BITS)
+					* (v_x1_u32 >> BME280_SHIFT_BIT_POSITION_BY_02_BITS))
+					>> BME280_SHIFT_BIT_POSITION_BY_13_BITS))
+			>> BME280_SHIFT_BIT_POSITION_BY_03_BITS)
+			+ ((((s32) p_bme280->cal_param.dig_P2) * v_x1_u32)
+					>> BME280_SHIFT_BIT_POSITION_BY_01_BIT))
+			>> BME280_SHIFT_BIT_POSITION_BY_18_BITS;
 	/* calculate x1*/
-	v_x1_u32 = ((((32768 + v_x1_u32)) *
-	((s32)p_bme280->cal_param.dig_P1))
-	>> BME280_SHIFT_BIT_POSITION_BY_15_BITS);
+	v_x1_u32 = ((((32768 + v_x1_u32)) * ((s32) p_bme280->cal_param.dig_P1))
+			>> BME280_SHIFT_BIT_POSITION_BY_15_BITS);
 	/* calculate pressure*/
-	v_pressure_u32 =
-	(((u32)(((s32)1048576) - v_uncomp_pressure_s32)
-	- (v_x2_u32 >> BME280_SHIFT_BIT_POSITION_BY_12_BITS))) * 3125;
-	if (v_pressure_u32
-	< 0x80000000)
-		/* Avoid exception caused by division by zero */
-		if (v_x1_u32 != BME280_INIT_VALUE)
-			v_pressure_u32 =
-			(v_pressure_u32
-			<< BME280_SHIFT_BIT_POSITION_BY_01_BIT) /
-			((u32)v_x1_u32);
-		else
-			return BME280_INVALID_DATA;
-	else
+	v_pressure_u32 = (((u32) (((s32) 1048576) - v_uncomp_pressure_s32)
+			- (v_x2_u32 >> BME280_SHIFT_BIT_POSITION_BY_12_BITS))) * 3125;
+	if (v_pressure_u32 < 0x80000000)
 		/* Avoid exception caused by division by zero */
 		if (v_x1_u32 != BME280_INIT_VALUE)
 			v_pressure_u32 = (v_pressure_u32
-			/ (u32)v_x1_u32) * 2;
+					<< BME280_SHIFT_BIT_POSITION_BY_01_BIT) / ((u32) v_x1_u32);
 		else
 			return BME280_INVALID_DATA;
-
-		v_x1_u32 = (((s32)p_bme280->cal_param.dig_P9) *
-		((s32)(((v_pressure_u32 >> BME280_SHIFT_BIT_POSITION_BY_03_BITS)
-		* (v_pressure_u32 >> BME280_SHIFT_BIT_POSITION_BY_03_BITS))
-		>> BME280_SHIFT_BIT_POSITION_BY_13_BITS)))
-		>> BME280_SHIFT_BIT_POSITION_BY_12_BITS;
-		v_x2_u32 = (((s32)(v_pressure_u32
-		>> BME280_SHIFT_BIT_POSITION_BY_02_BITS)) *
-		((s32)p_bme280->cal_param.dig_P8))
-		>> BME280_SHIFT_BIT_POSITION_BY_13_BITS;
-		v_pressure_u32 = (u32)((s32)v_pressure_u32 +
-		((v_x1_u32 + v_x2_u32 + p_bme280->cal_param.dig_P7)
-		>> BME280_SHIFT_BIT_POSITION_BY_04_BITS));
+	else {
+		/* Avoid exception caused by division by zero */
+		if (v_x1_u32 != BME280_INIT_VALUE)
+			v_pressure_u32 = (v_pressure_u32 / (u32) v_x1_u32) * 2;
+		else
+			return BME280_INVALID_DATA;
+	}
+	v_x1_u32 = (((s32) p_bme280->cal_param.dig_P9)
+			* ((s32) (((v_pressure_u32 >> BME280_SHIFT_BIT_POSITION_BY_03_BITS)
+					* (v_pressure_u32 >> BME280_SHIFT_BIT_POSITION_BY_03_BITS))
+					>> BME280_SHIFT_BIT_POSITION_BY_13_BITS)))
+			>> BME280_SHIFT_BIT_POSITION_BY_12_BITS;
+	v_x2_u32 = (((s32) (v_pressure_u32 >> BME280_SHIFT_BIT_POSITION_BY_02_BITS))
+			* ((s32) p_bme280->cal_param.dig_P8))
+			>> BME280_SHIFT_BIT_POSITION_BY_13_BITS;
+	v_pressure_u32 = (u32) ((s32) v_pressure_u32
+			+ ((v_x1_u32 + v_x2_u32 + p_bme280->cal_param.dig_P7)
+					>> BME280_SHIFT_BIT_POSITION_BY_04_BITS));
 
 	return v_pressure_u32;
 }

@@ -476,7 +476,7 @@ int32_t pwm_setup(sDevice* pDev, char* psChannels)
 	{
 		gpio_primary_remap(0, AFIO_MAPR_TIM3_REMAP_FULL_REMAP); // to do - auto define remap or not!
 	}
-	timer_reset(pGrp->GrpDev.pTimer);
+//	timer_reset(pGrp->GrpDev.pTimer);
 	timer_set_mode(pGrp->GrpDev.pTimer, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
 
 	/* Reset prescaler value. */
@@ -543,14 +543,16 @@ int32_t adc_setup(sDevice* pDev, char* psChannels)
 	for (i = 0; i < pGrp->iDevQty; i++)
 	{
 		uint8_t nIndex = ((sADC_data_t*)pDev->pDevStruct)->nChannelArray[i];
-		gpio_set_mode(adcPortsArray[nIndex], GPIO_MODE_INPUT,
+		if (nIndex < 16) {
+			gpio_set_mode(adcPortsArray[nIndex], GPIO_MODE_INPUT,
 					GPIO_CNF_INPUT_ANALOG, 1 << nIndex);
+		}
 	}
 
 	rcc_periph_clock_enable(RCC_ADC1);
 
 	/* Make sure the ADC doesn't run during config. */
-	adc_off(ADC1);
+//	adc_off(ADC1);
 
 	/* We configure everything for one single conversion. */
 	adc_enable_scan_mode(ADC1);
@@ -560,7 +562,8 @@ int32_t adc_setup(sDevice* pDev, char* psChannels)
 
 
 /* We want to read the temperature sensor, so we have to enable it. */
-adc_enable_temperature_sensor(ADC1);
+adc_enable_temperature_sensor();
+//adc_enable_temperature_sensor(ADC1);
 	adc_set_sample_time_on_all_channels(ADC1, ADC_SMPR_SMP_28DOT5CYC);
 
 	adc_power_on(ADC1);
@@ -570,7 +573,8 @@ adc_enable_temperature_sensor(ADC1);
 		__asm__("nop");
 
 	adc_reset_calibration(ADC1);
-	adc_calibration(ADC1);
+//	adc_calibration(ADC1);
+	adc_calibrate_async(ADC1);
 
 adc_setup_ret:
 	return nRes;

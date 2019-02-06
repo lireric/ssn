@@ -31,10 +31,7 @@
 #include "bb_device.h"
 #include "soft_i2c.h"
 
-
-//использвоание на примере FRAM
-
-static const uint8_t EEPROM_SADDR = 0xA0;
+//static const uint8_t EEPROM_SADDR = 0xA0;
 
 /*******************************************************************************
 *

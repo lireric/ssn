@@ -45,7 +45,7 @@ void tshw_init(void)
 	rcc_periph_clock_enable(RCC_ADC1);
 
 	/* Make sure the ADC doesn't run during config. */
-	adc_off(TS_ADC);
+//	adc_off(TS_ADC);
     adc_set_dual_mode(ADC_CR1_DUALMOD_IND);
     adc_set_single_conversion_mode(TS_ADC);
 //    adc_enable_trigger(TS_ADC, ADC_CR2_EXTSEL_SWSTART);
@@ -93,7 +93,7 @@ static uint16_t ADC_Measure(uint16_t ch)
 	uint8_t channel_array[16];
 
 	/* Make sure the ADC doesn't run during config. */
-	adc_off(TS_ADC);
+//	adc_off(TS_ADC);
 	/* We configure everything for one single conversion. */
 	adc_disable_scan_mode(TS_ADC);
 	adc_set_single_conversion_mode(TS_ADC);
@@ -120,7 +120,8 @@ static uint16_t ADC_Measure(uint16_t ch)
 	
 	/* Start ADC calibaration */
 //	ADC_StartCalibration(TS_ADC);
-    adc_calibration(TS_ADC);
+//    adc_calibration(TS_ADC);
+    adc_calibrate_async(TS_ADC);
 	/* Check the end of ADC calibration */
 //	while(ADC_GetCalibrationStatus(TS_ADC));
 #endif     
@@ -138,7 +139,7 @@ static uint16_t ADC_Measure(uint16_t ch)
 //    val = adc_read_regular(TS_ADC);
     val = ADC_DR(TS_ADC);
 	
-    adc_off(TS_ADC);
+//    adc_off(TS_ADC);
 
 	return val;
 }

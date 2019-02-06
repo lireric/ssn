@@ -34,10 +34,10 @@
 
 //uint8_t ack = 0;
 
-static const uint8_t I2CSWM_DIRECTION_TX = 0;
-static const uint8_t I2CSWM_DIRECTION_RX = 1;
+//static const uint8_t I2CSWM_DIRECTION_TX = 0;
+//static const uint8_t I2CSWM_DIRECTION_RX = 1;
 
-static const uint8_t I2CSWM_NACK = 1;
+//static const uint8_t I2CSWM_NACK = 1;
 static const uint8_t I2CSWM_ACK = 0;
 
 #define DELAY_TICS                          (12)
@@ -72,7 +72,8 @@ void soft_i2c_init(sGrpDev* pGrpDev)
 			GPIO_CNF_OUTPUT_OPENDRAIN, 1 << pGrpDev->ucPin2);
 
 /* Reset timer peripheral. */
-	timer_reset(pGrpDev->pTimer);
+//	timer_reset(pGrpDev->pTimer);
+	timer_disable_counter(pGrpDev->pTimer);
 	timer_set_mode(pGrpDev->pTimer, TIM_CR1_CKD_CK_INT,
 		       TIM_CR1_CMS_EDGE, TIM_CR1_DIR_DOWN);
 /* Reset prescaler value. */
@@ -85,6 +86,7 @@ void soft_i2c_init(sGrpDev* pGrpDev)
 	timer_set_period(pGrpDev->pTimer, 1);
 	soft_i2c_set_wire_SDA(pGrpDev);		// SETSDA
 	soft_i2c_set_wire_SCL(pGrpDev);		// SETSCL
+	timer_enable_counter(pGrpDev->pTimer);
 }
 
 /* clear pGrpDev->ucPin2

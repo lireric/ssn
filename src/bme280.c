@@ -100,7 +100,7 @@ int32_t bme280DeviceInit(sDevice *pDev) {
 	int32_t nRes = 0;
 
 	if (!pDev) {
-		nRes = -1;
+		nRes = -100;
 		goto bmp280InitEnd;
 		// error
 	}

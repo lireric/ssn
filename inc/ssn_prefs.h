@@ -29,10 +29,10 @@
 #ifndef INC_SSN_PREFS_H_
 #define INC_SSN_PREFS_H_
 
-//#define CONF_TEST
+#define CONF_TEST
 //#define CONF_RELEASE
-//#define CONF_PROD2 	// Kokorino
-#define CONF_PROD1 		// Lobnja
+//#define CONF_PROD1 	// Kokorino
+//#define CONF_PROD2 		// Lobnja
 
 
 #ifdef CONF_TEST
@@ -47,13 +47,14 @@
 	#include "ssn_prefs_test_rbt6.h"
 #endif
 
-#ifdef CONF_PROD1
+#ifdef CONF_PROD2
 //	#include "ssn_prefs_prod1.h"
 	#include "ssn_prefs_v1_p2.h"
 #endif
 
-#ifdef CONF_PROD2
-	#include "ssn_prefs_prod2.h"
+#ifdef CONF_PROD1
+//	#include "ssn_prefs_prod2.h"
+	#include "ssn_prefs_v1_p1.h"
 #endif
 
 /* periodic task rates */
@@ -69,9 +70,9 @@
 #define gsmGSM_TASK_START_PRIORITY			( tskIDLE_PRIORITY + 1 )
 #define mainCHECK_SENSOR_MR_TASK_PRIORITY	( tskIDLE_PRIORITY + 1 )
 #define mainCHECK_SENSOR_HR_TASK_PRIORITY	( tskIDLE_PRIORITY + 2 )
-#define mainPROC_SENSOR_TASK_PRIORITY		( tskIDLE_PRIORITY + 3 )
+#define mainPROC_SENSOR_TASK_PRIORITY		( tskIDLE_PRIORITY + 2 )
 #define mainECHO_TASK_PRIORITY				( tskIDLE_PRIORITY + 1 )
-#define mainBASEOUT_TASK_PRIORITY			( tskIDLE_PRIORITY + 1 )
+#define mainBASEOUT_TASK_PRIORITY			( tskIDLE_PRIORITY)
 
 #define  devMAX_MSG_LEN				(127)
 
@@ -115,7 +116,7 @@
 #define mainINPUT_TASK_STACK	250
 #endif
 #ifndef mainPROCSENSORS_TASK_STACK
-#define mainPROCSENSORS_TASK_STACK	180
+#define mainPROCSENSORS_TASK_STACK	200
 #endif
 
 

@@ -80,6 +80,10 @@
 
 #include "ssn_prefs.h"
 
+//#define vPortSVCHandler SVC_Handler
+//#define xPortPendSVHandler PendSV_Handler
+//#define xPortSysTickHandler SysTick_Handler
+
 //#define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )
 //#define configTICK_RATE_HZ			( ( portTickType ) 100 )
 //#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 59 * 1024 ) )
@@ -87,7 +91,7 @@
 #define configUSE_IDLE_HOOK			1
 #define configUSE_TICK_HOOK			0
 #define configMAX_PRIORITIES		( 4 )
-#define configMINIMAL_STACK_SIZE	( ( unsigned short ) 150 )
+#define configMINIMAL_STACK_SIZE	( ( unsigned short ) 300 )
 #define configMAX_TASK_NAME_LEN		( 16 )
 #define configUSE_16_BIT_TICKS		0
 #define configIDLE_SHOULD_YIELD		1
@@ -112,8 +116,8 @@
 #define configUSE_TIMERS				1
 
 #define configTIMER_TASK_PRIORITY		( tskIDLE_PRIORITY + 3 )
-#define configTIMER_TASK_STACK_DEPTH	( ( unsigned short ) 250 )
-#define configTIMER_QUEUE_LENGTH		10
+#define configTIMER_TASK_STACK_DEPTH	( ( unsigned short ) 300 )
+#define configTIMER_QUEUE_LENGTH		15
 
 /* Set the following definitions to 1 to include the API function, or zero
 to exclude the API function. */
@@ -133,7 +137,7 @@ to exclude the API function. */
 
 /* This is the raw value as per the Cortex-M3 NVIC.  Values can be 255
 (lowest) to 0 (1?) (highest). */
-#define configKERNEL_INTERRUPT_PRIORITY 		0xff
+#define configKERNEL_INTERRUPT_PRIORITY 		0xf0
 /* !!!! configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to zero !!!!
 See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY 	190 /* equivalent to 0xb0, or priority 11. */
@@ -143,7 +147,7 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 priority values, 0 to 15.  This must correspond to the
 configKERNEL_INTERRUPT_PRIORITY setting.  Here 15 corresponds to the lowest
 NVIC value of 255. */
-#define configLIBRARY_KERNEL_INTERRUPT_PRIORITY	15
+#define configLIBRARY_KERNEL_INTERRUPT_PRIORITY	14
 
 /*-----------------------------------------------------------
  * UART configuration.

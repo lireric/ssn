@@ -39,7 +39,7 @@ const int  __attribute__((used)) uxTopUsedPriority = configMAX_PRIORITIES;
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2018-07-03.1"
+#define SSN_VERSION "2019-02-07.1"
 
 /* Global variables 			========================================== */
 
@@ -109,8 +109,8 @@ xTaskHandle pDevInitTask;
 /* Private function prototypes ========================================== */
 void RCC_Configuration(void);
 void NVIC_Configuration(void);
-void nmi_handler(void);
-void hardfault_handler(void);
+//void nmi_handler(void);
+//void hardfault_handler(void);
 int  main(void);
 void myDelay(unsigned long delay );
 void Clk_Init (void);
@@ -153,6 +153,7 @@ static void prvLogOutTask( void *pvParameters );
 //static void 	StepMotorTimerFunction(void* pParam);
 #endif
 
+/*
 void vApplicationIdleHook( void );
 
 // Define the vector table
@@ -164,6 +165,7 @@ unsigned int * myvectors[4]
    	(unsigned int *)	hardfault_handler	// hard fault handler (let's hope not)
 };
 
+*/
 
 
 
@@ -330,9 +332,10 @@ int main(void)
 		RCC_Configuration();
 
 		//  initialise_rtc();
-		//  rtc_awake_from_off(LSE);
-		//  rtc_awake_from_off(LSI);
-		  rtc_auto_awake(LSE, 0x7FFF); // prescale set 1s
+//		  rtc_awake_from_off(RCC_LSE);
+//		  rtc_awake_from_off(RCC_LSI);
+		  rtc_auto_awake(RCC_LSE, 0x7FFF); // prescale set 1s
+//		  rtc_auto_awake(RCC_LSI, 0x7FFF); // prescale set 1s
 
   grpArray = (sGrpInfo **) pvPortMalloc(mainMAX_DEV_GROUPS * sizeof(void*));
   devArray = (sDevice **) pvPortMalloc(mainMAX_ALL_DEVICES * sizeof(void*));
@@ -720,7 +723,7 @@ processLocalMessages:
 					xprintfMsg("\r\nPreferences saved: %d", xReturn);
 					vTaskDelay( 1000 / portTICK_PERIOD_MS );
 					main_reboot(); 	// reboot
-				    while (1);
+				    while (1) {};
 
 					break;
 				}
@@ -1194,9 +1197,8 @@ static void prvCronFunc( void *pvParameters )
 				&& ((xSSNPDU.state == SSN_STATE_LOADING) || (xSSNPDU.state == SSN_STATE_DATA)))
 		{
 			xSSNPDU.state = SSN_STATE_ERROR;
+			xprintfMsg("\r\nSSN receive data timeout error!\r\nCnt: %d\r\nbuf: %s", xSSNPDU.counter, xSSNPDU.cSSNBuffer);
 			vPortFree(xSSNPDU.buffer);
-			//sendBaseOut("\r\nSSN receive data timeout error!");
-			xprintfMsg("\r\nSSN receive data timeout error!");
 		}
 
 #ifdef  WATCHDOG
@@ -1462,11 +1464,12 @@ static void prvBaseOutTask( void *pvParameters )
 {
 	( void ) pvParameters;
 	  portBASE_TYPE xReturn;
-	char buf[mainMAX_MSG_LEN+1];
-	memset (&buf,0,mainMAX_MSG_LEN+1);
+//	char buf[mainMAX_MSG_LEN+1];
+	char *buf = pvPortMalloc(mainMAX_MSG_LEN+1);
+	memset (buf,0,mainMAX_MSG_LEN+1);
 	while (1) {
 		/* Wait for a message from base out queue */
-		while( (xQueueReceive( xBaseOutQueue, &buf, portMAX_DELAY ) != pdPASS) && (xSSNPDU.state != SSN_STATE_LOADING) && (xSSNPDU.state != SSN_STATE_DATA));
+		while( (xQueueReceive( xBaseOutQueue, buf, portMAX_DELAY ) != pdPASS) && (xSSNPDU.state != SSN_STATE_LOADING) && (xSSNPDU.state != SSN_STATE_DATA));
 		if (lComState == pdPASS) {
 			// check minimum send after receive timeout and make some delay if needed:
 			if ((getMainTimerTick() - xSSNPDU.uiLastTick) < SSN_MIN_SEND_TIMEOUT) {

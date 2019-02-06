@@ -105,7 +105,7 @@ int32_t dht_device_init(sDevice* dev) {
 			GPIO_CNF_OUTPUT_OPENDRAIN, 1 << pGrpDev->ucPin2);
 
 	/* Reset timer peripheral. */
-	timer_reset(pGrpDev->pTimer);
+//	timer_reset(pGrpDev->pTimer);
 	timer_set_mode(pGrpDev->pTimer, TIM_CR1_CKD_CK_INT,
 		       TIM_CR1_CMS_EDGE, TIM_CR1_DIR_DOWN);
 
@@ -163,23 +163,31 @@ uint32_t dht_get_data (sDevice* dev) {
 	nPulsePeriod = measure_period_nus(pGrpDev, DHT_TIMEOUT);
 	if ((nPulsePeriod < DHT_TREH_MIN) || (nPulsePeriod > DHT_TREH_MAX) || (nPulsePeriod >= DHT_TIMEOUT)) return DHT_COM_ERROR;
 	// start reading
-	while(pos > 0)
-	{
+	while (pos > 0) {
 		//  Signal "0", "1" low time
 		delay_nus(pGrpDev, 1);  // some delay
 		nPulsePeriod = measure_period_nus(pGrpDev, DHT_TIMEOUT);
-		if (((nPulsePeriod < DHT_TLOW_MIN) || (nPulsePeriod > DHT_TLOW_MAX)) || (nPulsePeriod >= DHT_TIMEOUT)) return DHT_COM_ERROR;
+		if (((nPulsePeriod < DHT_TLOW_MIN) || (nPulsePeriod > DHT_TLOW_MAX))
+				|| (nPulsePeriod >= DHT_TIMEOUT))
+			return DHT_COM_ERROR;
 		nPulsePeriod = measure_period_nus(pGrpDev, DHT_TIMEOUT);
-		if  (nPulsePeriod >= DHT_TIMEOUT) return DHT_NO_CONN;
-		else
-			if ((nPulsePeriod > DHT_TH0_MIN) && (nPulsePeriod < DHT_TH0_MAX)) currentbit = 0;
+		if (nPulsePeriod >= DHT_TIMEOUT)
+			return DHT_NO_CONN;
+		else {
+			if ((nPulsePeriod > DHT_TH0_MIN) && (nPulsePeriod < DHT_TH0_MAX))
+				currentbit = 0;
+			else if ((nPulsePeriod > DHT_TH1_MIN)
+					&& (nPulsePeriod < DHT_TH1_MAX))
+				currentbit = 1;
 			else
-				if ((nPulsePeriod > DHT_TH1_MIN) && (nPulsePeriod < DHT_TH1_MAX)) currentbit = 1;
-				else return DHT_COM_ERROR;
+				return DHT_COM_ERROR;
 
-			if (currentbit) data += bitmask;
-			pos--; bitmask  >>= 1;
+			if (currentbit)
+				data += bitmask;
+			pos--;
+			bitmask >>= 1;
 			delay_nus(pGrpDev, 3);  // some delay
+		}
 	}
 
 	//release line

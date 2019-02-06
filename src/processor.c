@@ -776,44 +776,52 @@ sEvtElm* parseActionString(char* pAStr)
 	    	    		}
 	    	    	break;
 	    	    }
-	    	    case eCurState_A_Arg3_Process:
-	    	    {
+				case eCurState_A_Arg3_Process: {
+					if (c == '\'') { // process string constant
+						nStrBuf = 0;
+						xActElm.nActCmdOut = 0;
+						nCurrentState = eCurState_A_Arg3S_Process;
+					} else {
 
-   	    			if (c == '\'')
-   	    			{ // process string constant
-   	    				nStrBuf = 0;
-	    	    		xActElm.nActCmdOut = 0;
-    	    			nCurrentState = eCurState_A_Arg3S_Process;
-    	    			break;
-   	    			} else
-	    	    	if (c == ')') {
-	    	    			// action has only 3 arguments - push it to elm stack
-	    	    			nCurrentState = eCurState_A_Push;
-	    	    			goto beginSwitch;
-	    	    	} else
-	    	    		if (c == ',')
-	    	    	{
-	    	    			d = 0;
-	    	    			xActElm.nActCmdOut = 0;
-	    	    			xActElm.nActFlag |= devEXEC_ACTION_FLAG_OUT_ARG;
-	    	    			nCurrentState = eCurState_A_Arg4_Process;
-	    	    			break;
-	    	    	}
+						for (k2 = k; k2 <= nStrLen; k2++) {
+							char c2 = pAStr[k2];
+							if (c2 == ' ')
+								continue;
+							if ((c2 == ',') || (c2 == ')')) {
+								break;
+							}
+						}
+						nStrLimit = k2;
 
+						res = parseCalcString(pAStr, k, nStrLimit, &xActElm.nElmDataIn,
+								&k2);
+						if (!res) {
+							nCurrentState = eCurStateParseError;
+							break;
+						}
+						xActElm.nElmDataType = eElmInteger;
+						d = 0;
+						k = k2+1;
+						c = pAStr[k];
 
-   	    			nStrLimit = lookForCalcStrLimit(pAStr, k);
-   	    			res = parseCalcString(pAStr, k, nStrLimit, &xActElm.nElmDataIn, &k2);
-	    	       	if (!res)
-	    	       	{
-	    	       		nCurrentState = eCurStateParseError;
-	    	       	} else
-	    	       	{
-	    	       		xActElm.nElmDataType = eElmInteger;
-	    	    		d = 0;
-	    	    		k = k2;
-	    	       	}
-	    	       	break;
-	    	    }
+						if (c == ')') {
+							// action has only 3 arguments - push it to elm stack
+							nCurrentState = eCurState_A_Push;
+							goto beginSwitch;
+						} else {
+							//						nStrLimit = lookForCalcStrLimit(pAStr, k);
+
+							if (c == ',') {
+								d = 0;
+								xActElm.nActCmdOut = 0;
+								xActElm.nActFlag |= devEXEC_ACTION_FLAG_OUT_ARG;
+								nCurrentState = eCurState_A_Arg4_Process;
+							}
+						}
+					}
+					break;
+				}
+
 	    	    case eCurState_A_Arg3S_Process:
 	    	    {
 					if (c == '\'') {
@@ -860,12 +868,13 @@ sEvtElm* parseActionString(char* pAStr)
 	    	    		d = 0;
     	    			nCurrentState = eCurState_A_Arg4_Process;
     	    			xActElm.nActFlag |= devEXEC_ACTION_FLAG_OUT_ARG;
-	    	    	} else
+	    	    	} else {
 		    	    	if (c == ')') {
 		    	    		// action has only 3 arguments - push it to elm stack
 	    	    			nCurrentState = eCurState_A_Push;
 	    	    			goto beginSwitch;
 	    	    	}
+	    	    }
 	    			break;
 	    	    }
 	    	    case eCurState_A_Arg4_Process:
@@ -914,6 +923,7 @@ sEvtElm* parseActionString(char* pAStr)
 //	    	       		xActElm.nElmDataType = eElmInteger;
 	    	    		d = 0;
 	    	    		k = k2;
+	    	    		nCurrentState = eCurState_A_Push;
 	    	       	}
 	    	       	break;
 	    	    }
