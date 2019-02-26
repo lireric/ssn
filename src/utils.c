@@ -113,6 +113,8 @@ uint32_t get_rcc_by_port(uint32_t nPort)
 		case TIM3:	nRet = RCC_TIM3;	break;
 		case TIM4:	nRet = RCC_TIM4;	break;
 		case TIM5:	nRet = RCC_TIM5;	break;
+		case TIM6:	nRet = RCC_TIM6;	break;
+		case TIM7:	nRet = RCC_TIM7;	break;
 		}
 	return nRet;
 }

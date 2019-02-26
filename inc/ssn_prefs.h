@@ -100,6 +100,10 @@
 #define STM32FLASH_PAGE_SIZE	((uint16_t)0x400)
 #endif
 
+#ifndef SOFTI2C_TIMER_1
+#define SOFTI2C_TIMER_1 		TIM6    // timer for module delays
+#endif
+
 #ifndef MAX_ACTION_ARRAY_SIZE
 #define MAX_ACTION_ARRAY_SIZE	50
 #endif

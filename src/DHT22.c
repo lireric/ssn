@@ -150,22 +150,26 @@ uint32_t dht_get_data (sDevice* dev) {
 	//reset DHT22
 	bb_wire_out(pGrpDev);
 	bb_clear_wire(pGrpDev);
-	delay_nus(pGrpDev, DHT_TBE);	// 1ms
+//	delay_nus(pGrpDev, DHT_TBE);	// 1ms
+	delay_nus2(DHT_TBE);	// 1ms
 	bb_set_wire(pGrpDev);
-	delay_nus(pGrpDev, DHT_TGO);
+//	delay_nus(pGrpDev, DHT_TGO);
+	delay_nus2(DHT_TGO);
 	bb_wire_in(pGrpDev);
 	// Response to low time
 	nPulsePeriod = measure_period_nus(pGrpDev, DHT_TIMEOUT);
 	if ((nPulsePeriod < DHT_TREL_MIN) || (nPulsePeriod > DHT_TREL_MAX) || (nPulsePeriod >= DHT_TIMEOUT)) return DHT_COM_ERROR;
 
 	// In response to high time
-	delay_nus(pGrpDev, 3);  // some delay
+//	delay_nus(pGrpDev, 3);  // some delay
+	delay_nus2(3);  // some delay
 	nPulsePeriod = measure_period_nus(pGrpDev, DHT_TIMEOUT);
 	if ((nPulsePeriod < DHT_TREH_MIN) || (nPulsePeriod > DHT_TREH_MAX) || (nPulsePeriod >= DHT_TIMEOUT)) return DHT_COM_ERROR;
 	// start reading
 	while (pos > 0) {
 		//  Signal "0", "1" low time
-		delay_nus(pGrpDev, 1);  // some delay
+//		delay_nus(pGrpDev, 1);  // some delay
+		delay_nus2(1);  // some delay
 		nPulsePeriod = measure_period_nus(pGrpDev, DHT_TIMEOUT);
 		if (((nPulsePeriod < DHT_TLOW_MIN) || (nPulsePeriod > DHT_TLOW_MAX))
 				|| (nPulsePeriod >= DHT_TIMEOUT))
@@ -186,7 +190,8 @@ uint32_t dht_get_data (sDevice* dev) {
 				data += bitmask;
 			pos--;
 			bitmask >>= 1;
-			delay_nus(pGrpDev, 3);  // some delay
+//			delay_nus(pGrpDev, 3);  // some delay
+			delay_nus2(3);  // some delay
 		}
 	}
 

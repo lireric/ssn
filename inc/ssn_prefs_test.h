@@ -98,7 +98,7 @@
 #define SOFTI2C_1_PIN_SDA        7	//	PB7 11
 #define SOFTI2C_1_PIN_SCL        6	//	PB6 10
 #define SOFTI2C_1_PORT      	 GPIOB
-#define SOFTI2C_TIMER_1 		TIM3    // timer for module delays
+#define SOFTI2C_TIMER_1 		TIM7    // timer for module delays
 #define SOFTI2C_1_GRP			( 0 )	// group soft i2c
 #define SOFTI2C_1_MAXDEVS		( 2 )
 

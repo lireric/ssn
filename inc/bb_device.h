@@ -57,6 +57,8 @@ typedef struct
 } OWI_device;
 
 //  -- common functions for all bb-control devices
+void 	delay_timer_init();
+void 	delay_nus2(uint32_t nDelay);
 void 	delay_nus(sGrpDev* pGrpDev, uint32_t nCount);	// nCount 16 bit!!!
 void 	delay_ms(sGrpDev* pGrpDev, uint32_t nCount);	// nCount 16 bit!!!
 

@@ -119,7 +119,8 @@ uint8_t ds_start_convert_all(sGrpInfo* pGrpInfo, uint16_t devIndex)
 	  	  result2 = ds_read_temperature(pGrpDev, (ds18b20_device*) pDev->pDevStruct);
 	  	  if (result2) { result++; }
 //		  } taskEXIT_CRITICAL();
-	  	  delay_nus(pGrpDev, 1000);				// wait
+//	  	  delay_nus(pGrpDev, 1000);				// wait
+	  	  delay_nus2(1000);				// wait
 	  }
 	}
   return result;	// more errors -> more return value

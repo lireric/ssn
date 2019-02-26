@@ -26,11 +26,56 @@
  *      Common functions for bit banding control device
  */
 
+#include "utils.h"
 #include "device.h"
 #include "bb_device.h"
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/timer.h>
 #include "FreeRTOS.h"
+
+
+// init common timer
+// use SOFTI2C_TIMER_1 timer
+void delay_timer_init() {
+	rcc_periph_clock_enable(get_rcc_by_port(SOFTI2C_TIMER_1));
+	timer_set_prescaler(SOFTI2C_TIMER_1, 72);
+	timer_direction_up(SOFTI2C_TIMER_1);
+	timer_continuous_mode(SOFTI2C_TIMER_1);
+	timer_set_counter(SOFTI2C_TIMER_1, 0);
+	/* Start timer. */
+	TIM_CR1(SOFTI2C_TIMER_1) |= TIM_CR1_CEN;
+	timer_enable_counter(SOFTI2C_TIMER_1);
+
+}
+// make delay in microseconds
+// use SOFTI2C_TIMER_1 timer
+// take nDelay parameter
+
+void delay_nus2(uint32_t nDelay) {
+	// remember current timer value:
+	volatile uint16_t TIMCounter_0 = timer_get_counter(SOFTI2C_TIMER_1);
+	volatile uint16_t TIMCounter_1;
+	uint16_t deltaCounter;
+	uint16_t nIteration = (nDelay / 65535);
+	while (((nIteration * 65535) + nDelay) > 0) {
+		TIMCounter_1 = timer_get_counter(SOFTI2C_TIMER_1);
+		if ((TIMCounter_1 - TIMCounter_0) < 0) {
+			if (nIteration > 0) {
+				nIteration--;
+			}
+			deltaCounter = TIMCounter_0 - TIMCounter_1;
+		} else {
+			deltaCounter = TIMCounter_1 - TIMCounter_0;
+		}
+		if (deltaCounter >= nDelay)  {
+			break;
+		}
+		else {
+			nDelay = nDelay - deltaCounter;
+		}
+		TIMCounter_0 = TIMCounter_1;
+	}
+}
 
 void delay_nus(sGrpDev* pGrpDev, uint32_t nCount) {
 	volatile uint16_t TIMCounter = nCount;
@@ -151,13 +196,16 @@ uint8_t owi_reset_pulse(sGrpDev* pGrpDev)
 		return 2; // check line for sort circuit
 	bb_wire_out(pGrpDev);
 	bb_clear_wire(pGrpDev);
-	delay_nus(pGrpDev, 480);
+//	delay_nus(pGrpDev, 480);
+	delay_nus2(480);
 	bb_wire_in(pGrpDev);
-	delay_nus(pGrpDev, 70);
+//	delay_nus(pGrpDev, 70);
+	delay_nus2(70);
 	result = bb_read_wire_data_bit(pGrpDev);
 	bb_wire_out(pGrpDev);
 	bb_set_wire(pGrpDev);
-	delay_nus(pGrpDev, 500);
+//	delay_nus(pGrpDev, 500);
+	delay_nus2(500);
 	if (result)
 		return 1;                            // owi sensor not found
 	return 0;                                // Success
@@ -172,12 +220,14 @@ void owi_write_bit(volatile uint8_t bit, sGrpDev* pGrpDev)
 {
 	bb_wire_out(pGrpDev);
 	bb_clear_wire(pGrpDev);
-	delay_nus(pGrpDev, 2);
+//	delay_nus(pGrpDev, 2);
+	delay_nus2(2);
 	if (bit) {
 //		send '1'
 		bb_wire_in(pGrpDev);
 	}
-	delay_nus(pGrpDev, 60);
+//	delay_nus(pGrpDev, 60);
+	delay_nus2(60);
 	bb_wire_in(pGrpDev);
 }
 
@@ -191,12 +241,15 @@ uint16_t owi_read_bit(sGrpDev* pGrpDev) {
 
 	bb_wire_out(pGrpDev);
 	bb_clear_wire(pGrpDev);
-	delay_nus(pGrpDev, 2);
+//	delay_nus(pGrpDev, 2);
+	delay_nus2(2);
 	bb_wire_in(pGrpDev);
-	delay_nus(pGrpDev, 15);
+//	delay_nus(pGrpDev, 15);
+	delay_nus2(15);
 	result = bb_read_wire_data_bit(pGrpDev);
 
-	delay_nus(pGrpDev, 45);
+//	delay_nus(pGrpDev, 45);
+	delay_nus2(45);
 	return result;
 }
 
@@ -236,43 +289,8 @@ OWI_device*  owi_device_init(sGrpDev* pGrpDev) {
 	if (!pOWIDev) return pOWIDev;
 
 	rcc_periph_clock_enable(pGrpDev->pPort);
-	switch (pGrpDev->pTimer) {
-	case TIM1:
-		rcc_periph_clock_enable(RCC_TIM1);
-		break;
-	case TIM2:
-		rcc_periph_clock_enable(RCC_TIM2);
-		break;
-	case TIM3:
-		rcc_periph_clock_enable(RCC_TIM3);
-		break;
-	case TIM4:
-		rcc_periph_clock_enable(RCC_TIM4);
-		break;
-	case TIM5:
-		rcc_periph_clock_enable(RCC_TIM5);
-		break;
-	}
-
 	gpio_set_mode(pGrpDev->pPort, GPIO_MODE_INPUT,
 			GPIO_CNF_INPUT_FLOAT, 1 << pGrpDev->ucPin);
-
-/* Reset timer peripheral. */
-//	timer_reset(pGrpDev->pTimer);
-	timer_set_mode(pGrpDev->pTimer, TIM_CR1_CKD_CK_INT,
-		       TIM_CR1_CMS_EDGE, TIM_CR1_DIR_DOWN);
-
-/* Reset prescaler value. */
-	timer_set_prescaler(pGrpDev->pTimer, 72);
-
-/* Enable preload. */
-	timer_disable_preload(pGrpDev->pTimer);
-
-/* Timer mode. */
-	timer_one_shot_mode(pGrpDev->pTimer);
-
-/* Period */
-	timer_set_period(pGrpDev->pTimer, 1);
 
 	return pOWIDev;
 }

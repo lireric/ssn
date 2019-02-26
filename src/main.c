@@ -39,7 +39,7 @@ const int  __attribute__((used)) uxTopUsedPriority = configMAX_PRIORITIES;
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2019-02-07.1"
+#define SSN_VERSION "2019-02-26.1"
 
 /* Global variables 			========================================== */
 
@@ -378,6 +378,8 @@ int main(void)
 //		debugMsg(msg);
 
 // ------------------------------------------------------------------------------
+		delay_timer_init(); // init common timer (SOFTI2C_TIMER_1)
+
 	  	sGrpInfo *pGrp;
 		sDevice *pVirtualDev;	// abstract group and device for timer actions cashing
 //		sGrpDev *pGrpDev;
@@ -386,7 +388,7 @@ int main(void)
 		pGrp->uiGroup = SOFTI2C_1_GRP;
 		pGrp->iDevQty = 0; // not applicable to virtual group
 //		pGrpDev = &pGrp->GrpDev;
-		pGrp->GrpDev.pTimer = SOFTI2C_TIMER_1;
+		pGrp->GrpDev.pTimer = SOFTI2C_TIMER_1; // obsolete - use common timer
 //		pGrpDev->pTimer = SOFTI2C_TIMER_1;
 
 		pVirtualDev = newDev();

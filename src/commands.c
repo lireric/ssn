@@ -396,8 +396,9 @@ int32_t storePreferences(char* sBuf, uint16_t nBufSize)
 
 	vPortFree(pBufTmp);
 
-	sGrpInfo* pGrpInfo = getGrpInfo (0);
-	delay_nus(&pGrpInfo->GrpDev, 10000);	// 10ms
+//	sGrpInfo* pGrpInfo = getGrpInfo (0);
+//	delay_nus(&pGrpInfo->GrpDev, 10000);	// 10ms
+	delay_nus2(10000);	// 10ms
 
 	storePreferencesEnd:
 	return nRes;
