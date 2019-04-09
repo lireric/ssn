@@ -30,6 +30,13 @@
 #include <stdarg.h>
 #include "dev_memory.h"
 
+#ifdef  M_ETHERNET
+#include "ethernet.h"
+#include "dhcp.h"
+#include "w5500/w5500.h"
+#include "w5500/socket.h"
+#endif
+
 #include "utils.h"
 #ifdef PERSIST_STM32FLASH
 #include <libopencm3/stm32/flash.h>
@@ -579,7 +586,9 @@ void sendBaseOut (char *str)
 	uint32_t xReturn;
 //	char msg[mainMAX_MSG_LEN];
 	char *msg = pvPortMalloc(mainMAX_MSG_LEN);
-
+	if (getEthernetState() == SOCK_ESTABLISHED) {
+		send(0,(uint8*)str,strlen(str));
+	}
 		for (uiCnt=0; uiCnt<=strlen(str)/mainMAX_MSG_LEN; uiCnt++)
 		{
 			uiBufLen = strlen(str)-uiCnt*mainMAX_MSG_LEN;

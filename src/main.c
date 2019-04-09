@@ -20,6 +20,7 @@
 
 #include "utils.h"
 #include "task.h"
+#include "ssnpdu.h"
 #include "commands.h"
 #include "../inc/ssn.h"
 #include "../inc/ini.h"
@@ -39,7 +40,7 @@ const int  __attribute__((used)) uxTopUsedPriority = configMAX_PRIORITIES;
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2019-02-26.1"
+#define SSN_VERSION "2019-04-9.1"
 
 /* Global variables 			========================================== */
 
@@ -59,6 +60,15 @@ void* xBaseOutTaskHnd;
 
 #ifdef  M_MHZ19
 #include "../inc/mh-z19b.h"
+#endif
+
+#ifdef  M_ETHERNET
+#include "ethernet.h"
+#include "dhcp.h"
+#include "w5500/w5500.h"
+#include "w5500/socket.h"
+uint8 nCurrentInternetState = 0;
+
 #endif
 
 //sGrpInfo *grpArray[mainMAX_DEV_GROUPS];
@@ -95,7 +105,6 @@ uint32_t 	uiLastHeartBeatTS = 0;
 
 sPrefsBuffer xPrefsBuffer;
 
-const char* cSSNSTART = "===ssn1";
 sSSNPDU xSSNPDU;
 
 int uiDevCounter=0;
@@ -135,6 +144,9 @@ static void prvCheckSensorMRTask( void *pvParameters );
 
 /* The process sensors data task. */
 static void prvProcSensorTask( void *pvParameters );
+
+static void prvEthernetTCPTask( void *pvParameters );
+static void prvEthernetUDPTask( void *pvParameters );
 
 static void prvUSARTEchoTask( void *pvParameters );
 
@@ -341,6 +353,8 @@ int main(void)
   devArray = (sDevice **) pvPortMalloc(mainMAX_ALL_DEVICES * sizeof(void*));
   actArray = (sAction **) pvPortMalloc(mainMAX_ACTIONS * sizeof(void*));
 
+  delay_timer_init(); // init common timer (SOFTI2C_TIMER_1)
+
   ulIdleCycleCount = 0UL;
   portBASE_TYPE xReturn;
   uint8_t res;
@@ -369,16 +383,21 @@ int main(void)
 #ifdef  M_USART
 	  	lComState = lCOMPortInit( mainBASECOM, mainBAUD_RATE, mainBASECOM_Priority );
 #endif
+
+	  	xprintfMsg("\r\n\r\nStart SSN. Version: %s ", SSN_VERSION);
+
+	  	EthernetHardwareInit();
+	  	ethernetInitDHCP();
+
 /*
+ *
  * to do: make init other UARTs if needed...
  */
 		//sendBaseOut("\r\n\r\nStart SSN");
 //	  	xsprintf(( portCHAR *) msg, "\r\n\r\nStart SSN. Version: %s\n", SSN_VERSION);
-	  	xprintfMsg("\r\n\r\nStart SSN. Version: %s ", SSN_VERSION);
 //		debugMsg(msg);
 
 // ------------------------------------------------------------------------------
-		delay_timer_init(); // init common timer (SOFTI2C_TIMER_1)
 
 	  	sGrpInfo *pGrp;
 		sDevice *pVirtualDev;	// abstract group and device for timer actions cashing
@@ -411,6 +430,7 @@ int main(void)
 #endif
 
 		hw_loadtime();
+
 
 // check skip preferences button:
 
@@ -467,6 +487,10 @@ if (res && xPrefsBuffer.buffer) {
 
 
 skipLoadPrefs:
+
+//init_dhcp_client();
+//check_DHCP_state(0);
+
 // ------------------------------------------------------------------------------
 	xReturn = xTaskCreate( prvBaseOutTask, ( char * ) "BaseOutTask", 210, NULL, mainBASEOUT_TASK_PRIORITY, &pTmpTask );
 	xBaseOutTaskHnd = (void*) pTmpTask;
@@ -479,7 +503,8 @@ skipLoadPrefs:
 	xReturn = xTaskCreate( prvUSARTEchoTask, ( char * ) "Echo", 250, NULL, mainECHO_TASK_PRIORITY, &pTmpTask );
 
 	xTimerHandle xTimer;
-(void) xTimer;
+	//(void) xTimer;
+	prefix_unused(xTimer);
 	xTimer = xTimerCreate("Cron", mainCronRate, pdTRUE, NULL, prvCronFunc);
 	xTimerStart(xTimer, 0);
 
@@ -502,6 +527,14 @@ skipLoadPrefs:
 
 	xReturn = xTaskCreate( prvProcSensorTask, ( char * ) "ProcSensorTask", mainPROCSENSORS_TASK_STACK, devArray, mainPROC_SENSOR_TASK_PRIORITY, &pTmpTask );
 
+#ifdef M_ETHERNET
+#ifdef ETHERNET_TCP
+	xReturn = xTaskCreate( prvEthernetTCPTask, ( char * ) "EtherTskTCP", 210, NULL, tskIDLE_PRIORITY + 2, &pTmpTask );
+#endif
+#ifdef ETHERNET_UDP
+	xReturn = xTaskCreate( prvEthernetUDPTask, ( char * ) "EtherTskUDP", 210, NULL, tskIDLE_PRIORITY + 2, &pTmpTask );
+#endif
+#endif
 
 	( void ) xReturn;
 
@@ -1175,6 +1208,88 @@ static void prvCheckSensorHRTask(void *pvParameters) {
 	}
 }
 
+#ifdef M_ETHERNET
+#ifdef ETHERNET_TCP
+/* Process Ethernet TCP connection */
+static void prvEthernetTCPTask(void *pvParameters) {
+	(void) pvParameters;
+	sSSNPDU* xSSNPDU;
+//	  uint8 pc_ip[4]={192,168,1,101};
+	  uint16 port=6001;
+//	  uint16 anyport=30001;
+	  uint16 len=0;
+	  uint16 len_recv;
+	  uint8 buffer[2048];
+	  uint8 nRes;
+
+	while (1) {
+		//		taskYIELD();
+		nCurrentInternetState = getSn_SR(0);
+		switch (nCurrentInternetState)
+		{
+		case SOCK_INIT:
+			nRes = listen(0);
+			xprintfMsg("\r\nTCP socket init: %d", nRes);
+			if (nRes == 0) {
+				ethernetInitDHCP(); // to do...
+			}
+//			connect(0, pc_ip, port);
+			break;
+		case SOCK_LISTEN:
+			break;
+		case SOCK_ESTABLISHED:
+			if (getSn_IR(0) & Sn_IR_CON) {
+				setSn_IR(0, Sn_IR_CON);
+			}
+
+			len = getSn_RX_RSR(0);
+			if (len > 0) {
+				len_recv = recv(0, buffer, len);
+				if (len_recv > 0) {
+					buffer[len_recv] = 0;
+					xprintfMsg("\r\nTCP receive: %s", buffer);
+					xSSNPDU = parseSSNPDU ((char*)buffer);
+					if (xSSNPDU) {
+					/* Write the received message to common Input queue. */
+					vSendInputMessage(1, xSSNPDU->obj_dest, xSSNPDU->message_type,
+							xSSNPDU->obj_src, 0, 0, (void*) xSSNPDU->buffer,
+							xSSNPDU->nDataSize, 0);
+					}
+//				send(0,buffer,len);
+				}
+			}
+			break;
+		case SOCK_CLOSE_WAIT:
+			xprintfMsg("\r\nTCP socket close wait");
+			close(0);
+			break;
+		case SOCK_CLOSED:
+			ethernetInitDHCP(); // to do...
+			socket(0, Sn_MR_TCP, port, Sn_MR_ND);
+			xprintfMsg("\r\nTCP socket closed");
+			break;
+	    default :
+			xprintfMsg("\r\nTCP state: %d", nCurrentInternetState);
+	        break;
+		}
+		vTaskDelay(mainEthernetRateTCP);
+	}
+}
+#endif
+
+#ifdef ETHERNET_UDP
+/* Process Ethernet UDP connection */
+static void prvEthernetUDPTask(void *pvParameters) {
+	(void) pvParameters;
+//	volatile uint8_t res;
+
+	while (1) {
+		vTaskDelay(mainEthernetRateUDP);
+	}
+}
+#endif
+#endif
+
 static uint32_t	getMainTimerTick()
 {
 	return uiMainTick;
@@ -1313,7 +1428,8 @@ static void prvProcSensorTask( void *pvParameters )
 static void prvUSARTEchoTask( void *pvParameters )
 {
 signed char cChar = 0;
-char cTmpBuf[mainMAX_MSG_LEN];
+//char cTmpBuf[mainMAX_MSG_LEN];
+char cTmpBuf[6];
 uint8_t nScanCnt;
 uint16_t calcCRC;
 

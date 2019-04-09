@@ -86,6 +86,9 @@
 #ifdef  M_BME280
 	#include "bme280.h"
 #endif
+#ifdef  M_ETHERNET
+	#include "ethernet.h"
+#endif
 
 #ifdef  M_STEPMOTOR
 #include "stepmotor.h"

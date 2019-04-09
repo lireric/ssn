@@ -41,7 +41,7 @@
 #define M_BME280
 #define M_STEPMOTOR
 #define M_MHZ19
-
+#define M_ETHERNET
 //#define WATCHDOG
 
 //#define WATCHDOG_PERIOD 10000	// period of watchdog timer (ms)

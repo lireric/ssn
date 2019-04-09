@@ -37,22 +37,7 @@ typedef enum {FAILED = 0, PASSED = !FAILED} TestStatus;
 #endif
 
 /*---------------------------------------------------------------------------*/
-/* -- SSN serial protocol description -----------------------------------------
- *
- * Format: "===ssn1DDDDSSSSTTLLLL...CCCC"
- *
- * ===1 - start packet (protocol version 1)
- * DDDD - destination object (2 byte: hex chars - 0-9, A-F)
- * SSSS - source object (2 byte: hex chars - 0-9, A-F)
- * TT - message type (1 byte: hex chars - 0-9, A-F)
- * LLLL - packet length (2 byte: hex chars - 0-9, A-F)
- * ... data
- * CCCC - CRC16 (2 byte: hex chars - 0-9, A-F)
- *
- * data sending in ascii format
- * timeout = 2 sec
- *
- * */
+
 #define SSN_TIMEOUT 	( 2000 )		// timeout 2000 ms
 #define SSN_MIN_SEND_TIMEOUT 	( 30 )	// minimum send after receive timeout - 30 ms
 #define SSN_SKIP_0A		(0) // if 1 skip 0x0A char from input message body
@@ -65,20 +50,7 @@ typedef enum {FAILED = 0, PASSED = !FAILED} TestStatus;
 #define SSN_STATE_READY     3	// data loaded in buffer, ready for parsing
 #define SSN_STATE_ERROR     4	// Error in packet loading (CRC error, timeout error)
 
-/* SSN protocol data unit */
-typedef struct
-{
-	uint8_t 	state;			// state of SSN buffer (SSN_STATE_XXX constants)
-	uint16_t		obj_dest;		// destination object
-	uint16_t		obj_src;		// source object
-	uint8_t		message_type;	// message type (mainXXX_MESSAGE constants)
-	uint16_t	crc16;			// CRC16 (get from message)
-	uint16_t 	counter;		// pointer to current position in buffer
-	uint16_t	nDataSize;		// data length
-	char 		cSSNBuffer[15];	// buffer for loading SSN protocol header
-	char		*buffer;		// pointer to data buffer
-	uint32_t	uiLastTick;		// last get data
-} sSSNPDU;
+
 
 /* -- JSON settings -----------------------------------------*/
 #define JSON_BUFFER_INCREMENT   500

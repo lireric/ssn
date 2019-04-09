@@ -38,6 +38,16 @@ OBJS+=bme280dev.o
 OBJS+=bme280.o
 OBJS+=mh-z19b.o
 
+OBJS+=w5500/md5.o
+OBJS+=w5500/socket.o
+OBJS+=w5500/SPI2.o
+OBJS+=w5500/w5500.o
+OBJS+=sockutil.o
+OBJS+=ethernet.o
+OBJS+=dhcp.o
+OBJS+=dns.o
+OBJS+=ssnpdu.o
+
 all: src
 
 src: app.a

@@ -134,10 +134,10 @@ which is used to fixed the integer size*/
 /************************************************/
 
 /*unsigned integer types*/
-typedef	uint8_t u8;/**< used for unsigned 8bit */
-typedef	uint16_t u16;/**< used for unsigned 16bit */
-typedef	uint32_t u32;/**< used for unsigned 32bit */
-typedef	uint64_t u64;/**< used for unsigned 64bit */
+//typedef	uint8_t u8;/**< used for unsigned 8bit */
+//typedef	uint16_t u16;/**< used for unsigned 16bit */
+//typedef	uint32_t u32;/**< used for unsigned 32bit */
+//typedef	uint64_t u64;/**< used for unsigned 64bit */
 
 /*signed integer types*/
 typedef int8_t s8;/**< used for signed 8bit */

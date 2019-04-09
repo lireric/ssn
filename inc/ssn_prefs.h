@@ -63,6 +63,8 @@
 #define mainSensorRateHR			( ( portTickType ) 100 / portTICK_RATE_MS )
 #define mainCronRate				( ( portTickType ) 100 / portTICK_RATE_MS )
 #define mainDEBUG_STAT_RATE			( ( portTickType ) 10000 / portTICK_RATE_MS )
+#define mainEthernetRateTCP			( ( portTickType ) 100 / portTICK_RATE_MS )
+#define mainEthernetRateUDP			( ( portTickType ) 100 / portTICK_RATE_MS )
 
 /* Task priorities. */
 #define mainDEBUG_OUT_TASK_PRIORITY			( tskIDLE_PRIORITY)
@@ -123,5 +125,42 @@
 #define mainPROCSENSORS_TASK_STACK	200
 #endif
 
+// Local MAC address
+#ifndef ETHERNET_LOCAL_MAC
+#define ETHERNET_LOCAL_MAC {0,0,0,0,0,0} // to do
+#endif
+// Subnet mask received from the DHCP server
+#ifndef ETHERNET_DHCP_SN
+#define ETHERNET_DHCP_SN { 255, 0, 0, 0} // to do
+#endif
+// Gateway ip address received from the DHCP server
+#ifndef ETHERNET_DHCP_GW
+#define ETHERNET_DHCP_GW {192,168,1,5} // to do
+#endif
+// DNS server ip address received from the DHCP server
+#ifndef ETHERNET_DHCP_DNS
+#define ETHERNET_DHCP_DNS {192,168,1,5} // to do
+#endif
+// DNS server ip address
+#ifndef ETHERNET_DNS_SERVER
+#define ETHERNET_DNS_SERVER "192.168.1.5" // to do
+#endif
+// HOST NAME
+#ifndef ETHERNET_DHCP_NAME
+#define ETHERNET_DHCP_NAME "ssnmcu"
+#endif
+// Local ip address received from the DHCP server
+#ifndef ETHERNET_DHCP_SIP
+#define ETHERNET_DHCP_SIP {192,168,1,100}
+#endif
+
+// USE TCP
+#ifndef ETHERNET_TCP
+#define ETHERNET_TCP
+#endif
+// USE UDP
+#ifndef ETHERNET_UDP
+#define ETHERNET_UDP
+#endif
 
 #endif /* INC_SSN_PREFS_H_ */
