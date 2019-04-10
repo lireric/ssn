@@ -127,17 +127,17 @@
 
 // Local MAC address
 #ifndef ETHERNET_LOCAL_MAC
-#define ETHERNET_LOCAL_MAC {0,0,0,0,0,0} // to do
+#define ETHERNET_LOCAL_MAC {0x00,0x08,0xdc,0x11,0x11,0x12} // to do
 #endif
-// Subnet mask received from the DHCP server
-#ifndef ETHERNET_DHCP_SN
-#define ETHERNET_DHCP_SN { 255, 0, 0, 0} // to do
+// Subnet mask
+#ifndef ETHERNET_SSN_SN
+#define ETHERNET_SSN_SN { 255, 255, 255, 0} // to do
 #endif
-// Gateway ip address received from the DHCP server
-#ifndef ETHERNET_DHCP_GW
-#define ETHERNET_DHCP_GW {192,168,1,5} // to do
+// Gateway ip address
+#ifndef ETHERNET_SSN_GW
+#define ETHERNET_SSN_GW {192,168,1,5} // to do
 #endif
-// DNS server ip address received from the DHCP server
+// DNS server ip address
 #ifndef ETHERNET_DHCP_DNS
 #define ETHERNET_DHCP_DNS {192,168,1,5} // to do
 #endif
@@ -149,10 +149,15 @@
 #ifndef ETHERNET_DHCP_NAME
 #define ETHERNET_DHCP_NAME "ssnmcu"
 #endif
-// Local ip address received from the DHCP server
-#ifndef ETHERNET_DHCP_SIP
-#define ETHERNET_DHCP_SIP {192,168,1,100}
+// Local ip address default
+#ifndef ETHERNET_SSN_SIP
+#define ETHERNET_SSN_SIP {192,168,1,111}
 #endif
+// Local ip address default
+#ifndef ETHERNET_SSN_SERVER_PORT
+#define ETHERNET_SSN_SERVER_PORT 6001
+#endif
+
 
 // USE TCP
 #ifndef ETHERNET_TCP

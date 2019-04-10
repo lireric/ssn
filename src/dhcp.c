@@ -15,10 +15,10 @@
 
 uint8   SRC_MAC_ADDR[]   =  EXTERN_DHCP_MAC;    // Local MAC address
 uint8   GET_SN_MASK[]    =  EXTERN_DHCP_SN;     // Subnet mask received from the DHCP server
-uint8   GET_GW_IP[]      = EXTERN_DHCP_GW;     // Gateway ip address received from the DHCP server
-uint8   GET_DNS_IP[]     = EXTERN_DHCP_DNS;    // DNS server ip address received from the DHCP server
-uint8   DHCP_HOST_NAME[] = EXTERN_DHCP_NAME;   // HOST NAME
-uint8   GET_SIP[]        = EXTERN_DHCP_SIP;    // Local ip address received from the DHCP server
+uint8   GET_GW_IP[]      =  EXTERN_DHCP_GW;     // Gateway ip address received from the DHCP server
+uint8   GET_DNS_IP[]     =  EXTERN_DHCP_DNS;    // DNS server ip address received from the DHCP server
+uint8   DHCP_HOST_NAME[] =  EXTERN_DHCP_NAME;   // HOST NAME
+uint8   GET_SIP[]        =  EXTERN_DHCP_SIP;    // Local ip address received from the DHCP server
 uint8   DHCP_SIP[4] = {0,};      // DNS server ip address is discovered
 uint8   DHCP_REAL_SIP[4] = {0,}; // For extract my DHCP server in a few DHCP servers
 uint8   OLD_SIP[4];        // Previous local ip address received from DHCP server

@@ -107,6 +107,10 @@
 #define mainBASECOM							( mainCOM1 )
 //#define mainBASECOM_USE_RTS					( 1 ) // if 1, than we use hardware RTS ___ to do
 
+#define ETHERNET_SSN_SIP 			{192,168,1,112}
+#define ETHERNET_SSN_SERVER_PORT	6002
+#define ETHERNET_DNS_SERVER 		"192.168.1.5"
+#define ETHERNET_SSN_GW 			{192,168,1,5}
 
 /* Maximum elements number in parsed action formula string */
 #define MAX_ACTION_ARRAY_SIZE			(50)

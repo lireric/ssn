@@ -40,7 +40,7 @@ const int  __attribute__((used)) uxTopUsedPriority = configMAX_PRIORITIES;
 
 #define NVIC_CCR ((volatile unsigned long *)(0xE000ED14))
 
-#define SSN_VERSION "2019-04-9.1"
+#define SSN_VERSION "2019-04-10.1"
 
 /* Global variables 			========================================== */
 
@@ -68,6 +68,12 @@ void* xBaseOutTaskHnd;
 #include "w5500/w5500.h"
 #include "w5500/socket.h"
 uint8 nCurrentInternetState = 0;
+
+uint8 mac[6]=ETHERNET_LOCAL_MAC;
+uint8 lip[4]=ETHERNET_SSN_SIP;
+uint8 sub[4]=ETHERNET_SSN_SN;
+uint8 gw[4]=ETHERNET_SSN_GW;
+uint16 port=ETHERNET_SSN_SERVER_PORT;
 
 #endif
 
@@ -387,7 +393,7 @@ int main(void)
 	  	xprintfMsg("\r\n\r\nStart SSN. Version: %s ", SSN_VERSION);
 
 	  	EthernetHardwareInit();
-	  	ethernetInitDHCP();
+	  	ethernetInit();
 
 /*
  *
@@ -1215,11 +1221,12 @@ static void prvEthernetTCPTask(void *pvParameters) {
 	(void) pvParameters;
 	sSSNPDU* xSSNPDU;
 //	  uint8 pc_ip[4]={192,168,1,101};
-	  uint16 port=6001;
+//	  uint16 port=ETHERNET_SSN_SERVER_PORT;
 //	  uint16 anyport=30001;
 	  uint16 len=0;
 	  uint16 len_recv;
-	  uint8 buffer[2048];
+//	  uint8 buffer[2048];
+	  uint8* buffer = 0;
 	  uint8 nRes;
 
 	while (1) {
@@ -1229,9 +1236,9 @@ static void prvEthernetTCPTask(void *pvParameters) {
 		{
 		case SOCK_INIT:
 			nRes = listen(0);
-			xprintfMsg("\r\nTCP socket init: %d", nRes);
+			xprintfMsg("\r\nTCP server socket init: %d, port: %d", nRes, port);
 			if (nRes == 0) {
-				ethernetInitDHCP(); // to do...
+				ethernetInit(); // to do...
 			}
 //			connect(0, pc_ip, port);
 			break;
@@ -1244,18 +1251,25 @@ static void prvEthernetTCPTask(void *pvParameters) {
 
 			len = getSn_RX_RSR(0);
 			if (len > 0) {
-				len_recv = recv(0, buffer, len);
-				if (len_recv > 0) {
-					buffer[len_recv] = 0;
-					xprintfMsg("\r\nTCP receive: %s", buffer);
-					xSSNPDU = parseSSNPDU ((char*)buffer);
-					if (xSSNPDU) {
-					/* Write the received message to common Input queue. */
-					vSendInputMessage(1, xSSNPDU->obj_dest, xSSNPDU->message_type,
-							xSSNPDU->obj_src, 0, 0, (void*) xSSNPDU->buffer,
-							xSSNPDU->nDataSize, 0);
-					}
+				buffer = pvPortMalloc(len + 1);
+				if (buffer) {
+					len_recv = recv(0, buffer, len);
+					if (len_recv > 0) {
+						buffer[len_recv] = 0;
+						xprintfMsg("\r\nTCP receive: %s", buffer);
+						xSSNPDU = parseSSNPDU((char*) buffer);
+						if (xSSNPDU) {
+							/* Write the received message to common Input queue. */
+							vSendInputMessage(1, xSSNPDU->obj_dest,
+									xSSNPDU->message_type, xSSNPDU->obj_src, 0,
+									0, (void*) xSSNPDU->buffer,
+									xSSNPDU->nDataSize, 0);
+							// vPortFree(xSSNPDU->buffer);
+							vPortFree(xSSNPDU);
+						}
 //				send(0,buffer,len);
+					}
+					vPortFree(buffer);
 				}
 			}
 			break;
@@ -1264,7 +1278,7 @@ static void prvEthernetTCPTask(void *pvParameters) {
 			close(0);
 			break;
 		case SOCK_CLOSED:
-			ethernetInitDHCP(); // to do...
+			ethernetInit(); // to do...
 			socket(0, Sn_MR_TCP, port, Sn_MR_ND);
 			xprintfMsg("\r\nTCP socket closed");
 			break;

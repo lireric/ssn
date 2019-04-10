@@ -46,6 +46,18 @@ char * cPassMessage[ mainMAX_MSG_LEN ];
 //#ifdef  M_GSM
 extern	void prvStartGSMTask( void *pvParameters );
 //#endif
+#ifdef  M_ETHERNET
+#include "ethernet.h"
+#include "dhcp.h"
+#include "w5500/w5500.h"
+#include "w5500/socket.h"
+#include "sockutil.h"
+extern	uint8 mac[6];
+extern	uint8 lip[4];
+extern	uint8 sub[4];
+extern	uint8 gw[4];
+extern	uint16 port;
+#endif
 
 //extern int16_t* 	pADCValueArray;
 //extern uint32_t* 	pADCLastUpdate;
@@ -84,6 +96,24 @@ uint16_t 	getLog_Object(void)
 void 		setLog_Object(uint16_t uiObj)
 {
 	uiLog_Object = uiObj;
+}
+
+void 		setIp(char* sBuffer)
+{
+	inet_addr_((unsigned char*)sBuffer, lip);
+}
+
+void 		setNet(char* sBuffer)
+{
+	inet_addr_((unsigned char*)sBuffer, sub);
+}
+void 		setPort(uint16_t nPort)
+{
+	port = nPort;
+}
+void 		setGw(char* sBuffer)
+{
+	inet_addr_((unsigned char*)sBuffer, gw);
 }
 
 /* get route (NODE interface) to object
@@ -237,7 +267,16 @@ uint32_t process_loadprefs_ini_handler(char* sSection, char* sName, char* sValue
 
 	if (MATCH("app", "logobj")) {
 		setLog_Object(conv2d(sValue));		// store object-logger
-	} else if (strcmp(sSection, "grp") == 0) {
+	} else if (MATCH("app", "port")) {
+		setPort(conv2d(sValue));		// store TCP server port
+	} else if (MATCH("app", "ip")) {
+		setIp(sValue);		// store TCP server port
+	} else if (MATCH("app", "net")) {
+		setNet(sValue);		// store TCP server port
+	} else if (MATCH("app", "gw")) {
+		setGw(sValue);		// store TCP server port
+	}
+	else if (strcmp(sSection, "grp") == 0) {
 		// section "grp" --------------------------------------------
 		// check for new group
 		if (strcmp(pIniHandlerData->sLastSection, sSection) != 0) {
